@@ -202,7 +202,7 @@ void megamol::gui::Call::Draw(megamol::gui::PresentPhase phase, megamol::gui::Gr
                         draw_list->AddLine(
                             caller_pos, callee_pos, color_curve, GUI_LINE_THICKNESS * state.canvas.zooming);
                     } else {
-                        draw_list->AddBezierCubic(caller_pos,
+                        draw_list->AddBezierCurve(caller_pos,
                             caller_pos + ImVec2((50.0f * megamol::gui::gui_scaling.Get()), 0.0f),
                             callee_pos + ImVec2((-50.0f * megamol::gui::gui_scaling.Get()), 0.0f), callee_pos,
                             color_curve, GUI_LINE_THICKNESS * state.canvas.zooming);
@@ -247,9 +247,8 @@ void megamol::gui::Call::Draw(megamol::gui::PresentPhase phase, megamol::gui::Gr
                             state.interact.button_hovered_uid = this->uid;
                         }
 
-                        ImGui::PushFont(state.canvas.gui_font_ptr);
-
                         // Context Menu
+                        ImGui::PushFont(state.canvas.gui_font_ptr);
                         if (ImGui::BeginPopupContextItem()) {
                             state.interact.button_active_uid = this->uid;
 
@@ -270,6 +269,7 @@ void megamol::gui::Call::Draw(megamol::gui::PresentPhase phase, megamol::gui::Gr
 
                             ImGui::EndPopup();
                         }
+                        ImGui::PopFont();
 
                         // Hover Tooltip
                         if (!state.interact.call_show_slots_label) {
@@ -279,8 +279,6 @@ void megamol::gui::Call::Draw(megamol::gui::PresentPhase phase, megamol::gui::Gr
                                 this->gui_tooltip.Reset();
                             }
                         }
-
-                        ImGui::PopFont();
 
                     } else if (phase == megamol::gui::PresentPhase::RENDERING) {
 

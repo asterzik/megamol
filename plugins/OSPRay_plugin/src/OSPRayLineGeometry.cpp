@@ -47,9 +47,6 @@ bool OSPRayLineGeometry::readData(core::Call& call) {
     // get transformation parameter
     this->processTransformation();
 
-    // fill clipping plane container
-    this->processClippingPlane();
-
     // read Data, calculate  shape parameters, fill data vectors
     CallOSPRayStructure* os = dynamic_cast<CallOSPRayStructure*>(&call);
 

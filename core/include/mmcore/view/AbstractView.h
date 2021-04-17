@@ -29,8 +29,6 @@
 #include "mmcore/view/TimeControl.h"
 #include "ScriptPaths.h"
 
-#include "ImageWrapper.h"
-
 namespace megamol {
 namespace core {
 namespace view {
@@ -271,10 +269,6 @@ public:
      */
     bool OnResetView(param::ParamSlot& p);
 
-    using ImageWrapper = megamol::frontend_resources::ImageWrapper;
-    virtual ImageWrapper GetRenderingResult() const {
-        return {};
-    }
 
 protected:
 

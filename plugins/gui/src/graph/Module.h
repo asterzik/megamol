@@ -161,7 +161,7 @@ namespace gui {
         CallSlotPtrMap_t callslots;
 
         std::string name;
-        std::string graph_entry_name; // Do not change in Module class, only via Graph class
+        std::string graph_entry_name;
 
         ImGuiID group_uid;
         std::string group_name;

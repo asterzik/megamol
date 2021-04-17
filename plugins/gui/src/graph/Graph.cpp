@@ -13,17 +13,16 @@ using namespace megamol;
 using namespace megamol::gui;
 
 
-megamol::gui::Graph::Graph(const std::string& graph_name)
+megamol::gui::Graph::Graph(const std::string& graph_name, GraphCoreInterface core_interface)
         : uid(megamol::gui::GenerateUniqueID())
         , name(graph_name)
         , modules()
         , calls()
         , groups()
         , dirty_flag(true)
-        , filenames()
+        , filename()
         , sync_queue()
-        , core_interface(GraphCoreInterface::NO_INTERFACE)
-        , running(false)
+        , graph_core_interface(core_interface)
         , gui_graph_state()
         , gui_show_grid(false)
         , gui_show_parameter_sidebar(true)
@@ -46,11 +45,6 @@ megamol::gui::Graph::Graph(const std::string& graph_name)
         , gui_splitter_widget()
         , gui_rename_popup()
         , gui_tooltip() {
-
-    this->filenames.first.first = false;
-    this->filenames.first.second = "";
-    this->filenames.second.first = false;
-    this->filenames.second.second = "";
 
     this->gui_graph_state.canvas.position = ImVec2(0.0f, 0.0f);
     this->gui_graph_state.canvas.size = ImVec2(1.0f, 1.0f);
@@ -97,7 +91,7 @@ megamol::gui::Graph::Graph(const std::string& graph_name)
 
     this->gui_graph_state.interact.parameters_extended_mode = false;
 
-    this->gui_graph_state.interact.graph_core_interface = this->GetCoreInterface();
+    this->gui_graph_state.interact.graph_core_interface = GraphCoreInterface::NO_INTERFACE;
 
     this->gui_graph_state.groups.clear();
     // this->gui_graph_state.hotkeys are already initialzed
@@ -164,8 +158,8 @@ ModulePtr_t megamol::gui::Graph::AddModule(const ModuleStockVector_t& stock_modu
 
                 for (auto& callslots_type : mod.callslots) {
                     for (auto& c : callslots_type.second) {
-                        auto callslot_ptr = std::make_shared<CallSlot>(megamol::gui::GenerateUniqueID(), c.name,
-                            c.description, c.compatible_call_idxs, c.type, c.necessity);
+                        auto callslot_ptr = std::make_shared<CallSlot>(
+                            megamol::gui::GenerateUniqueID(), c.name, c.description, c.compatible_call_idxs, c.type);
                         callslot_ptr->ConnectParentModule(mod_ptr);
                         mod_ptr->AddCallSlot(callslot_ptr);
                     }
@@ -846,6 +840,7 @@ ImGuiID megamol::gui::Graph::AddGroupModule(const std::string& group_name, const
 void megamol::gui::Graph::Clear(void) {
 
     this->ResetStatePointers();
+    // Groups are implicitly deleted when last module of group is deleted.
 
     // 1) Delete all modules
     std::vector<ImGuiID> module_uids;
@@ -863,15 +858,6 @@ void megamol::gui::Graph::Clear(void) {
     }
     for (auto& call_uid : call_uids) {
         this->DeleteCall(call_uid);
-    }
-
-    // 3) Delete all groups
-    std::vector<ImGuiID> group_uids;
-    for (auto& group_ptr : this->groups) {
-        group_uids.emplace_back(group_ptr->UID());
-    }
-    for (auto& group_uid : group_uids) {
-        this->DeleteGroup(group_uid);
     }
 }
 
@@ -902,41 +888,10 @@ bool megamol::gui::Graph::UniqueModuleRename(const std::string& module_full_name
 }
 
 
-const std::string megamol::gui::Graph::GetFilename(void) const {
-
-    if (this->filenames.first.first) {
-        // Return script path
-        return this->filenames.first.second;
-    } else if (this->filenames.second.first) {
-        // Return saved file name
-        return this->filenames.second.second;
-    }
-    return std::string();
-}
-
-
-void megamol::gui::Graph::SetFilename(const std::string& filename, bool saved_filename) {
-
-    if (saved_filename) {
-        if (filename != this->filenames.second.second) {
-            this->filenames.second.second = filename;
-            this->filenames.second.first = true;
-            this->filenames.first.first = false;
-        }
-    } else {
-        if (filename != this->filenames.first.second) {
-            this->filenames.first.second = filename;
-            this->filenames.first.first = true;
-            this->filenames.second.first = false;
-        }
-    }
-}
-
-
 bool megamol::gui::Graph::PushSyncQueue(QueueAction action, const QueueData& in_data) {
 
     // Use sync queue only when interface to core graph is available
-    if (!this->IsRunning())
+    if (!this->HasCoreInterface())
         return false;
 
     // Validate and process given data
@@ -1013,20 +968,8 @@ bool megamol::gui::Graph::PushSyncQueue(QueueAction action, const QueueData& in_
         }
     } break;
     case (QueueAction::CREATE_GRAPH_ENTRY): {
-        if (queue_data.name_id.empty()) {
-            megamol::core::utility::log::Log::DefaultLog.WriteError(
-                "[GUI] Graph sync queue action CREATE_GRAPH_ENTRY is missing data for 'name_id'. [%s, %s, line %d]\n",
-                __FILE__, __FUNCTION__, __LINE__);
-            return false;
-        }
     } break;
     case (QueueAction::REMOVE_GRAPH_ENTRY): {
-        if (queue_data.name_id.empty()) {
-            megamol::core::utility::log::Log::DefaultLog.WriteError(
-                "[GUI] Graph sync queue action REMOVE_GRAPH_ENTRY is missing data for 'name_id'. [%s, %s, line %d]\n",
-                __FILE__, __FUNCTION__, __LINE__);
-            return false;
-        }
     } break;
     default: {
         megamol::core::utility::log::Log::DefaultLog.WriteError(
@@ -1329,33 +1272,26 @@ void megamol::gui::Graph::Draw(GraphState_t& state) {
         ImGuiID graph_uid = this->uid;
         ImGui::PushID(graph_uid);
 
+        // Tab showing this graph ---------------
         bool popup_rename = false;
-
         ImGuiTabItemFlags tab_flags = ImGuiTabItemFlags_None;
         if (this->IsDirty()) {
             tab_flags |= ImGuiTabItemFlags_UnsavedDocument;
         }
-
         std::string graph_label = "    " + this->name + "  ###graph" + std::to_string(graph_uid);
-        if (this->IsRunning()) {
+        if (this->HasCoreInterface()) {
             graph_label = "    [RUNNING]  " + graph_label;
         }
 
-        bool open_value = true;
-        // Hide close button of running project tab
-        bool* tab_open = ((this->IsRunning()) ? (nullptr) : (&open_value));
-
-        // Tab showing this graph
-        if (ImGui::BeginTabItem(graph_label.c_str(), tab_open, tab_flags)) {
+        // Checking for closed tab below
+        bool open = true;
+        if (ImGui::BeginTabItem(graph_label.c_str(), &open, tab_flags)) {
 
             // State Init ----------------------------
-
-            // Only load gui_show_parameter_sidebar from project file for running graph
-            if (this->gui_change_show_parameter_sidebar && this->IsRunning()) {
+            if (this->gui_change_show_parameter_sidebar) {
                 state.show_parameter_sidebar = this->gui_show_parameter_sidebar;
+                this->gui_change_show_parameter_sidebar = false;
             }
-            this->gui_change_show_parameter_sidebar = false;
-
             this->gui_show_parameter_sidebar = state.show_parameter_sidebar;
 
             this->gui_graph_state.hotkeys = state.hotkeys;
@@ -1417,7 +1353,7 @@ void megamol::gui::Graph::Draw(GraphState_t& state) {
                 ImGui::Separator();
 
                 if (ImGui::MenuItem("Save")) {
-                    if (this->IsRunning()) {
+                    if (this->HasCoreInterface()) {
                         state.global_graph_save = true;
                     } else {
                         state.configurator_graph_save = true;
@@ -1442,7 +1378,7 @@ void megamol::gui::Graph::Draw(GraphState_t& state) {
             }
 
             // Draw -----------------------------
-            this->draw_menu(state);
+            this->draw_menu();
 
             if (megamol::gui::gui_scaling.PendingChange()) {
                 this->gui_parameter_sidebar_width *= megamol::gui::gui_scaling.TransitionFactor();
@@ -1814,13 +1750,23 @@ void megamol::gui::Graph::Draw(GraphState_t& state) {
                 this->gui_graph_state.interact.modules_layout = false;
             }
             // Set delete flag if tab was closed ----------------------------------
-            if (!open_value) {
-                state.graph_delete = true;
-                state.graph_selected_uid = this->uid;
+            bool popup_prevent_close_permanent = false;
+            if (!open) {
+                if (this->HasCoreInterface()) {
+                    popup_prevent_close_permanent = true;
+                } else {
+                    state.graph_delete = true;
+                    state.graph_selected_uid = this->uid;
+                }
             }
 
             // Propoagate unhandeled hotkeys back to configurator state -----------
             state.hotkeys = this->gui_graph_state.hotkeys;
+
+            // Prevent closing tab of running project pop-up ----------------------
+            bool tmp;
+            MinimalPopUp::PopUp("Close Project", popup_prevent_close_permanent,
+                "Running project can not be closed in configurator.", "OK", tmp, "", tmp);
 
             // Rename pop-up ------------------------------------------------------
             if (this->gui_rename_popup.PopUp("Rename Project", popup_rename, this->name)) {
@@ -1908,7 +1854,7 @@ void megamol::gui::Graph::Draw(GraphState_t& state) {
 }
 
 
-void megamol::gui::Graph::draw_menu(GraphState_t& state) {
+void megamol::gui::Graph::draw_menu(void) {
 
     ImGuiStyle& style = ImGui::GetStyle();
     auto button_size = ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight());
@@ -1919,24 +1865,41 @@ void megamol::gui::Graph::draw_menu(GraphState_t& state) {
 
     ImGui::BeginMenuBar();
 
-    // RUNNING
-    ImGui::BeginGroup();
-    bool button = megamol::gui::ButtonWidgets::OptionButton("graph_running_button", "", this->IsRunning());
-    bool readonly = this->IsRunning();
-    if (readonly) {
-        gui::GUIUtils::ReadOnlyWigetStyle(true);
+    // GRAPH LAYOUT
+    if (ImGui::Button("Layout Graph")) {
+        this->gui_graph_layout = 1;
     }
-    button |= ImGui::Button(((this->IsRunning()) ? ("Running") : ("Run")));
-    if (readonly) {
-        gui::GUIUtils::ReadOnlyWigetStyle(false);
-    }
-    if (button && !this->IsRunning()) {
-        state.new_running_graph_uid = this->uid;
-    }
-    ImGui::EndGroup();
-
     ImGui::Separator();
 
+    if (ImGui::BeginMenu("Labels")) {
+        // MODULES
+        if (ImGui::BeginMenu("Modules")) {
+            if (ImGui::MenuItem("Name", nullptr, &this->gui_graph_state.interact.module_show_label)) {
+                this->gui_update = true;
+            }
+            if (ImGui::MenuItem("Slots", nullptr, &this->gui_graph_state.interact.callslot_show_label)) {
+                this->gui_update = true;
+            }
+            ImGui::EndMenu();
+        }
+        // CALLS
+        if (ImGui::BeginMenu("Calls")) {
+            if (ImGui::MenuItem("Name", nullptr, &this->gui_graph_state.interact.call_show_label)) {
+                this->gui_update = true;
+            }
+            if (ImGui::MenuItem("Slots", nullptr, &this->gui_graph_state.interact.call_show_slots_label)) {
+                this->gui_update = true;
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenu();
+    }
+    ImGui::Separator();
+
+    // GRID
+    ImGui::Checkbox("Grid", &this->gui_show_grid);
+
+    ImGui::Separator();
 
     // Choose single selected view module
     ModulePtr_t selected_mod_ptr;
@@ -2010,43 +1973,6 @@ void megamol::gui::Graph::draw_menu(GraphState_t& state) {
         }
         ImGui::PopItemWidth();
     }
-
-    ImGui::Separator();
-
-    // GRAPH LAYOUT
-    if (ImGui::Button("Layout Graph")) {
-        this->gui_graph_layout = 1;
-    }
-    ImGui::Separator();
-
-    if (ImGui::BeginMenu("Labels")) {
-        // MODULES
-        if (ImGui::BeginMenu("Modules")) {
-            if (ImGui::MenuItem("Name", nullptr, &this->gui_graph_state.interact.module_show_label)) {
-                this->gui_update = true;
-            }
-            if (ImGui::MenuItem("Slots", nullptr, &this->gui_graph_state.interact.callslot_show_label)) {
-                this->gui_update = true;
-            }
-            ImGui::EndMenu();
-        }
-        // CALLS
-        if (ImGui::BeginMenu("Calls")) {
-            if (ImGui::MenuItem("Name", nullptr, &this->gui_graph_state.interact.call_show_label)) {
-                this->gui_update = true;
-            }
-            if (ImGui::MenuItem("Slots", nullptr, &this->gui_graph_state.interact.call_show_slots_label)) {
-                this->gui_update = true;
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenu();
-    }
-    ImGui::Separator();
-
-    // GRID
-    ImGui::Checkbox("Grid", &this->gui_show_grid);
-
     ImGui::Separator();
 
     // SCROLLING
@@ -2105,32 +2031,32 @@ void megamol::gui::Graph::draw_canvas(float graph_width, GraphState_t& state) {
     // Load font for canvas
     ImFont* gui_font_ptr = io.FontDefault;
     ImFont* graph_font_ptr = nullptr;
-    unsigned int scalings_count = static_cast<unsigned int>(state.graph_zoom_font_scalings.size());
+    unsigned int scalings_count = static_cast<unsigned int>(state.font_scalings.size());
     if (scalings_count == 0) {
         throw std::invalid_argument("Bug: Array for graph fonts is empty.");
     } else if (scalings_count == 1) {
         graph_font_ptr = io.Fonts->Fonts[0];
-        this->gui_current_font_scaling = state.graph_zoom_font_scalings[0];
+        this->gui_current_font_scaling = state.font_scalings[0];
     } else {
         for (unsigned int i = 0; i < scalings_count; i++) {
             bool apply = false;
             if (i == 0) {
-                if (this->gui_graph_state.canvas.zooming <= state.graph_zoom_font_scalings[i]) {
+                if (this->gui_graph_state.canvas.zooming <= state.font_scalings[i]) {
                     apply = true;
                 }
             } else if (i == (scalings_count - 1)) {
-                if (this->gui_graph_state.canvas.zooming >= state.graph_zoom_font_scalings[i]) {
+                if (this->gui_graph_state.canvas.zooming >= state.font_scalings[i]) {
                     apply = true;
                 }
             } else {
-                if ((state.graph_zoom_font_scalings[i - 1] < this->gui_graph_state.canvas.zooming) &&
-                    (this->gui_graph_state.canvas.zooming < state.graph_zoom_font_scalings[i + 1])) {
+                if ((state.font_scalings[i - 1] < this->gui_graph_state.canvas.zooming) &&
+                    (this->gui_graph_state.canvas.zooming < state.font_scalings[i + 1])) {
                     apply = true;
                 }
             }
             if (apply) {
                 graph_font_ptr = io.Fonts->Fonts[i];
-                this->gui_current_font_scaling = state.graph_zoom_font_scalings[i];
+                this->gui_current_font_scaling = state.font_scalings[i];
                 break;
             }
         }
@@ -2252,7 +2178,7 @@ void megamol::gui::Graph::draw_canvas(float graph_width, GraphState_t& state) {
 
         // 5] CALLS  (non group members) --------------------------------------
         /// (connected to call slots which are not part of module which is group member)
-        for (auto& call_ptr : this->Calls()) {
+        for (auto& call_ptr : this->GetCalls()) {
             bool caller_group = false;
             auto caller_ptr = call_ptr->CallSlotPtr(CallSlotType::CALLER);
             if (caller_ptr->IsParentModuleConnected()) {
@@ -2557,7 +2483,7 @@ void megamol::gui::Graph::draw_canvas_dragged_call(void) {
                         p2 = tmp;
                     }
                     if (glm::length(glm::vec2(p1.x, p1.y) - glm::vec2(p2.x, p2.y)) > GUI_SLOT_RADIUS) {
-                        draw_list->AddBezierCubic(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, COLOR_CALL_CURVE,
+                        draw_list->AddBezierCurve(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, COLOR_CALL_CURVE,
                             GUI_LINE_THICKNESS * this->gui_graph_state.canvas.zooming);
                     }
                 }
@@ -2592,11 +2518,11 @@ void megamol::gui::Graph::draw_canvas_multiselection(void) {
         const ImU32 COLOR_MULTISELECT_BORDER = ImGui::ColorConvertFloat4ToU32(style.Colors[ImGuiCol_Border]);
 
         draw_list->AddRectFilled(this->gui_multiselect_start_pos, this->gui_multiselect_end_pos,
-            COLOR_MULTISELECT_BACKGROUND, GUI_RECT_CORNER_RADIUS, ImDrawFlags_RoundCornersAll);
+            COLOR_MULTISELECT_BACKGROUND, GUI_RECT_CORNER_RADIUS, ImDrawCornerFlags_All);
 
         float border = (1.0f * megamol::gui::gui_scaling.Get());
         draw_list->AddRect(this->gui_multiselect_start_pos, this->gui_multiselect_end_pos, COLOR_MULTISELECT_BORDER,
-            GUI_RECT_CORNER_RADIUS, ImDrawFlags_RoundCornersAll, border);
+            GUI_RECT_CORNER_RADIUS, ImDrawCornerFlags_All, border);
     } else if (this->gui_multiselect_done && ImGui::IsWindowHovered() && ImGui::IsMouseReleased(0)) {
         ImVec2 outer_rect_min = ImVec2(std::min(this->gui_multiselect_start_pos.x, this->gui_multiselect_end_pos.x),
             std::min(this->gui_multiselect_start_pos.y, this->gui_multiselect_end_pos.y));

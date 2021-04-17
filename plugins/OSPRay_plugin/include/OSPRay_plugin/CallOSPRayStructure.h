@@ -106,11 +106,6 @@ struct curveStructure {
     float globalRadius;
 };
 
-struct ClippingPlane {
-    std::array<float,4> coeff = {0,0,0, 0};
-    bool isValid = false;
-};
-
 struct OSPRayStructureContainer {
 
     structureTypeEnum type = structureTypeEnum::UNINITIALIZED;
@@ -125,8 +120,6 @@ struct OSPRayStructureContainer {
     bool materialChanged;
     bool parameterChanged;
     bool isValid = false;
-    ClippingPlane clippingPlane;
-    bool clippingPlaneChanged = false;
 
     std::variant<sphereStructure, structuredVolumeStructure, meshStructure, apiStructure, curveStructure> structure;
 };

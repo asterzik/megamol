@@ -9,7 +9,8 @@
 
  // to grab GL front buffer
 #include <glad/glad.h>
-#include "GUIState.h"
+#include "IOpenGL_Context.h"
+#include "GUI_Resource.h"
 
 #include "mmcore/MegaMolGraph.h"
 
@@ -18,27 +19,19 @@
 #include "mmcore/utility/graphics/ScreenShotComments.h"
 #include "vislib/sys/FastFile.h"
 
-#include "mmcore/utility/log/Log.h"
 
-static const std::string service_name = "Screenshot_Service: ";
-static void log(std::string const& text) {
-    const std::string msg = service_name + text;
+// local logging wrapper for your convenience
+#include "mmcore/utility/log/Log.h"
+static void log(const char* text) {
+    const std::string msg = "Screenshot_Service: " + std::string(text);
     megamol::core::utility::log::Log::DefaultLog.WriteInfo(msg.c_str());
 }
-
-static void log_error(std::string const& text) {
-    const std::string msg = service_name + text;
-    megamol::core::utility::log::Log::DefaultLog.WriteError(msg.c_str());
-}
-
-static void log_warning(std::string const& text) {
-    const std::string msg = service_name + text;
-    megamol::core::utility::log::Log::DefaultLog.WriteWarn(msg.c_str());
-}
+static void log(std::string text) { log(text.c_str()); }
 
 // need this to pass GL context to screenshot source. this a hack and needs to be properly designed.
+static megamol::frontend_resources::IOpenGL_Context* gl_context_ptr = nullptr;
 static megamol::core::MegaMolGraph* megamolgraph_ptr = nullptr;
-static megamol::frontend_resources::GUIState* guistate_resources_ptr = nullptr;
+static megamol::frontend_resources::GUIResource* guiresources_ptr = nullptr;
 
 static void PNGAPI pngErrorFunc(png_structp pngPtr, png_const_charp msg) {
     log("PNG Error: " + std::string(msg));
@@ -90,7 +83,7 @@ static bool write_png_to_file(megamol::frontend_resources::ImageData const& imag
 
     // todo: camera settings are not stored without magic knowledge about the view
     std::string project = megamolgraph_ptr->Convenience().SerializeGraph();
-    project.append(guistate_resources_ptr->request_gui_state(true));
+    project.append(guiresources_ptr->request_gui_state(true));
     megamol::core::utility::graphics::ScreenShotComments ssc(project);
     png_set_text(pngPtr, pngInfoPtr, ssc.GetComments().data(), ssc.GetComments().size());
 
@@ -136,6 +129,9 @@ void megamol::frontend_resources::GLScreenshotSource::set_read_buffer(ReadBuffer
 }
 
 megamol::frontend_resources::ImageData megamol::frontend_resources::GLScreenshotSource::take_screenshot() const {
+    if (gl_context_ptr)
+        gl_context_ptr->activate();
+
     // TODO: in FBO-based rendering the FBO object carries its size and we dont need to look it up
     // simpler and more correct approach would be to observe Framebuffer_Events resource
     // but this is our naive implementation for now
@@ -152,6 +148,9 @@ megamol::frontend_resources::ImageData megamol::frontend_resources::GLScreenshot
 
     for (auto& pixel : result.image)
         pixel.a = 255;
+
+    if (gl_context_ptr)
+        gl_context_ptr->close();
 
     return std::move(result);
 }
@@ -214,8 +213,10 @@ const std::vector<std::string> Screenshot_Service::getRequestedResourceNames() c
 }
 
 void Screenshot_Service::setRequestedResources(std::vector<FrontendResource> resources) {
+    gl_context_ptr = const_cast<megamol::frontend_resources::IOpenGL_Context*>(&resources[0].getResource<megamol::frontend_resources::IOpenGL_Context>());
     megamolgraph_ptr = const_cast<megamol::core::MegaMolGraph*>(&resources[1].getResource<megamol::core::MegaMolGraph>());
-    guistate_resources_ptr = const_cast<megamol::frontend_resources::GUIState*>(&resources[2].getResource<megamol::frontend_resources::GUIState>());
+    guiresources_ptr = const_cast<megamol::frontend_resources::GUIResource*>(
+        &resources[2].getResource<megamol::frontend_resources::GUIResource>());
 }
 
 void Screenshot_Service::updateProvidedResources() {

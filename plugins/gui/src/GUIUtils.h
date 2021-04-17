@@ -9,6 +9,33 @@
 #define MEGAMOL_GUI_GUIUTILS_INCLUDED
 
 
+/**
+ * USED HOTKEYS:
+ *
+ * ----- GUIWindows -----
+ * - Trigger Screenshot:        F2
+ * - Toggle Graph Entry:        F3
+ * - Show/hide Windows:         F7-F11
+ * - Show/hide Menu:            F12
+ * - Show/hide GUI:             Ctrl  + g
+ * - Search Parameter:          Ctrl  + p
+ * - Save Running Project:      Ctrl  + s
+ * - Quit Program:              Alt   + F4
+
+ * ----- Configurator -----
+ * - Search Module:             Ctrl + Shift + m
+ * - Search Parameter:          Ctrl + Shift + p
+ * - Save Edited Project:       Ctrl + Shift + s
+ *
+ * ----- Graph -----
+ * - Delete Graph Item:         Delete
+ * - Selection, Drag & Drop:    Left Mouse Button
+ * - Context Menu:              Right Mouse Button
+ * - Zooming:                   Mouse Wheel
+ * - Scrolling:                 Middle Mouse Button
+ *
+ **/
+
 #define IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 #include "imgui.h"
@@ -59,7 +86,8 @@
 #define GUI_JSON_TAG_PROJECT ("Project")
 #define GUI_JSON_TAG_MODULES ("Modules")
 #define GUI_JSON_TAG_INTERFACES ("Interfaces")
-/// GUI_JSON_TAG_GUISTATE_PARAMETERS ("ParameterStates") is defined in AbstractParamPresentation.h
+/// #define GUI_JSON_TAG_GUISTATE_PARAMETERS ("ParameterStates") see
+/// megamol::core::param::AbstractParamPresentation.h
 
 #define GUI_START_TAG_SET_GUI_STATE ("mmSetGUIState([=[")
 #define GUI_END_TAG_SET_GUI_STATE ("]=])")
@@ -71,15 +99,11 @@
 // Global Colors
 #define GUI_COLOR_TEXT_ERROR (ImVec4(0.9f, 0.1f, 0.0f, 1.0f))
 #define GUI_COLOR_TEXT_WARN (ImVec4(0.75f, 0.75f, 0.0f, 1.0f))
-
 #define GUI_COLOR_BUTTON_MODIFIED (ImVec4(0.75f, 0.0f, 0.25f, 1.0f))
 #define GUI_COLOR_BUTTON_MODIFIED_HIGHLIGHT (ImVec4(0.9f, 0.0f, 0.25f, 1.0f))
-
 #define GUI_COLOR_SLOT_CALLER (ImVec4(0.0f, 0.75f, 1.0f, 1.0f))
 #define GUI_COLOR_SLOT_CALLEE (ImVec4(0.75f, 0.0f, 1.0f, 1.0f))
-#define GUI_COLOR_SLOT_COMPATIBLE (ImVec4(0.5f, 0.9f, 0.25f, 1.0f))
-#define GUI_COLOR_SLOT_REQUIRED (ImVec4(0.9f, 0.75f, 0.1f, 1.0f))
-
+#define GUI_COLOR_SLOT_COMPATIBLE (ImVec4(0.5f, 0.9f, 0.0f, 1.0f))
 #define GUI_COLOR_GROUP_HEADER (ImVec4(0.0f, 0.5f, 0.25f, 1.0f))
 #define GUI_COLOR_GROUP_HEADER_HIGHLIGHT (ImVec4(0.0f, 0.75f, 0.5f, 1.0f))
 
@@ -193,7 +217,7 @@ namespace gui {
     typedef std::array<megamol::gui::HotkeyData_t, megamol::gui::HotkeyIndex::INDEX_COUNT> HotkeyArray_t;
 
     typedef megamol::core::param::AbstractParamPresentation::Presentation Present_t;
-    typedef megamol::core::param::AbstractParamPresentation::ParamType ParamType_t;
+    typedef megamol::core::param::AbstractParamPresentation::ParamType Param_t;
     typedef std::map<int, std::string> EnumStorage_t;
 
     typedef std::array<float, 5> FontScalingArray_t;
@@ -283,15 +307,14 @@ namespace gui {
 
     /* Data type holding shared state of graphs. */
     typedef struct _graph_state_ {
-        FontScalingArray_t graph_zoom_font_scalings; // in
-        float graph_width;                           // in
-        bool show_parameter_sidebar;                 // in
-        megamol::gui::HotkeyArray_t hotkeys;         // in out
-        ImGuiID graph_selected_uid;                  // out
-        bool graph_delete;                           // out
-        bool configurator_graph_save;                // out
-        bool global_graph_save;                      // out
-        ImGuiID new_running_graph_uid;               // out
+        FontScalingArray_t font_scalings;    // in
+        float graph_width;                   // in
+        bool show_parameter_sidebar;         // in
+        megamol::gui::HotkeyArray_t hotkeys; // in out
+        ImGuiID graph_selected_uid;          // out
+        bool graph_delete;                   // out
+        bool configurator_graph_save;        // out
+        bool global_graph_save;              // out
     } GraphState_t;
 
     enum class HeaderType { MODULE_GROUP, MODULE, PARAMETERG_ROUP };

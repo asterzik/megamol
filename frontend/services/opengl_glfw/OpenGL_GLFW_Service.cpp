@@ -32,25 +32,19 @@
 #    endif
 #endif
 
+#include "mmcore/utility/log/Log.h"
+
 #include <functional>
 #include <iostream>
 
-#include "mmcore/utility/log/Log.h"
-
-static const std::string service_name = "OpenGL_GLFW_Service: ";
 static void log(std::string const& text) {
-    const std::string msg = service_name + text;
+    const std::string msg = "OpenGL_GLFW_Service: " + text;
     megamol::core::utility::log::Log::DefaultLog.WriteInfo(msg.c_str());
 }
 
 static void log_error(std::string const& text) {
-    const std::string msg = service_name + text;
+    const std::string msg = "OpenGL_GLFW_Service: " + text;
     megamol::core::utility::log::Log::DefaultLog.WriteError(msg.c_str());
-}
-
-static void log_warning(std::string const& text) {
-    const std::string msg = service_name + text;
-    megamol::core::utility::log::Log::DefaultLog.WriteWarn(msg.c_str());
 }
 
 // See: https://github.com/glfw/glfw/issues/1630
@@ -504,10 +498,6 @@ bool OpenGL_GLFW_Service::init(const Config& config) {
         {"WindowManipulation", m_windowManipulation}
     };
 
-    m_requestedResourcesNames = {
-          "FrameStatistics"
-    };
-
     m_pimpl->last_time = std::chrono::system_clock::now();
 
     log("initialized successfully");
@@ -719,12 +709,10 @@ std::vector<FrontendResource>& OpenGL_GLFW_Service::getProvidedResources() {
 }
 
 const std::vector<std::string> OpenGL_GLFW_Service::getRequestedResourceNames() const {
-    return m_requestedResourcesNames;
+    return {"FrameStatistics"};
 }
 
 void OpenGL_GLFW_Service::setRequestedResources(std::vector<FrontendResource> resources) {
-    m_requestedResourceReferences = resources;
-
     m_pimpl->frame_statistics = &const_cast<megamol::frontend_resources::FrameStatistics&>(resources[0].getResource<megamol::frontend_resources::FrameStatistics>());
 }
 

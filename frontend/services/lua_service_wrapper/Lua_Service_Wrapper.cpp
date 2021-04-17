@@ -15,8 +15,10 @@
 #include "Screenshots.h"
 #include "FrameStatistics.h"
 #include "WindowManipulation.h"
-#include "GUIState.h"
+#include "GUI_Resource.h"
 #include "GlobalValueStore.h"
+
+#include "mmcore/view/AbstractView_EventConsumption.h"
 
 // local logging wrapper for your convenience until central MegaMol logger established
 #include "mmcore/utility/log/Log.h"
@@ -303,7 +305,7 @@ void Lua_Service_Wrapper::fill_frontend_resources_callbacks(void* callbacks_coll
         "(string json)\n\tSet GUI state from given 'json' string.",
         {[&](std::string json) -> VoidResult
         {
-            auto& gui_resource =  m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIState>();
+            auto& gui_resource =  m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIResource>();
             gui_resource.provide_gui_state(json);
             return VoidResult{};
         }});
@@ -311,7 +313,7 @@ void Lua_Service_Wrapper::fill_frontend_resources_callbacks(void* callbacks_coll
         "mmGetGUIState",
         "()\n\tReturns the GUI state as json string.",
         {[&]() -> StringResult {
-            auto& gui_resource =  m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIState>();
+            auto& gui_resource =  m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIResource>();
             auto s = gui_resource.request_gui_state(false);
             return StringResult{s};
         }});
@@ -321,7 +323,7 @@ void Lua_Service_Wrapper::fill_frontend_resources_callbacks(void* callbacks_coll
         "(bool state)\n\tShow (true) or hide (false) the GUI.",
         {[&](bool show) -> VoidResult
         {
-            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIState>();
+            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIResource>();
             gui_resource.provide_gui_visibility(show);
             return VoidResult{};
         }});
@@ -330,7 +332,7 @@ void Lua_Service_Wrapper::fill_frontend_resources_callbacks(void* callbacks_coll
         "()\n\tReturns whether the GUI is visible (true/false).",
         {[&]() -> StringResult
         {
-            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIState>();
+            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIResource>();
             const auto visible = gui_resource.request_gui_visibility();
             return StringResult{visible ? "true" : "false"};
         }});
@@ -340,7 +342,7 @@ void Lua_Service_Wrapper::fill_frontend_resources_callbacks(void* callbacks_coll
         "(float scale)\n\tSet GUI scaling factor.",
         {[&](float scale) -> VoidResult
         {
-            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIState>();
+            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIResource>();
             gui_resource.provide_gui_scale(scale);
             return VoidResult{};
         }});
@@ -349,7 +351,7 @@ void Lua_Service_Wrapper::fill_frontend_resources_callbacks(void* callbacks_coll
         "()\n\tReturns the GUI scaling as float.",
         {[&]() -> StringResult
         {
-            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIState>();
+            auto& gui_resource = m_requestedResourceReferences[4].getResource<megamol::frontend_resources::GUIResource>();
             const auto scale = gui_resource.request_gui_scale();
             return StringResult{std::to_string(scale)};
         }});
@@ -432,7 +434,11 @@ void Lua_Service_Wrapper::fill_graph_manipulation_callbacks(void* callbacks_coll
                 return Error{"graph could not create module for: " + baseName + " , " + className + " , " + instanceName};
             }
 
-            if (!graph.SetGraphEntryPoint(instanceName))
+            if (!graph.SetGraphEntryPoint(
+                instanceName,
+                megamol::core::view::get_gl_view_runtime_resources_requests(),
+                megamol::core::view::view_rendering_execution,
+                megamol::core::view::view_init_rendering_state))
             {
                 return Error{"graph could not set graph entry point for: " + baseName + " , " + className + " , " + instanceName};
             }

@@ -119,10 +119,7 @@ bool adiosDataSource::getDataCallback(core::Call& caller) {
     if (dataHashChanged || inquireChanged || loadedFrameID != cad->getFrameIDtoLoad()) {
 
         try {
-            std::string fname = std::string(T2A(this->filenameSlot.Param<core::param::FilePathParam>()->Value()));
-#ifdef _WIN32
-            std::replace(fname.begin(), fname.end(), '/', '\\');
-#endif
+            const std::string fname = std::string(T2A(this->filenameSlot.Param<core::param::FilePathParam>()->Value()));
             if (this->reader) {
                 this->reader->Close();
                 io->RemoveAllVariables();
@@ -205,20 +202,6 @@ bool adiosDataSource::getDataCallback(core::Call& caller) {
 
                             reader->Get<int32_t>(advar, tmp_vec);
                             dataMap[var.first] = std::move(fc);
-                        } else if (var.second["Type"] == "int8_t" || var.second["Type"] == "char") {
-
-                            auto fc = std::make_shared<CharContainer>(CharContainer());
-                            fc->singleValue = singleValue;
-                            std::vector<char>& tmp_vec = fc->getVec();
-
-                            adios2::Variable<char> advar = io->InquireVariable<char>(var.first);
-                            auto info = reader->BlocksInfo(advar, cad->getFrameIDtoLoad());
-                            fc->shape = info[0].Count;
-                            std::for_each(fc->shape.begin(), fc->shape.end(), [&](decltype(num) n) { num *= n; });
-                            tmp_vec.resize(num);
-
-                            reader->Get<char>(advar, tmp_vec);
-                            dataMap[var.first] = std::move(fc);
                         } else if (var.second["Type"] == "uint64_t") {
                             auto fc = std::make_shared<UInt64Container>(UInt64Container());
                             fc->singleValue = singleValue;
@@ -259,20 +242,6 @@ bool adiosDataSource::getDataCallback(core::Call& caller) {
                             tmp_vec.resize(num);
 
                             reader->Get<unsigned int>(advar, tmp_vec);
-                            dataMap[var.first] = std::move(fc);
-                        } else if (var.second["Type"] == "string") {
-
-                            auto fc = std::make_shared<StringContainer>(StringContainer());
-                            fc->singleValue = singleValue;
-                            std::vector<std::string>& tmp_vec = fc->getVec();
-
-                            adios2::Variable<std::string> advar = io->InquireVariable<std::string>(var.first);
-                            auto info = reader->BlocksInfo(advar, cad->getFrameIDtoLoad());
-                            fc->shape = info[0].Count;
-                            std::for_each(fc->shape.begin(), fc->shape.end(), [&](decltype(num) n) { num *= n; });
-                            tmp_vec.resize(num);
-
-                            reader->Get<std::string>(advar, tmp_vec);
                             dataMap[var.first] = std::move(fc);
                         }
                     }
@@ -350,10 +319,7 @@ bool adiosDataSource::getHeaderCallback(core::Call& caller) {
             // io->SetEngine("BP3"); this is for v2.4.0
             // adiosInst->AtIO("Input").SetParameters({{"verbose", "4"}});
             io->SetParameter("verbose", "5");
-            std::string fname = std::string(T2A(this->filenameSlot.Param<core::param::FilePathParam>()->Value()));
-#ifdef _WIN32
-            std::replace(fname.begin(), fname.end(), '/', '\\');
-#endif
+            const std::string fname = std::string(T2A(this->filenameSlot.Param<core::param::FilePathParam>()->Value()));
 
             megamol::core::utility::log::Log::DefaultLog.WriteInfo("[adiosDataSource] Opening File %s", fname.c_str());
 

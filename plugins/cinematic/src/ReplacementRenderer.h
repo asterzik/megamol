@@ -115,7 +115,7 @@ namespace cinematic {
             KEY_ASSIGN_0
         };
 
-        bool draw_replacement;
+        bool toggle;
         CinematicUtils utils;
         vislib::math::Cuboid<float> bbox;
 

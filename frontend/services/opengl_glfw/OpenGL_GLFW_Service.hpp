@@ -136,8 +136,6 @@ private:
     // this holds references to the event structs we fill. the events are passed to the renderers/views using
     // const std::vector<FrontendResource>& getModuleResources() override
     std::vector<FrontendResource> m_renderResourceReferences;
-    std::vector<std::string> m_requestedResourcesNames;
-    std::vector<FrontendResource> m_requestedResourceReferences;
 };
 
 } // namespace frontend

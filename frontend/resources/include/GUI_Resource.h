@@ -1,5 +1,5 @@
 /*
- * GUIState.h
+ * GUI_Resource.h
  *
  * Copyright (C) 2020 by VISUS (Universitaet Stuttgart).
  * Alle Rechte vorbehalten.
@@ -10,29 +10,29 @@
 namespace megamol {
 namespace frontend_resources {
 
-struct GUIState {
+struct GUIResource {
 
-    // Request GUI state: true  -> containing updated GUI state, GUI visibility and GUI scale already wrapped into respective lua commands
-    //                    false -> containing the GUI state string only
-    /// (e.g. ScreenshotService saves project to PNG header using complete LUA GUI state)
+    // Request string: true -> containing updated GUI state, GUI visibility and GUI scale already wrapped into respective lua commands
+    // false -> containing the GUI state string only
+    /// (e.g. ScreenshotService saves project with GUI state to PNG header)
     std::function<std::string(bool)> request_gui_state = [&](bool){ return std::string(); };
 
-    // Request GUI visibility
+    // request GUI visibility
     std::function<bool(void)> request_gui_visibility = [&](void){ return false; };
 
-    // Request GUI scale
+    // request GUI scale
     std::function<float(void)> request_gui_scale = [&](void){ return 1.0f; };
 
     // Provide GUI state as JSON string from argument of lua command
     /// (e.g. Lua_Service_Wrapper loads project providing GUI state via mmSetGUIState)
     std::function<void(std::string)> provide_gui_state;
 
-    // Provide GUI visibility from argument of lua command
-    /// (e.g. Lua_Service_Wrapper loads project providing GUI visibility via mmSetShowGUI)
+    // Provide GUI visibility
+    /// (e.g. Lua_Service_Wrapper loads project providing GUI visibility via mmShowGUI)
     std::function<void(bool)> provide_gui_visibility;
 
-    // Provide GUI scale from argument of lua command
-    /// (e.g. Lua_Service_Wrapper loads project providing GUI scale via mmSetScaleGUI)
+    // Provide GUI scale
+    /// (e.g. Lua_Service_Wrapper loads project providing GUI scale via mmScaleGUI)
     std::function<void(float)> provide_gui_scale;
 };
 

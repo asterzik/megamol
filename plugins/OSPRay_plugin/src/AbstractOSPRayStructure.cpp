@@ -7,8 +7,6 @@
 #include "stdafx.h"
 #include "OSPRay_plugin/AbstractOSPRayStructure.h"
 
-#include "mmcore/view/CallClipPlane.h"
-
 
 namespace megamol {
 namespace ospray {
@@ -21,8 +19,7 @@ AbstractOSPRayStructure::AbstractOSPRayStructure()
     , getMaterialSlot("getMaterialSlot", "Connects to an OSPRayMaterial") 
     , getTransformationSlot("getTransformationSlot", "Connects to an OSPRayTransform")
     , writeFlagsSlot("writeFlags", "")
-    , readFlagsSlot("readFlags", "")
-    , getClipplaneSlot("getClipPlaneSlot", "Connects to a Clipping plane slot") {
+    , readFlagsSlot("readFlags", "") {
 
     this->deployStructureSlot.SetCallback(CallOSPRayStructure::ClassName(), CallOSPRayStructure::FunctionName(0),
         &AbstractOSPRayStructure::getStructureCallback);
@@ -38,9 +35,6 @@ AbstractOSPRayStructure::AbstractOSPRayStructure()
 
     this->getTransformationSlot.SetCompatibleCall<CallOSPRayTransformationDescription>();
     this->MakeSlotAvailable(&this->getTransformationSlot);
-
-    this->getClipplaneSlot.SetCompatibleCall<core::view::CallClipPlaneDescription>();
-    this->MakeSlotAvailable(&this->getClipplaneSlot);
 
     writeFlagsSlot.SetCompatibleCall<core::FlagCallWrite_CPUDescription>();
     MakeSlotAvailable(&this->writeFlagsSlot);
@@ -127,29 +121,6 @@ void AbstractOSPRayStructure::processTransformation() {
     } else {
         this->structureContainer.transformationChanged = false;
         this->structureContainer.transformationContainer = nullptr;
-    }
-}
-
-void AbstractOSPRayStructure::processClippingPlane() {
-    auto ccp = this->getClipplaneSlot.CallAs<core::view::CallClipPlane>();
-
-    if ((ccp != nullptr) && (*ccp)()) {
-        this->structureContainer.clippingPlane.isValid = true;
-        glm::vec3 normal = {ccp->GetPlane().Normal().GetX(), ccp->GetPlane().Normal().GetY(),
-            ccp->GetPlane().Normal().GetZ()};
-        glm::vec3 point = {
-            ccp->GetPlane().Point().GetX(), ccp->GetPlane().Point().GetY(), ccp->GetPlane().Point().GetZ()};
-        float d = glm::dot(point, normal);
-        ClippingPlane& cp = this->structureContainer.clippingPlane;
-        if (cp.coeff[0] != normal.x || cp.coeff[1] != normal.y || cp.coeff[2] != normal.z || cp.coeff[3] != d) {
-            this->structureContainer.clippingPlaneChanged = true;
-            cp.coeff[0] = normal.x;
-            cp.coeff[1] = normal.y;
-            cp.coeff[2] = normal.z;
-            cp.coeff[3] = d;
-        } else {
-            this->structureContainer.clippingPlaneChanged = false;
-        }
     }
 }
 

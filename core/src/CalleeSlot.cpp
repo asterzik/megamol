@@ -52,8 +52,9 @@ bool CalleeSlot::ProfilingCallback::CallMe(Module *owner, Call& call) {
 /*
  * CalleeSlot::CalleeSlot
  */
-CalleeSlot::CalleeSlot(const vislib::StringA& name, const vislib::StringA& desc)
-        : AbstractSlot(name, desc), AbstractCallSlotPresentation(), callbacks() {}
+CalleeSlot::CalleeSlot(const vislib::StringA& name,
+        const vislib::StringA& desc) : AbstractSlot(name, desc), callbacks() {
+}
 
 
 /*

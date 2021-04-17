@@ -33,7 +33,6 @@ protected:
     bool getStructureCallback(core::Call& call);
     void processMaterial();
     void processTransformation();
-    void processClippingPlane();
 
     /** The callee for Structure */
     core::CalleeSlot deployStructureSlot;
@@ -46,8 +45,6 @@ protected:
 
     /** The call for transformation */
     core::CallerSlot getTransformationSlot;
-
-    core::CallerSlot getClipplaneSlot;
 
     core::CallerSlot writeFlagsSlot;
     core::CallerSlot readFlagsSlot;
