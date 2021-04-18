@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<btf type="MegaMolGLSLShader" version="1.0" namespace="simpleMesh">
+    <shader name="vertex">
+        <snippet type="version">400</snippet>
+        <snippet name="text" type="string">
+<!--
+layout(location = 0) in vec3 Pos;
+layout(location = 1) in vec3 aNormal;
+
+uniform mat4 mvp;
+
+out vec3 Normal;
+out vec3 Position;
+
+void main(void) {
+    Normal = aNormal;
+    Position = Pos;
+    gl_Position = mvp * vec4(Pos, 1.0);
+}
+-->
+        </snippet>
+    </shader>
+    <shader name="fragment">
+        <snippet type="version">400</snippet>
+        <snippet name="text" type="string">
+<!--
+out vec4 FragColor;
+in vec3 Normal;
+in vec3 Position;
+
+void main(void) {
+    FragColor = vec4(normalize(Normal), 1.0);
+}
+-->
+</snippet>
+    </shader>
+
+</btf>

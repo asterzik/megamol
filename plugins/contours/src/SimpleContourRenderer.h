@@ -46,7 +46,7 @@ public:
      *
      * @return A human readable description of this module.
      */
-    static const char* Description(void) { return "Renders a set of incoming spheres"; }
+    static const char* Description(void) { return "Renders contours for given mesh data"; }
 
     /**
      * Answers whether this module is available on the current system.
@@ -107,28 +107,20 @@ private:
     virtual bool Render(core::view::CallRender3DGL& call);
 
     /** The input data slot. */
-    core::CallerSlot sphereDataSlot;
+    core::CallerSlot getDataSlot;
 
     /** The vertex buffer object for the rendered vertices. */
-    GLuint vbo;
+    GLuint VBO;
 
     /** The vertex array for the rendered vertices. */
-    GLuint va;
+    GLuint VAO;
 
-    /** The data hash of the most recent rendered data */
-    SIZE_T lastDataHash;
-
+    bool first;
     /** The simple shader for the drawing of GL_POINTS */
     vislib::graphics::gl::GLSLShader simpleShader;
 
-    /** The pretty shader that draws spheres*/
-    vislib::graphics::gl::GLSLGeometryShader sphereShader;
-
     /** Slot for the scaling factor of the pointsize*/
     core::param::ParamSlot sizeScalingSlot;
-
-    /** Slot for the switch between GL_POINTS and spheres */
-    core::param::ParamSlot sphereModeSlot;
 };
 
 } /* end namespace contours */

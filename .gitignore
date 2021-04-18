@@ -32,5 +32,10 @@ solution/**/*
 deploy/**/*
 
 CMakeSettings.json
+CMakeCache.txt
+cmake.check_cache
+
 
 .vs/
+
+data/

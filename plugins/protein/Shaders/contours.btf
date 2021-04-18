@@ -1,0 +1,2005 @@
+<?xml version="1.0" encoding="utf-8"?>
+<btf type="MegaMolGLSLShader" version="1.0" namespace="contours">
+    <include file="protein"/>
+      <shader name="vertex">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            layout (location = 0) in vec2 aPos;
+            layout (location = 1) in vec2 aTexCoords;
+
+            out vec2 TexCoords;
+
+            void main()
+            {
+                TexCoords = aTexCoords;
+                gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0); 
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="cylinderVertex">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            layout (location = 0) in vec3 aPos;
+            layout (location = 1) in vec3 aNormal;
+
+            out vec3 pos;
+            out vec3 normal;
+
+            uniform mat4 mvp;
+            uniform mat4 mv;
+            uniform mat3 normalMatrix;
+
+            void main()
+            {
+                pos = vec3(mv * vec4(aPos, 1.0));
+                normal = normalize(normalMatrix * aNormal);
+                gl_Position = mvp * vec4(aPos, 1.0);
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="cylinderFragment">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            layout (location = 0) out vec4 FragNormal;
+            layout (location = 1) out vec4 FragPosition;
+            layout (location = 2) out vec4 FragShading;
+            layout (location = 3) out vec4 FragCurvature;
+            in vec3 pos;
+            in vec3 normal;
+            uniform float kappa1;
+            uniform vec3 centreline;
+            uniform mat3 normalMatrix;
+            uniform bool circle;
+
+
+            void main()
+            { 
+                FragNormal = vec4( normal, 1);
+                FragPosition = vec4(pos, 1);
+                vec3 viewdir = normalize(-pos);
+                vec3 n = normalize(normal);
+
+                if(circle){
+                    FragCurvature = vec4(vec3(0), 1.0);
+                    FragShading = vec4(0.95, 0.95, 0.95, 1);
+                }
+                else{
+                    FragShading = vec4(0.9, 0.9, 0.9, 1);
+                   // project viewdir into tangent plane
+                   vec3 proj_viewdir = viewdir - n * dot(viewdir, n);
+
+                   // get first principal curvature direction
+                   vec3 t_centreline = normalMatrix * centreline;
+                   vec3 dir_kappa1 = cross(normalize(t_centreline), n);
+
+                   //Calculate radial curvature with Eulers theorem
+                   float cos_theta = dot(normalize(dir_kappa1), normalize(proj_viewdir));
+
+                   //Only first term because kappa2 = 0
+                   float radial_curvature = kappa1 * cos_theta * cos_theta;
+                   FragCurvature = vec4(vec3(radial_curvature), 1.0);
+                }
+
+
+
+            }
+            -->
+            </snippet>
+        </shader>
+
+      <shader name="passThrough">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+            uniform sampler2D screenTexture;
+
+            void main()
+            { 
+                vec4 color = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
+                if(color.a == 0)
+                    discard;
+                FragColor = color;
+            }
+            -->
+            </snippet>
+        </shader>
+      <shader name="curvatureDiff">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+            uniform sampler2D exactTexture;
+            uniform sampler2D approxTexture;
+
+            void main()
+            { 
+                vec4 exact = texelFetch(exactTexture, ivec2(gl_FragCoord.xy), 0);
+                if(exact.a == 0)
+                    discard;
+                vec4 approx = texelFetch(approxTexture, ivec2(gl_FragCoord.xy), 0);
+                FragColor = vec4(vec3(exact.x - approx.x), 1.0);
+            }
+            -->
+            </snippet>
+        </shader>
+      <shader name="colormap">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+            uniform sampler2D curvDiffTexture;
+            uniform sampler2D widthTexture;
+            uniform int level_max;
+
+            // Colormap code from https://github.com/kbinani/colormap-shaders/blob/master/shaders/glsl/IDL_CB-Set2.frag
+            // float colormap_red(float x) {
+            //     if (x < 0.1417230259672803) {
+            //         return 1.05935704125178E+03 * x + 1.01981507823613E+02;
+            //     } else if (x < 0.2832918395614404) {
+            //         return -7.84521574205797E+02 * x + 3.63301564722620E+02;
+            //     } else if (x < 0.4297095252306736) {
+            //         return 6.13507692307669E+02 * x - 3.27487179487109E+01;
+            //     } else if (x < 0.5711437760817145) {
+            //         return -4.56971171171184E+02 * x + 4.27246246246258E+02;
+            //     } else if (x < 0.7170125543394245) {
+            //         return 6.08443812233345E+02 * x - 1.81258890469442E+02;
+            //     } else if (x < 0.8601498726198596) {
+            //         return -1.86129554655803E+02 * x + 3.88460188933823E+02;
+            //     } else {
+            //         return -3.44927731092377E+02 * x + 5.25050420168008E+02;
+            //     }
+            // }
+
+            // float colormap_green(float x) {
+            //     if (x < 0.1415748781045371) {
+            //         return -3.73352299668090E+02 * x + 1.93944523470839E+02;
+            //     } else if (x < 0.2833646736626308) {
+            //         return 1.32720720720722E+02 * x + 1.22297297297298E+02;
+            //     } else if (x < 0.4289465541806786) {
+            //         return -1.49887515045407E+02 * x + 2.02378487799539E+02;
+            //     } else if (x < 0.5702226800496928) {
+            //         return 5.49972024656235E+02 * x - 9.78238501659562E+01;
+            //     } else if (x < 0.7146023128494844) {
+            //         return 8.99797570850851E+00 * x + 2.10651821862350E+02;
+            //     } else if (x < 0.8745816247778255) {
+            //         return -1.44022832980902E+02 * x + 3.20000845665901E+02;
+            //     } else {
+            //         return -1.15363546797967E+02 * x + 2.94935960591057E+02;
+            //     }
+            // }
+
+            // float colormap_blue(float x) {
+            //     if (x < 0.1415014758409641) {
+            //         return -4.74217638691322E+02 * x + 1.65038406827880E+02;
+            //     } else if (x < 0.2835702564175819) {
+            //         return 7.39899952584171E+02 * x - 6.76102418207873E+00;
+            //     } else if (x < 0.4295821637397355) {
+            //         return -5.64243717401478E+01 * x + 2.19052868658126E+02;
+            //     } else if (x < 0.5693521153970126) {
+            //         return -7.86119327731098E+02 * x + 5.32516806722689E+02;
+            //     } else if (x < 0.7156505014449713) {
+            //         return -2.61647700331917E+02 * x + 2.33907776197252E+02;
+            //     } else if (x < 0.858726752429748) {
+            //         return 7.09638034795805E+02 * x - 4.61193347193250E+02;
+            //     } else {
+            //         return 2.09176470588245E+02 * x - 3.14336134453805E+01;
+            //     }
+            //}
+
+            //https://github.com/kbinani/colormap-shaders/blob/master/shaders/glsl/IDL_CB-PuOr.frag
+            float colormap_red(float x) {
+                if (x < 0.3021800816059113) {
+                    return ((-8.74206463186070E+02 * x - 1.85426300850231E+02) * x + 5.51285275571572E+02) * x + 1.26643739338646E+02;
+                } else if (x < 0.5021429359912872) {
+                    return (-3.88346609612054E+02 * x + 2.84470703793855E+02) * x + 2.01677105728121E+02;
+                } else {
+                    return ((((-1.46535873909592E+04 * x + 5.53022453680932E+04) * x - 8.13970779339075E+04) * x + 5.81771336215697E+04) * x - 2.05245461242988E+04) * x + 3.14144977294882E+03;
+                }
+            }
+
+            float colormap_green(float x) {
+                if (x < 0.05763718485832214) {
+                    return 2.95595213675214E+02 * x + 5.90683760683760E+01;
+                } else if (x < 0.5007581412792206) {
+                    return ((((2.62405984206199E+04 * x - 3.27451861162955E+04) * x + 1.22107381531950E+04) * x - 1.00838782028235E+03) * x + 2.70642765981150E+02) * x + 6.36961934872237E+01;
+                } else if (x < 0.8994744718074799) {
+                    return ((-2.60499440597370E+02 * x - 1.69367458674853E+02) * x + 1.12913289561831E+02) * x + 2.65534872970494E+02;
+                } else {
+                    return -3.86892551892486E+02 * x + 3.88498371998310E+02;
+                }
+            }
+
+            float colormap_blue(float x) {
+                if (x < 0.09708546522206818) {
+                    return -2.18830769230769E+01 * x + 8.03384615384615E+00;
+                } else if (x < 0.2041181623935699) {
+                    return 1.36731800766284E+02 * x - 7.36535303776692E+00;
+                } else if (x < 0.4982341825962067) {
+                    return (-3.57661007879491E+02 * x + 1.02135850891279E+03) * x - 1.73032069862183E+02;
+                } else if (x < 0.6063862144947052) {
+                    return -1.17230769230812E+02 * x + 3.05467236467253E+02;
+                } else {
+                    return (((((6.76307238761902E+05 * x - 3.23892241330779E+06) * x + 6.41842651908440E+06) * x - 6.73646783203943E+06) * x + 3.94913439210334E+06) * x - 1.22625641797298E+06) * x + 1.57856249228480E+05;
+                }
+            } 
+
+                        
+            //colormap code from: https://github.com/kbinani/colormap-shaders/blob/master/shaders/glsl/IDL_CB-PiYG.frag
+            // float colormap_red(float x) {
+            //     if (x < 0.09843078255653381) {
+            //         return 5.57627692307694E+02 * x + 1.42135384615385E+02;
+            //     } else if (x < 0.4093809425830841) {
+            //         return ((-4.21748915649019E+02 * x + 1.28054196831998E+01) * x + 2.64504106766935E+02) * x + 1.71265909327078E+02;
+            //     } else if (x < 0.5037343473981705) {
+            //         return -6.54538461538185E+01 * x + 2.79554615384612E+02;
+            //     } else if (x < 0.5982368290424347) {
+            //         return -1.66852258852308E+02 * x + 3.30632478632496E+02;
+            //     } else {
+            //         return ((1.82001891024969E+03 * x - 4.20447326861499E+03) * x + 2.68838861198902E+03) * x - 2.62418693972160E+02;
+            //     }
+            // }
+
+            // float colormap_green(float x) {
+            //     if (x < 0.101902037858963) {
+            //         return 2.72322735042735E+02 * x + 5.21367521367536E-01;
+            //     } else if (x < 0.5059849917888641) {
+            //         return ((6.81035433115437E+02 * x - 1.71408042362240E+03) * x + 1.36671536460816E+03) * x - 9.39210546594673E+01;
+            //     } else if (x < 0.5954320132732391) {
+            //         return -2.72768472906136E+01 * x + 2.60800985221660E+02;
+            //     } else {
+            //         return ((1.09164194296742E+03 * x - 3.01508808799416E+03) * x + 2.33004497173996E+03) * x - 3.04306745740377E+02;
+            //     }
+            // }
+
+            // float colormap_blue(float x) {
+            //     if (x < 0.5011215507984161) {
+            //         return (((((-3.44764954376220E+04 * x + 6.98813026428223E+04) * x - 4.87748659515380E+04) * x + 1.31832279253005E+04) * x - 1.26691288614273E+03) * x + 4.73465709444135E+02) * x + 8.21916531938477E+01;
+            //     } else if (x < 0.5958432303492089) {
+            //         return -3.80379731379794E+02 * x + 4.37472934472961E+02;
+            //     } else if (x < 0.790071576833725) {
+            //         return -7.13383710407293E+02 * x + 6.35891101055846E+02;
+            //     } else {
+            //         return (1.19760697610430E+03 * x - 2.36001183205723E+03) * x + 1.18928322234544E+03;
+            //     }
+            // }
+
+            //Colormap from https://github.com/kbinani/colormap-shaders/blob/master/shaders/glsl/IDL_CB-RdYiBu.frag
+            // float colormap_red(float x) {
+            //     if (x < 0.09790863520700754) {
+            //         return 5.14512820512820E+02 * x + 1.64641025641026E+02;
+            //     } else if (x < 0.2001887081633112) {
+            //         return 2.83195402298854E+02 * x + 1.87288998357964E+02;
+            //     } else if (x < 0.3190117539655621) {
+            //         return 9.27301587301214E+01 * x + 2.25417989417999E+02;
+            //     } else if (x < 0.500517389125164) {
+            //         return 255.0;
+            //     } else if (x < 0.6068377196788788) {
+            //         return -3.04674876847379E+02 * x + 4.07495073891681E+02;
+            //     } else if (x < 0.9017468988895416) {
+            //         return (1.55336390191951E+02 * x - 7.56394659038288E+02) * x + 6.24412733169483E+02;
+            //     } else {
+            //         return -1.88350769230735E+02 * x + 2.38492307692292E+02;
+            //     }
+            // }
+
+            // float colormap_green(float x) {
+            //     if (x < 0.09638568758964539) {
+            //         return 4.81427692307692E+02 * x + 4.61538461538488E-01;
+            //     } else if (x < 0.4987066686153412) {
+            //         return ((((3.25545903568267E+04 * x - 4.24067109461319E+04) * x + 1.83751375886345E+04) * x - 3.19145329617892E+03) * x + 8.08315127034676E+02) * x - 1.44611527812961E+01;
+            //     } else if (x < 0.6047312345537269) {
+            //         return -1.18449917898218E+02 * x + 3.14234811165860E+02;
+            //     } else if (x < 0.7067635953426361) {
+            //         return -2.70822112753102E+02 * x + 4.06379036672115E+02;
+            //     } else {
+            //         return (-4.62308723214883E+02 * x + 2.42936159122279E+02) * x + 2.74203431802418E+02;
+            //     }
+            // }
+
+            // float colormap_blue(float x) {
+            //     if (x < 0.09982818011951204) {
+            //         return 1.64123076923076E+01 * x + 3.72646153846154E+01;
+            //     } else if (x < 0.2958717460833126) {
+            //         return 2.87014675052409E+02 * x + 1.02508735150248E+01;
+            //     } else if (x < 0.4900527540014758) {
+            //         return 4.65475113122167E+02 * x - 4.25505279034673E+01;
+            //     } else if (x < 0.6017014681258838) {
+            //         return 5.61032967032998E+02 * x - 8.93789173789407E+01;
+            //     } else if (x < 0.7015737100463595) {
+            //         return -1.51655677655728E+02 * x + 3.39446886446912E+02;
+            //     } else if (x < 0.8237156500567735) {
+            //         return -2.43405347593559E+02 * x + 4.03816042780725E+02;
+            //     } else {
+            //         return -3.00296889157305E+02 * x + 4.50678495922638E+02;
+            //     }
+            // }
+
+            vec4 colormap(float x) {
+                float r = clamp(colormap_red(x) / 255.0, 0.0, 1.0);
+                float g = clamp(colormap_green(x) / 255.0, 0.0, 1.0);
+                float b = clamp(colormap_blue(x) / 255.0, 0.0, 1.0);
+                return vec4(r, g, b, 1.0);
+            }
+            void main()
+            { 
+                vec4 color = texelFetch(curvDiffTexture, ivec2(gl_FragCoord.xy), 0);
+                if(color.a == 0)
+                    discard;
+                float maximum = 1.0;
+                float minimum = -maximum;
+                float scaled = (color.x - minimum)/(maximum - minimum);
+                if(scaled > 1 || scaled < 0)
+                    FragColor = vec4(0.0,0.0,0.0, 1.0);
+                else
+                    FragColor = colormap(scaled);
+            }
+            -->
+            </snippet>
+        </shader>
+
+
+      <shader name="normalizePositions">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+            uniform sampler2D positionTexture;
+            uniform sampler2D depthTexture;
+            uniform sampler2D heightTexture;
+            uniform sampler2D widthTexture;
+            uniform int level_max;
+
+            void main()
+            { 
+                vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
+                if(position == vec4(0.0))
+                    discard;
+                vec2 depth = texelFetch(depthTexture, ivec2(0,0), level_max - 1).xy;
+                vec2 height = texelFetch(heightTexture, ivec2(0,0), level_max - 1).xy;
+                vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
+
+                vec3 mins = vec3(width.y, height.y, depth.y);
+                vec3 maxs = vec3(width.x, height.x, depth.x);
+
+                vec3 intensity;
+                intensity = (position.xyz - mins) / (maxs - mins);
+                FragColor = vec4(intensity, 1.0);
+            }
+
+            -->
+            </snippet>
+        </shader>
+
+        <namespace name="contours">
+        <shader name="SC">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D normalTexture;
+            uniform sampler2D positionTexture;
+            uniform sampler2D shadingTexture;
+
+            //parameter
+            uniform int radius;
+            uniform float neighbourThreshold; //percentage s in original  SC paper //  in original paper 0.2
+            uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
+            uniform bool medianFilter;
+            uniform bool circularNeighborhood;
+            uniform bool whiteBackground;
+            uniform bool overlay;
+
+            void main()
+            {
+
+                vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                if(normal == vec3(0.0)){
+                    discard;
+                }
+                vec4 shading = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
+                FragColor = shading;
+                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                vec3 lightdir;
+                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                float col = dot(normal, lightdir);
+
+                int darker = 0; //How many values are darker than the current pixel?
+                float maxIntensity = col;
+                
+                float filterValues[100]; //Use biggest number as OpenGL does not allow variable sized arrays
+                filterValues[0] = col;    //collects all values for median filtering. 
+                                            //Incoming values are grayscale therefore r component is sufficient
+
+                 
+                // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
+                // Discard all points that are not part of the circle
+                // Collect data and save all intensities to filterValues
+                int idx = 1;
+                int total = 1;
+                vec3 cur_normal;
+                vec3 cur_position;
+                float cur;
+                for(int x = 0; x <= radius; x++){
+                    for(int y = 0; y <= radius; y++){
+                        if(x == 0 && y == 0)
+                            continue;
+                        else if(circularNeighborhood && x*x + y*y > radius * radius){
+                            continue;
+                        }
+                        else{
+                            ++total;
+                            cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
+                            cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
+                                lightdir = normalize(-cur_position);
+                            cur = dot(cur_normal, lightdir);
+                            if(cur <= col)
+                                ++darker;
+                            if(cur > maxIntensity)
+                                maxIntensity = cur;
+                            filterValues[idx] = cur;
+                            idx++;
+
+                            if(x != 0){
+                                ++total;
+                                cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
+                                cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
+                                    lightdir = normalize(-cur_position);
+                                cur = dot(cur_normal, lightdir);
+                                if(cur <= col)
+                                    ++darker;
+                                if(cur > maxIntensity)
+                                    maxIntensity = cur;
+                                filterValues[idx] = cur;
+                                idx++;
+                                
+                                if(y != 0){
+                                    ++total;
+                                    cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
+                                    cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
+                                        lightdir = normalize(-cur_position);
+                                    cur = dot(cur_normal, lightdir);
+                                    if(cur <= col)
+                                        ++darker;
+                                    if(cur > maxIntensity)
+                                        maxIntensity = cur;
+                                    filterValues[idx] = cur;
+                                    idx++;
+                                }
+                            }
+
+                            if(y!= 0){
+                                ++total;
+                                cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
+                                cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
+                                    lightdir = normalize(-cur_position);
+                                cur = dot(cur_normal, lightdir);
+                                if(cur <= col)
+                                    ++darker;
+                                if(cur > maxIntensity)
+                                    maxIntensity = cur;
+                                filterValues[idx] = cur;
+                                idx++;
+                            }
+
+                        }
+                    }
+                }
+
+                // //Median filtering
+                if(medianFilter){
+                    for(int n = total-1; n > 0; n = n - 1){
+                        for(int i = 0; i < n; ++i){
+                            float minimum = min(filterValues[i], filterValues[i+1]);
+                            filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
+                            filterValues[i] = minimum;
+                        }
+                    }
+                    // assign col to the median
+                    col = filterValues[int(floor(total * 1.0 / 2.0))];
+                }
+
+                if(!whiteBackground)
+                    col = 1.0; //invert color because background is dark
+                else col = 0;
+
+                if(!overlay){
+                    if(darker > neighbourThreshold * total){
+                        discard;
+                    }
+                    if(maxIntensity - col <= intensityDiffThreshold){
+                        discard;
+                    }
+                    FragColor = vec4(col, col, col, 1.0);
+                    }
+                else{
+                    if((darker <= neighbourThreshold * total) && (maxIntensity - col > intensityDiffThreshold))
+                        FragColor = vec4(col, col, col, 1.0);
+                }
+
+            }
+          -->
+        </snippet>
+      </shader>
+
+        <shader name="C">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D normalTexture;
+            uniform sampler2D positionTexture;
+            uniform sampler2D shadingTexture;
+            uniform float cutOff;
+            uniform int level_max;
+            uniform bool whiteBackground;
+            uniform bool overlay;
+
+            void main()
+            {
+                vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                if(normal == vec3(0.0)){
+                    discard;
+                }
+                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                vec3 lightdir;
+                float col;
+                lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                col = dot(normal, lightdir);
+                if(col > cutOff){
+                    if(overlay) FragColor = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
+                    else discard;
+                }
+                else{
+                    if(whiteBackground || overlay){
+                        FragColor = vec4(vec3(0.0), 1.0);
+                    }
+                    else{
+                        FragColor = vec4(vec3(1.0), 1.0);
+                    }
+                }
+
+            }
+          -->
+        </snippet>
+      </shader>
+        <shader name="C_Curvature">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D normalTexture;
+            uniform sampler2D positionTexture;
+            uniform sampler2D curvatureTexture;
+            uniform sampler2D shadingTexture;
+            uniform sampler2D colourTexture;
+            uniform int level_max;
+            uniform float cutOff;
+            uniform int height;
+            uniform int width;
+            
+            uniform float near_plane;
+            uniform bool whiteBackground;
+            uniform bool overlay;
+
+            void main()
+            {
+                vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
+                vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                if(normal == vec3(0.0) || position.a == 0){
+                    discard;
+                }
+                else{
+                vec3 lightdir;
+                float col, curvature;
+                curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
+                lightdir = normalize(vec3(0.0, 0.0, 0.0) - position.xyz); 
+                col =dot(normal, lightdir);
+                
+                //Approximate the view-space width to transform the line-width controlling parameter from view space to screen space
+                vec3 right = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).rgb;
+                vec3 left = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).rgb;
+                vec3 up = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).rgb;
+                vec3 down = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).rgb;
+                float d1,d2,d3,d4;
+                d1 = length(position.xyz - right);
+                d2 = length(position.xyz - left);
+                d3 = length(position.xyz - up);
+                d4 = length(position.xyz - down);
+                float viewSpaceWidth = 0.5*(min(d1,d2)+min(d3,d4));
+
+                // vary c using some scalar field
+
+                // //circle
+                // float x = (gl_FragCoord.x - width/2) / height;
+                // float y = gl_FragCoord.y / height - 0.5;
+                // float value = sqrt(x*x + y*y);
+                // value *= 10;
+                // // float C = pow(3, floor(value)) *  viewSpaceWidth;
+                // float C = value *  viewSpaceWidth;
+
+                // // left to right
+                // float c_width = gl_FragCoord.x / width;
+                // // c_width *= 5;
+                // // float C =  c_width *  viewSpaceWidth;
+                // float C;
+                // if(c_width < 0.33){
+                //     C = 1;
+                // }
+                // else if(c_width < 0.66){
+                //     C = 4;
+                // }
+                // else{
+                //     C = 9;
+                // }
+                // C *= viewSpaceWidth;
+
+                //according to depth 
+                //   float c_width = (170 - abs(position.z)) /10;
+                //   float C = c_width * viewSpaceWidth;
+
+
+                // // vary c according to atom type:
+                // vec3 colour = texelFetch(colourTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                // float c_width;
+                // if(colour.x > 0.5){
+                //     if(colour.y < 0.5) //oxygen
+                //         c_width = 10;
+                //     else if(colour.z < 0.3) //sulphur
+                //         c_width = 1;
+                //     else
+                //         c_width = 1; //hydrogen
+                // }
+                // else{
+                //     if(colour.z > 0.5) //nitrogen
+                //         c_width = 1;
+                //     else //carbon
+                //         c_width = 1;
+                // }
+                // float C = c_width * viewSpaceWidth;
+
+                // or use the parameter "cutOff"
+
+                float C = cutOff * viewSpaceWidth;
+
+                
+                if(col > sqrt(C * abs(curvature) * (2 - C * abs(curvature)))){
+                    if(overlay) FragColor = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
+                    else{ discard;}
+                }
+                else{
+                if(whiteBackground || overlay){
+                    FragColor = vec4(vec3(0.0), 1.0);
+                }
+                else{
+                    FragColor = vec4(vec3(1.0), 1.0);
+                }
+                }
+                }
+            }
+          -->
+        </snippet>
+      </shader>
+      </namespace>
+
+        <namespace name="curvature">
+        <shader name="evans">
+          <snippet type="version">450</snippet>
+          <snippet type="string">
+            <!--
+
+            //From http://www.madebyevan.com/shaders/curvature/
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+            uniform sampler2D depthTexture;
+            uniform int level_max;
+
+
+            void main() {
+                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
+                vec2 depth = texelFetch(depthTexture, ivec2(0,0), level_max - 1).xy;
+
+                vec3 n = normalize(passNormal_view.xyz);
+
+                vec3 dx = dFdx(n);
+                vec3 dy = dFdy(n);
+                vec3 xneg = n - dx; 
+                vec3 xpos = n + dx;
+                vec3 yneg = n - dy;
+                vec3 ypos = n + dy;
+                float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) * 4 / length(passPosition_view.xyz) *depth.x;
+                if(isnan(curvature))
+                    discard;
+
+                fragCurvature = vec4(vec3(curvature), 1.0);
+            }
+            -->
+            </snippet>
+        </shader>
+
+
+        <shader name="mean">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            // Compare to https://doi.org/10.1145/1531326.1531331
+
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+
+            void main() {
+                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
+
+                vec3 n = normalize(passNormal_view.xyz);
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+
+                vec3 dx = 2 * dFdx(n) / length(pLeft - pRight); //Normalize to have equivalent view space width
+                vec3 dy =  2 * dFdy(n) / length(pTop - pBottom);
+                
+                float curvature = (-(dx.x + dy.y)/n.z + (n.x * dx.z + n.y * dy.z) / (n.z * n.z)) / -2;
+                if(isnan(curvature)) //This happens at the silhouette of the molecule, because for the calculation of dFdx or dFdy, neighbouring pixels are vec4(0).
+                    discard;
+
+                fragCurvature = vec4(vec3(curvature), 1.0);
+            }
+            -->
+            </snippet>
+        </shader>
+
+        <shader name="normal">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+
+            void main() {
+                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
+
+                vec3 p = passPosition_view.xyz;
+                vec3 n = normalize(passNormal_view.xyz);
+
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+
+                float curvatureLeft = 2 * dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
+                float curvatureTop = 2 * dot(n , p - pTop) / (length(pTop - p) * length(pTop - p));
+                float curvatureRight = 2 * dot(n, p - pRight) / (length(pRight - p) * length(pRight - p));
+                float curvatureBottom = 2 * dot(n, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+
+                float curvature = (curvatureLeft + curvatureTop + curvatureRight + curvatureBottom) / 4;
+                fragCurvature = vec4(vec3(curvature), 1.0);
+            }
+
+
+            -->
+            </snippet>
+        </shader>
+        <shader name="normal_averaged">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+
+            void main() {
+                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
+
+                vec3 p = passPosition_view.xyz;
+                vec3 n = normalize(passNormal_view.xyz);
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+
+                vec3 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+
+                float curvature =  dot(n - nLeft, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
+                curvature +=  dot(n- nTop, p - pTop) / (length(pTop - p) * length(pTop - p));
+                curvature +=  dot(n -nRight, p - pRight) / (length(pRight - p) * length(pRight - p));
+                curvature +=  dot(n -nBottom, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+                curvature /= 4;
+                fragCurvature = vec4(vec3(curvature), 1.0);
+            }
+            -->
+            </snippet>
+        </shader>
+        <shader name="prantlmean">
+          <snippet type="version">420</snippet>
+          <snippet type="string">
+            <!--
+            // Source http://graphics.zcu.cz/sscurvature.html
+			#define TRIANGLE_VERTICES  3
+
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+//Begin
+
+			vec2 CalcCurvature_ShapeOperator(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
+			{
+	
+				vec3 local_trianglePos[TRIANGLE_VERTICES];
+				vec3 local_triangleNor[TRIANGLE_VERTICES];
+
+	
+				//=========================================================================================================
+
+				vec3 _ba_ = (b - a);
+				vec3 _ca_ = (c - a);
+
+	
+	
+				vec3 axis[TRIANGLE_VERTICES];
+				axis[0] = normalize(_ba_);
+				axis[2] = normalize(cross(axis[0], _ca_));    
+				axis[1] = normalize(cross(axis[0], axis[2]));
+				
+				// mat3 transformMatrix = mat3(axis[0], axis[1], axis[2]);  
+                // transformMatrix = transpose(transformMatrix);
+                mat3 transformMatrix = mat3(axis[0][0], axis[1][0], axis[2][0],
+                                            axis[0][1], axis[1][1], axis[2][1],
+                                            axis[0][2], axis[1][2], axis[2][2]);
+				
+				local_trianglePos[0] = vec3(0,0,0);
+				local_triangleNor[0] = transformMatrix * an;
+	
+				local_trianglePos[1] = transformMatrix * _ba_;	
+				local_triangleNor[1] = transformMatrix * bn;
+
+				local_trianglePos[2] = transformMatrix * _ca_;	
+				local_triangleNor[2] = transformMatrix * cn;
+	
+				vec3 u;
+				vec3 v;
+
+				vec3 du;
+				vec3 dv;
+
+				u.x = local_trianglePos[1].x - local_trianglePos[0].x;
+				u.y = local_trianglePos[2].x - local_trianglePos[1].x;
+				u.z = local_trianglePos[0].x - local_trianglePos[2].x;
+
+				v.x = local_trianglePos[1].y - local_trianglePos[0].y;
+				v.y = local_trianglePos[2].y - local_trianglePos[1].y;
+				v.z = local_trianglePos[0].y - local_trianglePos[2].y;
+	
+
+				du.x = local_triangleNor[1].x - local_triangleNor[0].x;
+				du.y = local_triangleNor[2].x - local_triangleNor[1].x;
+				du.z = local_triangleNor[0].x - local_triangleNor[2].x;
+
+				dv.x = local_triangleNor[1].y - local_triangleNor[0].y;
+				dv.y = local_triangleNor[2].y - local_triangleNor[1].y;	
+				dv.z = local_triangleNor[0].y - local_triangleNor[2].y;
+	
+				//===============================================================================
+
+
+				
+				//inverse of 3x3 matrix
+				//invB = inverse of B
+
+				float aa = dot(u, u);
+				float bb = dot(u, v);
+				float cc = dot(v, v);
+
+				float invB_B = -(bb * cc);
+				float invB_C =  (bb * bb);
+				float invB_D =  (aa * cc);
+				float invB_E = -(aa * bb);
+				float invB_A = -invB_C + (cc * cc) + invB_D;
+				float invB_F =  (aa * aa) + invB_D - invB_C;
+
+				float determinantB = 1.0 / ((aa + cc) * (invB_D - invB_C));
+
+				//=======================================================================================
+
+				//col based matrices
+				mat3 resLeft;
+				mat3 resRight;
+	
+				resLeft[0][0] = v.x * invB_B + u.x * invB_A;
+				resLeft[0][1] = v.x * invB_C + u.x * invB_B;
+				resLeft[0][2] = v.y * invB_B + u.y * invB_A;
+				resRight[0][0] = v.y * invB_C + u.y * invB_B;
+				resRight[0][1] = v.z * invB_B + u.z * invB_A;
+				resRight[0][2] = v.z * invB_C + u.z * invB_B;
+
+				resLeft[1][0] = v.x * invB_D + u.x * invB_B;
+				resLeft[1][1] = v.x * invB_E + u.x * invB_D;
+				resLeft[1][2] = v.y * invB_D + u.y * invB_B;
+				resRight[1][0] = v.y * invB_E + u.y * invB_D;
+				resRight[1][1] = v.z * invB_D + u.z * invB_B;
+				resRight[1][2] = v.z * invB_E + u.z * invB_D;
+
+				resLeft[2][0] = v.x * invB_E + u.x * invB_C;
+				resLeft[2][1] = v.x * invB_F + u.x * invB_E;
+				resLeft[2][2] = v.y * invB_E + u.y * invB_C;
+				resRight[2][0] = v.y * invB_F + u.y * invB_E;
+				resRight[2][1] = v.z * invB_E + u.z * invB_C;
+				resRight[2][2] = v.z * invB_F + u.z * invB_E;
+
+				//================================================================================
+				
+				vec3 finalM_gpu_a = vec3(du.x, dv.x, du.y) * resLeft;
+				vec3 finalM_gpu_b = vec3(dv.y, du.z, dv.z) * resRight;
+
+				vec3 tmp_gpu = determinantB * (finalM_gpu_a + finalM_gpu_b);
+
+				//================================================================================
+
+
+				float D = dot(tmp_gpu, tmp_gpu) + (3.0 * tmp_gpu.y * tmp_gpu.y - 2.0 * tmp_gpu.x * tmp_gpu.z);
+	
+				if (D < 0) D = 0;
+				float sqrtD = sqrt(D);
+
+				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
+				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
+
+
+				// float gauss = L1 * L2;
+	
+				// float mean = 0.5 * (L1 + L2);
+
+				return vec2(L1, L2);
+			}
+
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
+                    discard;
+
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                vec2 eigenvalues;
+                //As a default use upper Right Triangle for the Shape operator approximation
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                    eigenvalues = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                //If the upper right triangle is across a silhouette, use lower left
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+
+                    eigenvalues = CalcCurvature_ShapeOperator(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
+
+                }
+                float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
+
+                if(isnan(mean_curv) || isinf(mean_curv))
+                    discard;
+                fragCurvature = vec4(vec3(mean_curv),1.0);
+            }
+                
+            -->
+            </snippet>
+        </shader>
+
+        <shader name="prantl2mean">
+          <snippet type="version">420</snippet>
+          <snippet type="string">
+            <!--
+            //Source: http://graphics.zcu.cz/sscurvature.html
+			#define TRIANGLE_VERTICES  3
+
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+//Begin
+			vec2 CalcCurvature_ShapeOperator_2edge(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
+			{
+	
+				vec3 local_trianglePos[TRIANGLE_VERTICES];
+				vec3 local_triangleNor[TRIANGLE_VERTICES];
+
+	
+				//=========================================================================================================
+
+				vec3 _ba_ = (b - a);
+				vec3 _ca_ = (c - a);
+
+	
+	
+				vec3 axis[TRIANGLE_VERTICES];
+				axis[0] = normalize(_ba_);
+				axis[2] = normalize(cross(axis[0], _ca_));    
+				axis[1] = normalize(cross(axis[0], axis[2]));
+
+
+
+
+                mat3 transformMatrix = mat3(axis[0][0], axis[1][0], axis[2][0],
+                                            axis[0][1], axis[1][1], axis[2][1],
+                                            axis[0][2], axis[1][2], axis[2][2]);
+				
+
+				local_trianglePos[0] = vec3(0, 0, 0);
+				local_triangleNor[0] = transformMatrix* an;
+	
+				local_trianglePos[1] = transformMatrix* _ba_;	
+				local_triangleNor[1] = transformMatrix* bn;
+
+				local_trianglePos[2] = transformMatrix* _ca_;	
+				local_triangleNor[2] = transformMatrix* cn;
+	
+				vec2 u;
+				vec2 v;
+
+				vec2 du;
+				vec2 dv;
+
+				u.x = local_trianglePos[1].x - local_trianglePos[0].x;
+				u.y = local_trianglePos[2].x - local_trianglePos[1].x;
+	
+				v.x = local_trianglePos[1].y - local_trianglePos[0].y;
+				v.y = local_trianglePos[2].y - local_trianglePos[1].y;
+		
+				du.x = local_triangleNor[1].x - local_triangleNor[0].x;
+				du.y = local_triangleNor[2].x - local_triangleNor[1].x;
+	
+				dv.x = local_triangleNor[1].y - local_triangleNor[0].y;
+				dv.y = local_triangleNor[2].y - local_triangleNor[1].y;	
+		
+				//===============================================================================
+				
+
+				//inverse of 3x3 matrix
+				//invB = inverse of B
+
+				float aa = dot(u, u);
+				float bb = dot(u, v);
+				float cc = dot(v, v);
+
+				float invB_B = -(bb * cc);
+				float invB_C =  (bb * bb);
+				float invB_D =  (aa * cc);
+				float invB_E = -(aa * bb);
+				float invB_A = -invB_C + (cc * cc) + invB_D;
+				float invB_F =  (aa * aa) + invB_D - invB_C;
+
+				float determinantB = 1.0 / ((aa + cc) * (invB_D - invB_C));
+
+
+
+				//=======================================================================================
+
+				mat4 tmp;
+	
+	
+				tmp[0][0] = v.x * invB_B + u.x * invB_A;
+				tmp[0][1] = v.x * invB_C + u.x * invB_B;
+				tmp[0][2] = v.y * invB_B + u.y * invB_A;
+				tmp[0][3] = v.y * invB_C + u.y * invB_B;
+
+
+				tmp[1][0] = v.x * invB_D + u.x * invB_B;
+				tmp[1][1] = v.x * invB_E + u.x * invB_D;
+				tmp[1][2] = v.y * invB_D + u.y * invB_B;
+				tmp[1][3] = v.y * invB_E + u.y * invB_D;
+
+
+				tmp[2][0] = v.x * invB_E + u.x * invB_C;
+				tmp[2][1] = v.x * invB_F + u.x * invB_E;
+				tmp[2][2] = v.y * invB_E + u.y * invB_C;
+				tmp[2][3] = v.y * invB_F + u.y * invB_E;
+
+
+				tmp[3][0] = 0;
+				tmp[3][1] = 0;
+				tmp[3][2] = 0;
+				tmp[3][3] = 0;
+
+				//================================================================================
+
+				vec4 tmp_gpu = determinantB * vec4(du.x, dv.x, du.y, dv.y) * tmp;
+				
+				//================================================================================
+
+
+				float D = dot(tmp_gpu, tmp_gpu) + (3.0 * tmp_gpu.y * tmp_gpu.y - 2.0 * tmp_gpu.x * tmp_gpu.z);
+	
+				if (D < 0) D = 0;
+				float sqrtD = sqrt(D);
+
+				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
+				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
+
+				return vec2(L1, L2);
+			}
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
+                    discard;
+
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                vec2 eigenvalues;
+                //As a default use upper Right Triangle for the Shape operator approximation
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                    eigenvalues = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                //If the upper right triangle is across a silhouette, use lower left
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+
+                    eigenvalues = CalcCurvature_ShapeOperator_2edge(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
+
+                }
+                float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
+                if(isnan(mean_curv) || isinf(mean_curv))
+                    discard;
+
+                fragCurvature = vec4(vec3(mean_curv),1.0);
+            }
+                
+            -->
+            </snippet>
+        </shader>
+        <shader name="prantlradial">
+          <snippet type="version">420</snippet>
+          <snippet type="string">
+            <!--
+            //Source: http://graphics.zcu.cz/sscurvature.html
+			#define TRIANGLE_VERTICES  3
+
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+//Begin
+
+			float CalcCurvature_ShapeOperator(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
+			{
+	
+				vec3 local_trianglePos[TRIANGLE_VERTICES];
+				vec3 local_triangleNor[TRIANGLE_VERTICES];
+
+	
+				//=========================================================================================================
+
+				vec3 _ba_ = (b - a);
+				vec3 _ca_ = (c - a);
+
+	
+	
+				vec3 axis[TRIANGLE_VERTICES];
+				axis[0] = normalize(_ba_);
+				axis[2] = normalize(cross(axis[0], _ca_));    
+				axis[1] = normalize(cross(axis[0], axis[2]));
+				
+                mat3 transformMatrix = mat3(axis[0][0], axis[1][0], axis[2][0],
+                                            axis[0][1], axis[1][1], axis[2][1],
+                                            axis[0][2], axis[1][2], axis[2][2]);
+				
+				local_trianglePos[0] = vec3(0,0,0);
+				local_triangleNor[0] = transformMatrix * an;
+	
+				local_trianglePos[1] = transformMatrix * _ba_;	
+				local_triangleNor[1] = transformMatrix * bn;
+
+				local_trianglePos[2] = transformMatrix * _ca_;	
+				local_triangleNor[2] = transformMatrix * cn;
+	
+				vec3 u;
+				vec3 v;
+
+				vec3 du;
+				vec3 dv;
+
+				u.x = local_trianglePos[1].x - local_trianglePos[0].x;
+				u.y = local_trianglePos[2].x - local_trianglePos[1].x;
+				u.z = local_trianglePos[0].x - local_trianglePos[2].x;
+
+				v.x = local_trianglePos[1].y - local_trianglePos[0].y;
+				v.y = local_trianglePos[2].y - local_trianglePos[1].y;
+				v.z = local_trianglePos[0].y - local_trianglePos[2].y;
+	
+
+				du.x = local_triangleNor[1].x - local_triangleNor[0].x;
+				du.y = local_triangleNor[2].x - local_triangleNor[1].x;
+				du.z = local_triangleNor[0].x - local_triangleNor[2].x;
+
+				dv.x = local_triangleNor[1].y - local_triangleNor[0].y;
+				dv.y = local_triangleNor[2].y - local_triangleNor[1].y;	
+				dv.z = local_triangleNor[0].y - local_triangleNor[2].y;
+	
+				//===============================================================================
+
+
+				
+				//inverse of 3x3 matrix
+				//invB = inverse of B
+
+				float aa = dot(u, u);
+				float bb = dot(u, v);
+				float cc = dot(v, v);
+
+				float invB_B = -(bb * cc);
+				float invB_C =  (bb * bb);
+				float invB_D =  (aa * cc);
+				float invB_E = -(aa * bb);
+				float invB_A = -invB_C + (cc * cc) + invB_D;
+				float invB_F =  (aa * aa) + invB_D - invB_C;
+
+				float determinantB = 1.0 / ((aa + cc) * (invB_D - invB_C));
+
+
+
+				//=======================================================================================
+
+				//col based matrices
+				mat3 resLeft;
+				mat3 resRight;
+	
+				resLeft[0][0] = v.x * invB_B + u.x * invB_A;
+				resLeft[0][1] = v.x * invB_C + u.x * invB_B;
+				resLeft[0][2] = v.y * invB_B + u.y * invB_A;
+				resRight[0][0] = v.y * invB_C + u.y * invB_B;
+				resRight[0][1] = v.z * invB_B + u.z * invB_A;
+				resRight[0][2] = v.z * invB_C + u.z * invB_B;
+
+				resLeft[1][0] = v.x * invB_D + u.x * invB_B;
+				resLeft[1][1] = v.x * invB_E + u.x * invB_D;
+				resLeft[1][2] = v.y * invB_D + u.y * invB_B;
+				resRight[1][0] = v.y * invB_E + u.y * invB_D;
+				resRight[1][1] = v.z * invB_D + u.z * invB_B;
+				resRight[1][2] = v.z * invB_E + u.z * invB_D;
+
+				resLeft[2][0] = v.x * invB_E + u.x * invB_C;
+				resLeft[2][1] = v.x * invB_F + u.x * invB_E;
+				resLeft[2][2] = v.y * invB_E + u.y * invB_C;
+				resRight[2][0] = v.y * invB_F + u.y * invB_E;
+				resRight[2][1] = v.z * invB_E + u.z * invB_C;
+				resRight[2][2] = v.z * invB_F + u.z * invB_E;
+
+				//================================================================================
+				
+				vec3 finalM_gpu_a = vec3(du.x, dv.x, du.y) * resLeft;
+				vec3 finalM_gpu_b = vec3(dv.y, du.z, dv.z) * resRight;
+
+				vec3 tmp_gpu = determinantB * (finalM_gpu_a + finalM_gpu_b);
+
+				//================================================================================
+
+
+				float D = dot(tmp_gpu, tmp_gpu) + (3.0 * tmp_gpu.y * tmp_gpu.y - 2.0 * tmp_gpu.x * tmp_gpu.z);
+	
+				if (D < 0) D = 0;
+				float sqrtD = sqrt(D);
+
+				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
+				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
+
+                //Compute maximum principal curvature direction (eigenvector) according to:
+                //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
+                vec2 eigenvec1;
+
+                if(tmp_gpu.y !=0 ){
+                    eigenvec1.x = L1 - tmp_gpu.z;
+                    eigenvec1.y = tmp_gpu.y;
+                }
+                else
+                {
+                    eigenvec1 = vec2(1.0, 0.0);
+                }
+
+                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
+                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates 
+                viewdir = normalize(viewdir);
+                vec2 proj_viewdir = (viewdir - (dot(viewdir,normalize(local_triangleNor[0])) * normalize(local_triangleNor[0]))).xy; //project onto tangent plane
+                float cos = dot(normalize(proj_viewdir), normalize(eigenvec1));
+                //Use eulers theorem to compute radial curvature
+                float radial_curv = L1 * cos * cos + L2 * (1- cos * cos);
+
+				return radial_curv;
+			}
+
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
+                    discard;
+
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                float curv;
+                //As a default use upper Right Triangle for the Shape operator approximation
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                    curv = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                //If the upper right triangle is across a silhouette, use lower left
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+
+                    curv = CalcCurvature_ShapeOperator(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
+
+                }
+
+                if(isnan(curv) || isinf(curv))
+                    discard;
+                fragCurvature = vec4(vec3(curv),1.0);
+            }
+                
+            -->
+            </snippet>
+        </shader>
+
+        <shader name="prantl2radial">
+          <snippet type="version">420</snippet>
+          <snippet type="string">
+            <!--
+			#define TRIANGLE_VERTICES  3
+
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+//Begin
+			float CalcCurvature_ShapeOperator_2edge(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
+			{
+	
+				vec3 local_trianglePos[TRIANGLE_VERTICES];
+				vec3 local_triangleNor[TRIANGLE_VERTICES];
+
+	
+				//=========================================================================================================
+
+				vec3 _ba_ = (b - a);
+				vec3 _ca_ = (c - a);
+
+	
+	
+				vec3 axis[TRIANGLE_VERTICES];
+				axis[0] = normalize(_ba_);
+				axis[2] = normalize(cross(axis[0], _ca_));    
+				axis[1] = normalize(cross(axis[0], axis[2]));
+
+
+
+
+                mat3 transformMatrix = mat3(axis[0][0], axis[1][0], axis[2][0],
+                                            axis[0][1], axis[1][1], axis[2][1],
+                                            axis[0][2], axis[1][2], axis[2][2]);
+				
+
+				local_trianglePos[0] = vec3(0, 0, 0);
+				local_triangleNor[0] = transformMatrix* an;
+	
+				local_trianglePos[1] = transformMatrix* _ba_;	
+				local_triangleNor[1] = transformMatrix* bn;
+
+				local_trianglePos[2] = transformMatrix* _ca_;	
+				local_triangleNor[2] = transformMatrix* cn;
+	
+				vec2 u;
+				vec2 v;
+
+				vec2 du;
+				vec2 dv;
+
+				u.x = local_trianglePos[1].x - local_trianglePos[0].x;
+				u.y = local_trianglePos[2].x - local_trianglePos[1].x;
+	
+				v.x = local_trianglePos[1].y - local_trianglePos[0].y;
+				v.y = local_trianglePos[2].y - local_trianglePos[1].y;
+		
+				du.x = local_triangleNor[1].x - local_triangleNor[0].x;
+				du.y = local_triangleNor[2].x - local_triangleNor[1].x;
+	
+				dv.x = local_triangleNor[1].y - local_triangleNor[0].y;
+				dv.y = local_triangleNor[2].y - local_triangleNor[1].y;	
+		
+				//===============================================================================
+				
+
+				//inverse of 3x3 matrix
+				//invB = inverse of B
+
+				float aa = dot(u, u);
+				float bb = dot(u, v);
+				float cc = dot(v, v);
+
+				float invB_B = -(bb * cc);
+				float invB_C =  (bb * bb);
+				float invB_D =  (aa * cc);
+				float invB_E = -(aa * bb);
+				float invB_A = -invB_C + (cc * cc) + invB_D;
+				float invB_F =  (aa * aa) + invB_D - invB_C;
+
+				float determinantB = 1.0 / ((aa + cc) * (invB_D - invB_C));
+
+
+
+				//=======================================================================================
+
+				mat4 tmp;
+	
+	
+				tmp[0][0] = v.x * invB_B + u.x * invB_A;
+				tmp[0][1] = v.x * invB_C + u.x * invB_B;
+				tmp[0][2] = v.y * invB_B + u.y * invB_A;
+				tmp[0][3] = v.y * invB_C + u.y * invB_B;
+
+
+				tmp[1][0] = v.x * invB_D + u.x * invB_B;
+				tmp[1][1] = v.x * invB_E + u.x * invB_D;
+				tmp[1][2] = v.y * invB_D + u.y * invB_B;
+				tmp[1][3] = v.y * invB_E + u.y * invB_D;
+
+
+				tmp[2][0] = v.x * invB_E + u.x * invB_C;
+				tmp[2][1] = v.x * invB_F + u.x * invB_E;
+				tmp[2][2] = v.y * invB_E + u.y * invB_C;
+				tmp[2][3] = v.y * invB_F + u.y * invB_E;
+
+
+				tmp[3][0] = 0;
+				tmp[3][1] = 0;
+				tmp[3][2] = 0;
+				tmp[3][3] = 0;
+
+				//================================================================================
+
+				vec4 tmp_gpu = determinantB * vec4(du.x, dv.x, du.y, dv.y) * tmp;
+				
+				//================================================================================
+
+
+				float D = dot(tmp_gpu, tmp_gpu) + (3.0 * tmp_gpu.y * tmp_gpu.y - 2.0 * tmp_gpu.x * tmp_gpu.z);
+	
+				if (D < 0) D = 0;
+				float sqrtD = sqrt(D);
+
+				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
+				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
+
+                //Calculate maximum principal curvature direction (eigenvalue) according to:
+                //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
+                vec2 eigenvec1;
+
+                if(tmp_gpu.y !=0 ){
+                    eigenvec1.x = L1 - tmp_gpu.z;
+                    eigenvec1.y = tmp_gpu.y;
+                }
+                else
+                {
+                    eigenvec1 = vec2(1.0, 0.0);
+                }
+
+                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
+                viewdir = normalize(transformMatrix * viewdir); //transform viewdir into local coordinates
+                vec2 proj_viewdir = (viewdir - dot(viewdir,local_triangleNor[0])* local_triangleNor[0]).xy; //project onto tangent plane
+                float cos = dot(normalize(proj_viewdir), normalize(eigenvec1));
+                //use eulers theorem to compute the radial curvature
+                float radial_curv = L1 * cos * cos + L2 * (1- cos * cos);
+
+				return radial_curv;
+			}
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
+                    discard;
+
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                float radial_curv;
+                //As a default use upper Right Triangle for the Shape operator approximation
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
+
+                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                //If the upper right triangle is across a silhouette, use lower left
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+
+                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
+
+                }
+
+                if(isnan(radial_curv) || isinf(radial_curv))
+                    discard;
+                
+                fragCurvature = vec4(vec3(radial_curv),1.0);
+
+            }
+                
+            -->
+            </snippet>
+        </shader>
+        
+        <shader name="shadingGrad">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            //Calculate the gradient of the arccosine of the shading as a curvature approximation
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+                vec3 pixelPosition = p.xyz;
+                vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
+
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+
+                float shading = dot(pixelNormal, normalize(-pixelPosition));
+
+                float dx = 2 * dFdx(acos(shading)) / length(pLeft - pRight);
+                float dy =  2 * dFdy(acos(shading)) / length(pTop - pBottom);
+
+                fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)), 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
+        <shader name="shadingGrad4N">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            //Calculate the gradient of the arccosine of the shading as a curvature approximation.
+            //Use the 4-neighborhood
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+
+                vec3 nLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz);
+                vec3 nRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz);
+                vec3 nTop = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz);
+                vec3 nBottom = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz);
+
+                float shadingLeft = dot(nLeft, normalize(-pLeft));
+                float shadingRight = dot(nRight, normalize(-pRight));
+                float shadingTop = dot(nTop, normalize(-pTop));
+                float shadingBottom = dot(nBottom, normalize(-pBottom));
+
+                float dx = (acos(shadingRight) - acos(shadingLeft)) / length(pLeft - pRight);
+                float dy = (acos(shadingTop) - acos(shadingBottom)) / length(pTop - pBottom);
+
+                fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)), 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
+        <shader name="Sobel">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            //Calculate the gradient of the arccosine of the shading as a curvature approximation.
+            //Use the Sobel Operator
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pTopLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(-1,1), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTopRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,1), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+                vec3 pBottomLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,1), 0).xyz;
+                vec3 pBottomRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,-1), 0).xyz;
+
+                vec3 nLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz);
+                vec3 nTopLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(-1,1), 0).xyz);
+                vec3 nRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz);
+                vec3 nTopRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,1), 0).xyz);
+                vec3 nTop = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz);
+                vec3 nBottom = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz);
+                vec3 nBottomLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,1), 0).xyz);
+                vec3 nBottomRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,-1), 0).xyz);
+
+                float sLeft = acos(dot(nLeft, normalize(-pLeft)));
+                float sTopLeft = acos(dot(nTopLeft, normalize(-pTopLeft)));
+                float sRight = acos(dot(nRight, normalize(-pRight)));
+                float sTopRight = acos(dot(nTopRight, normalize(-pTopRight)));
+                float sTop = acos(dot(nTop, normalize(-pTop)));
+                float sBottom = acos(dot(nBottom, normalize(-pBottom)));
+                float sBottomLeft = acos(dot(nBottomLeft, normalize(-pBottomLeft)));
+                float sBottomRight = acos(dot(nBottomRight, normalize(-pBottomRight)));
+
+                float Gx = (sTopLeft - sTopRight + 2 * sLeft - 2 * sRight + sBottomLeft - sBottomRight) * 2 / length(pLeft - pRight) / 8;
+                float Gy = (sTopLeft +  2* sTop +  sTopRight - 2 * sBottom - sBottomLeft - sBottomRight) *  2  / length(pTop - pBottom) / 8;
+
+                fragCurvature = vec4(vec3(sqrt(Gx*Gx + Gy*Gy)), 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
+        <shader name="normalDerivative">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            //Calculate the magnitude of the derivative of the normals to approximate the mean curvature
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragNormal;
+            uniform sampler2D tex_fragPosition;
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+                    
+                vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+
+                //Use built-in shader functions
+
+                // float dx =2 *  length(dFdx(pixelNormal)) / length(pLeft - pRight);
+                // float dy = 2 *length(dFdy(pixelNormal)) / length(pTop - pBottom);
+                // fragCurvature = vec4(vec3((dx + dy)/2), 1.0); 
+
+                //Or use the 4-neighborhood
+                vec3 nLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz);
+                vec3 nRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz);
+                vec3 nTop = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz);
+                vec3 nBottom = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz);
+
+                float dx = length((pixelNormal - nLeft));
+                dx += length((pixelNormal - nRight)); 
+                dx /= length(pLeft - pRight);
+                float dy = length((pixelNormal - nTop));
+                dy += length((pixelNormal - nBottom)); 
+                dy /= length(pTop- pBottom);
+                fragCurvature = vec4(vec3((dx + dy)/2), 1.0); 
+
+            }
+          -->
+        </snippet>
+      </shader>
+
+        <shader name="normalPartial">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            //Calculate the partial derivative of the normals to approximate the mean curvature
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragNormal;
+            uniform sampler2D tex_fragPosition;
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+                    
+                vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+
+                float dx = dFdx(pixelNormal.x);
+                dx *= 2 / length(pLeft - pRight);
+                float dy = dFdy(pixelNormal.y);
+                dy *= 2  / length(pTop - pBottom);
+                fragCurvature = vec4(vec3(dx + dy) / 2, 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
+        
+      </namespace>
+        <namespace name="postprocessing">
+        <shader name="blur">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+
+        out vec4 FragColor;
+        uniform sampler2D screenTexture;
+
+        uniform bool horizontal;
+        uniform float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+
+        void main()
+        {             
+        vec4 resultv4 = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0) * weight[0]; // current fragment's contribution
+        if(resultv4 == vec4(0))
+            discard;
+        vec3 result = resultv4.rgb;
+        if(horizontal)
+        {
+            for(int i = 1; i < 5; ++i)
+            {
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(i,0)), 0).rgb * weight[i]; // current fragment's contribution
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-i,0)), 0).rgb * weight[i]; // current fragment's contribution
+            }
+        }
+        else
+        {
+            for(int i = 1; i < 5; ++i)
+            {
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,i)), 0).rgb * weight[i]; // current fragment's contribution
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-i)), 0).rgb * weight[i]; // current fragment's contribution
+            }
+        }
+        FragColor = vec4(result, 1.0);
+        }
+            -->
+            </snippet>
+        </shader>
+        <shader name="perona-malik-blur">
+          <snippet type="version">420</snippet>
+          <snippet type="string">
+            <!--
+                out vec4 FragColor;
+                uniform sampler2D screenTexture;
+                uniform float lambda = 0.25;
+                uniform float K = 1.0;
+
+                void main()
+                {             
+                vec4 centre4 = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0); // current fragment's contribution
+                if(centre4 == vec4(0))
+                    discard;
+                vec3 centre = centre4.rgb;
+                vec3 right = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).rgb; // current fragment's contribution
+                vec3 left = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).rgb; // current fragment's contribution
+                vec3 up = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).rgb; // current fragment's contribution
+                vec3 down = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).rgb; // current fragment's contribution
+
+                // Calculate differences
+                vec3 dr = right - centre;
+                vec3 dl = left - centre;
+                vec3 du = up - centre;
+                vec3 dd = down - centre;
+
+                //Calculate g
+                float gr = exp(-(length(dr)/K)*(length(dr)/K));
+                float gl = exp(-(length(dl)/K)*(length(dl)/K));
+                float gu = exp(-(length(du)/K)*(length(du)/K));
+                float gd = exp(-(length(dd)/K)*(length(dd)/K));
+
+
+                vec3 result = centre + lambda * (gr * dr + gl * dl + gu * du + gd * dd);
+                FragColor = vec4(result, 1.0);
+                }
+            -->
+            </snippet>
+        </shader>
+        <shader name="depthBlur">
+          <snippet type="version">420</snippet>
+          <snippet type="string">
+            <!--
+                out vec4 FragColor;
+                uniform sampler2D screenTexture;
+                uniform sampler2D positionTexture;
+                uniform float depthdiff;
+                void main()
+                {
+                    vec2 offsets[8] = vec2[](vec2(-1,1), vec2(0,1), vec2(1,1), 
+                                             vec2(-1,0),            vec2(1, 0),
+                                             vec2(-1, -1), vec2(0, -1), vec2(1, -1));
+                    float weights[8] = float[](1, 2, 1,
+                                               2,    2,
+                                                1, 2, 1);
+                    vec4 col = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
+                    vec4 pos = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
+                    if(col.a == 0 || pos.a == 0)
+                        discard;
+                    vec3 result = 4 * col.xyz;
+                    float final_weight = 4;
+                    for(int i = 0; i < 8; ++i){
+                        vec4 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0);
+                        vec4 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0);
+                        if(posb.a != 0 && colb.a != 0 && abs(pos.z - posb.z) < depthdiff){
+                            result += weights[i] * colb.xyz;
+                            final_weight += weights[i];
+                        }
+                    }
+                    FragColor = vec4(result / final_weight, 1.0);
+                }
+            -->
+            </snippet>
+        </shader>
+        <shader name="gauss-depth-blur">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+
+        out vec4 FragColor;
+        uniform sampler2D screenTexture;
+        uniform sampler2D positionTexture;
+         uniform float depthdiff;
+
+        uniform bool horizontal;
+        uniform float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+
+        void main()
+        {             
+        vec4 resultv4 = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0) * weight[0]; // current fragment's contribution
+        if(resultv4 == vec4(0))
+            discard;
+        vec3 result = resultv4.rgb;
+        vec3 pos = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).xyz;
+        float final_weight = weight[0];
+        if(horizontal)
+        {
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 cola = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(i,0)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posa = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(i,0)), 0).rgb; // current fragment's contribution
+                if(abs(pos.z - posa.z) < depthdiff){
+                    result += cola;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-i,0)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(-i,0)), 0).rgb; // current fragment's contribution
+                if(abs(pos.z - posb.z) < depthdiff){
+                    result += colb;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 cola = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,i)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posa = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(0,i)), 0).rgb * weight[i]; // current fragment's contribution
+                if(abs(pos.z - posa.z) < depthdiff){
+                    result += cola;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-i)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(0,-i)), 0).rgb * weight[i]; // current fragment's contribution
+                if(abs(pos.z - posb.z) < depthdiff){
+                    result += colb;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+        }
+        FragColor = vec4(result / final_weight, 1.0);
+        }
+            -->
+            </snippet>
+        </shader>
+      </namespace>
+</btf>

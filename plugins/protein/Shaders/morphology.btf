@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<btf type="MegaMolGLSLShader" version="1.0" namespace="morphology">
+    <include file="protein"/>
+      <shader name="median">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D contourTexture;
+            uniform int radius;
+            uniform bool whiteBackground;
+
+            void main()
+            {
+                int sum = 0;
+                vec4 texel = texelFetch(contourTexture, ivec2(gl_FragCoord.xy), 0);
+                vec4 cur;
+                for(int x = -radius; x <= radius; x++){
+                    for(int y = -radius; y <= radius; y++){
+                        cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0);
+                        if (cur.a != 0) sum++;
+                    }
+                }
+                if(sum < ceil(radius * radius / 2.0)) discard;
+                else FragColor = vec4(1.0);
+            }  
+            -->
+            </snippet>
+        </shader>
+
+      <shader name="dilation">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D contourTexture;
+            uniform int radius;
+            uniform bool whiteBackground;
+
+            void main()
+            {
+                bool found = false;
+                vec4 cur;
+                for(int x = -radius; x <= radius; x++){
+                    for(int y = -radius; y <= radius; y++){
+                        if(x*x + y*y > radius * radius){
+                            continue;
+                        }
+                        else{
+                            cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0);
+                            if(cur.a != 0){
+                                FragColor = vec4(1.0);
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if(!found) discard;
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="erosion">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D contourTexture;
+            uniform int radius;
+            uniform bool whiteBackground;
+
+            void main()
+            {
+                vec4 cur;
+                bool found = true;
+                for(int x = -radius; x <= radius; x++){
+                    for(int y = -radius; y <= radius; y++){
+                        if(x*x + y*y > radius * radius){
+                            continue;
+                        }
+                        else{
+                            cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0);
+                            if(cur.a == 0){
+                                found = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if(!found) discard;
+                else FragColor = vec4(1.0);
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="dilation_vert">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D contourTexture;
+            uniform int radius;
+            uniform bool whiteBackground;
+
+            void main()
+            {
+                vec4 cur;
+                FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+                for(int x = -radius; x <= radius; x++){
+                    int y = 0;
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0);
+                    if(cur.a != 0){
+                        FragColor.x = 1.0;
+                        break;
+                    }
+                }
+                for(int x = -radius; x <= radius; x++){
+                    int y = 0;
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(y,x), 0);
+                    if(cur.a != 0){
+                        FragColor.y = 1.0;
+                        break;
+                    }
+                }
+                for(int x = -radius; x <= radius; x++){
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,x), 0);
+                    if(cur.a != 0){
+                        FragColor.z = 1.0;
+                        break;
+                    }
+                }
+                for(int x = -radius; x <= radius; x++){
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,x), 0);
+                    if(cur.a != 0){
+                        FragColor.w = 1.0;
+                        break;
+                    }
+                }
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="erosion_vert">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D contourTexture;
+            uniform int radius;
+            uniform bool whiteBackground;
+
+            void main()
+            {
+                vec4 cur;
+                bool found = true;
+                for(int x = -radius; x <= radius; x++){
+                    int y = 0;
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0);
+                    if(cur.a == 0){
+                        found = false;
+                        break;
+                    }
+                }
+                if(!found) discard;
+                else FragColor = vec4(1.0);
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="dilation_hor">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D contourTexture;
+            uniform int radius;
+            uniform bool whiteBackground;
+
+            void main()
+            {
+                bool found = false;
+                vec4 cur;
+                for(int x = -radius; x <= radius; x++){
+                    int y = 0;
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(y,x), 0);
+                    if(cur.a != 0){
+                        FragColor = vec4(1.0);
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) discard;
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="erosion_hor">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D contourTexture;
+            uniform int radius;
+            uniform bool whiteBackground;
+
+            void main()
+            {
+                vec4 cur;
+                bool found = true;
+                FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+                for(int x = -radius; x <= radius; x++){
+                    int y = 0;
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(y,x), 0);
+                    if(cur.x == 0){
+                        found = false;
+                        break;
+                    }
+                }
+                if(found){
+                    FragColor = vec4(1.0);
+                    return;
+                }
+                for(int x = -radius; x <= radius; x++){
+                    int y = 0;
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0);
+                    if(cur.y == 0){
+                        found = false;
+                        break;
+                    }
+                }
+                if(found){
+                    FragColor = vec4(1.0);
+                    return;
+                }
+               for(int x = -radius; x <= radius; x++){
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,x), 0);
+                    if(cur.w == 0){
+                        found = false;
+                        break;
+                    }
+                }
+                if(found){
+                    FragColor = vec4(1.0);
+                    return;
+                }
+                for(int x = -radius; x <= radius; x++){
+                    cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,x), 0);
+                    if(cur.z == 0){
+                        found = false;
+                        break;
+                    }
+                }
+                if(found){
+                    FragColor = vec4(1.0);
+                    return;
+                }
+            }  
+            -->
+            </snippet>
+        </shader>
+</btf>

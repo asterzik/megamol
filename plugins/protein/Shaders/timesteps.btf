@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<btf type="MegaMolGLSLShader" version="1.0" namespace="timesteps">
+    <include file="protein"/>
+      <shader name="fragment">
+        <snippet type="version">420</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D first;
+            uniform sampler2D second;
+            uniform sampler2D third;
+
+            void main()
+            {
+                vec4 second_texel = texelFetch(second, ivec2(gl_FragCoord.xy), 0);
+                if(second_texel.a == 0){
+                  discard;
+                }
+                vec4 first_texel = texelFetch(first, ivec2(gl_FragCoord.xy), 0);
+                vec4 third_texel = texelFetch(third, ivec2(gl_FragCoord.xy), 0);
+                // if(first_texel.a == 0 && third_texel.a == 0) FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                // else FragColor = vec4(1.0);
+                FragColor = (first_texel + second_texel + third_texel) / 2;
+            }  
+            -->
+            </snippet>
+        </shader>
+</btf>
