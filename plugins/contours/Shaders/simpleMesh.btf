@@ -1,21 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<btf type="MegaMolGLSLShader" version="1.0" namespace="simplePoints">
+<btf type="MegaMolGLSLShader" version="1.0" namespace="simpleMesh">
     <shader name="vertex">
         <snippet type="version">400</snippet>
         <snippet name="text" type="string">
 <!--
-layout(location = 0) in vec4 vPosition;
-layout(location = 1) in vec4 vColor;
+layout(location = 0) in vec3 Pos;
 
 uniform mat4 mvp;
-out vec4 color;
-out float radius;
 
 void main(void) {
-    vec4 pos = vec4(vPosition.xyz, 1.0);
-    radius = vPosition.w;
-    color = vColor;
-    gl_Position = mvp * pos;
+    gl_Position = mvp * vec4(Pos, 1.0);
 }
 -->
         </snippet>
@@ -24,13 +18,10 @@ void main(void) {
         <snippet type="version">400</snippet>
         <snippet name="text" type="string">
 <!--
-out layout(location = 0) vec4 frag_color;
-
-in vec4 color;
-in float radius;
+out vec4 FragColor;
 
 void main(void) {
-    frag_color = color;
+    FragColor = vec4(1.0,1.0,0.0,1.0);
 }
 -->
 </snippet>
