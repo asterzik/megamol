@@ -1,9 +1,5 @@
 /*
- * SimplestSphereRenderer.cpp
- *
- * Copyright (C) 2018 by Karsten Schatz
- * Copyright (C) 2018 by VISUS (Universitaet Stuttgart)
- * Alle Rechte vorbehalten.
+ * SimpleContourRenderer.cpp
  */
 #include "stdafx.h"
 #include "SimpleContourRenderer.h"
@@ -21,42 +17,37 @@ using namespace megamol;
 using namespace megamol::contours;
 
 /*
- * SimplestSphereRenderer::SimplestSphereRenderer
+ * SimpleContourRenderer::SimpleContourRenderer
  */
 SimpleContourRenderer::SimpleContourRenderer(void) : core::view::Renderer3DModuleGL()
     , getDataSlot("getData", "The input data slot for triangulated mesh data.")
     , sizeScalingSlot("scaling factor", "Scaling factor for the size of the contour") {
-    // TUTORIAL: A name and a description for each slot (CallerSlot, CalleeSlot, ParamSlot) has to be given in the
-    // constructor initializer list
 
-    // TUTORIAL: For each CallerSlot all compatible calls have to be set
     this->getDataSlot.SetCompatibleCall<megamol::geocalls::CallTriMeshDataDescription>();
     this->MakeSlotAvailable(&this->getDataSlot);
 
     this->sizeScalingSlot.SetParameter(new core::param::FloatParam(1.0f, 0.01f, 1000.0f));
     this->MakeSlotAvailable(&this->sizeScalingSlot);
 
-    // TUTORIAL: Each slot that shall be visible in the GUI has to be made available by this->MakeSlotAvailable(...)
 
+    //TODO: Change this vor time varying mesh data
+    // I need to free some memory then though, otherwise it will kill the process
     first = true;
     VBO = 0;
     VAO = 0;
 }
 
 /*
- * SimplestSphereRenderer::~SimplestSphereRenderer
+ * SimpleContourRenderer::~SimpleContourRenderer
  */
 SimpleContourRenderer::~SimpleContourRenderer(void) {
     this->Release();
-    // TUTORIAL: this->Release() should be called in each modules' destructor.
 }
 
 /*
- * SimplestSphereRenderer::create
+ * SimpleContourRenderer::create
  */
 bool SimpleContourRenderer::create(void) {
-
-    // TUTORIAL Shader creation should always happen in the create method of a renderer.
 
     using namespace megamol::core::utility::log;
     using namespace vislib::graphics::gl;
@@ -83,7 +74,7 @@ bool SimpleContourRenderer::create(void) {
 }
 
 /*
- * SimplestSphereRenderer::GetExtents
+ * SimpleContourRenderer::GetExtents
  */
 bool SimpleContourRenderer::GetExtents(core::view::CallRender3DGL& call) {
 
@@ -100,7 +91,7 @@ bool SimpleContourRenderer::GetExtents(core::view::CallRender3DGL& call) {
 }
 
 /*
- * SimplestSphereRenderer::release
+ * SimpleContourRenderer::release
  */
 void SimpleContourRenderer::release(void) {
     if (VAO != 0) {
@@ -112,7 +103,7 @@ void SimpleContourRenderer::release(void) {
 }
 
 /*
- * SimplestSphereRenderer::Render
+ * SimpleContourRenderer::Render
  */
 bool SimpleContourRenderer::Render(core::view::CallRender3DGL& call) {
     core::view::CallRender3DGL* cr3d = dynamic_cast<core::view::CallRender3DGL*>(&call);
@@ -131,37 +122,54 @@ bool SimpleContourRenderer::Render(core::view::CallRender3DGL& call) {
         auto vertCount = obj.GetVertexCount();
 
 
-        // if (obj.HasNormalPointer() != NULL) {
-        //     switch (obj.GetNormalDataType()) {
-        //         case megamol::geocalls::CallTriMeshData::Mesh::DT_FLOAT:
-        //             ::glNormalPointer(GL_FLOAT, 0, obj.GetNormalPointerFloat());
-        //             break;
-        //         case megamol::geocalls::CallTriMeshData::Mesh::DT_DOUBLE:
-        //             ::glNormalPointer(GL_DOUBLE, 0, obj.GetNormalPointerDouble());
-        //             break;
-        //         default: continue;
-        //     }
-        // }
     
+    //As the data is static: Only load it once
     if (first){
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glEnableVertexAttribArray(0);
-
-    switch (obj.GetVertexDataType()) {
-        case megamol::geocalls::CallTriMeshData::Mesh::DT_FLOAT:
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * vertCount, obj.GetVertexPointerFloat(),
-                GL_STATIC_DRAW); 
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
-            break;
-        case megamol::geocalls::CallTriMeshData::Mesh::DT_DOUBLE:
-            glBufferData(GL_ARRAY_BUFFER, sizeof(double) * 3 * vertCount, obj.GetVertexPointerDouble(),
-                GL_STATIC_DRAW); 
-            glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(double) * 3, 0);
-            break;
-        default: continue;
+    
+    if (obj.HasNormalPointer() != NULL) {
+        switch (obj.GetNormalDataType()) {
+            case megamol::geocalls::CallTriMeshData::Mesh::DT_FLOAT:
+                
+                glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * vertCount, nullptr,
+                    GL_STATIC_DRAW); // init the memory for vertices and colors
+                glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * vertCount, obj.GetVertexPointerFloat()); // write spheres to the gpu
+                glBufferSubData(GL_ARRAY_BUFFER, sizeof(float) * 3 * vertCount, sizeof(float) * 3 * vertCount,
+                    obj.GetNormalPointerFloat()); // write colors to the gpu
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
+                glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (GLvoid*)(sizeof(float) * 3 * vertCount));
+                break;
+            case megamol::geocalls::CallTriMeshData::Mesh::DT_DOUBLE:
+                glBufferData(GL_ARRAY_BUFFER, sizeof(double) * 6 * vertCount, nullptr,
+                    GL_STATIC_DRAW); // init the memory for vertices and colors
+                glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(double) * 3 * vertCount, obj.GetVertexPointerDouble()); // write spheres to the gpu
+                glBufferSubData(GL_ARRAY_BUFFER, sizeof(double) * 3 * vertCount, sizeof(double) * 3 * vertCount,
+                    obj.GetNormalPointerDouble()); // write colors to the gpu
+                glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(double) * 3, 0);
+                glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, sizeof(double) * 3, (GLvoid*)(sizeof(double) * 3 * vertCount));
+                break;
+            default: continue;
+            
+        }
+    }
+    else{
+        switch (obj.GetVertexDataType()) {
+            case megamol::geocalls::CallTriMeshData::Mesh::DT_FLOAT:
+                glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * vertCount, obj.GetVertexPointerFloat(),
+                    GL_STATIC_DRAW); 
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
+                break;
+            case megamol::geocalls::CallTriMeshData::Mesh::DT_DOUBLE:
+                glBufferData(GL_ARRAY_BUFFER, sizeof(double) * 3 * vertCount, obj.GetVertexPointerDouble(),
+                    GL_STATIC_DRAW); 
+                glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(double) * 3, 0);
+                break;
+            default: continue;
+        }
     }
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -186,6 +194,7 @@ bool SimpleContourRenderer::Render(core::view::CallRender3DGL& call) {
 
     glBindVertexArray(VAO);
     glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
 
     glUniformMatrix4fv(this->simpleShader.ParameterLocation("mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
 
