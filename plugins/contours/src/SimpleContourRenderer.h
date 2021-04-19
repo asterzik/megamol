@@ -115,6 +115,7 @@ private:
     /** The vertex array for the rendered vertices. */
     GLuint VAO;
 
+    bool first;
     /** The simple shader for the drawing of GL_POINTS */
     vislib::graphics::gl::GLSLShader simpleShader;
 

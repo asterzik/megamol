@@ -38,6 +38,7 @@ SimpleContourRenderer::SimpleContourRenderer(void) : core::view::Renderer3DModul
 
     // TUTORIAL: Each slot that shall be visible in the GUI has to be made available by this->MakeSlotAvailable(...)
 
+    first = true;
     VBO = 0;
     VAO = 0;
 }
@@ -141,8 +142,8 @@ bool SimpleContourRenderer::Render(core::view::CallRender3DGL& call) {
         //         default: continue;
         //     }
         // }
-
     
+    if (first){
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glBindVertexArray(VAO);
@@ -165,6 +166,8 @@ bool SimpleContourRenderer::Render(core::view::CallRender3DGL& call) {
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+    first = false;
+    }
 
     core::view::Camera_2 localCam;
     cr3d->GetCamera(localCam);
@@ -191,13 +194,13 @@ bool SimpleContourRenderer::Render(core::view::CallRender3DGL& call) {
     if (obj.HasTriIndexPointer() != NULL) {
         switch (obj.GetTriDataType()) {
             case megamol::geocalls::CallTriMeshData::Mesh::DT_BYTE:
-                ::glDrawElements(GL_TRIANGLES, obj.GetTriCount() * 3, GL_UNSIGNED_BYTE, obj.GetTriIndexPointerByte());
+                glDrawElements(GL_TRIANGLES, obj.GetTriCount() * 3, GL_UNSIGNED_BYTE, obj.GetTriIndexPointerByte());
                 break;
             case megamol::geocalls::CallTriMeshData::Mesh::DT_UINT16:
-                ::glDrawElements(GL_TRIANGLES, obj.GetTriCount() * 3, GL_UNSIGNED_SHORT, obj.GetTriIndexPointerUInt16());
+                glDrawElements(GL_TRIANGLES, obj.GetTriCount() * 3, GL_UNSIGNED_SHORT, obj.GetTriIndexPointerUInt16());
                 break;
             case megamol::geocalls::CallTriMeshData::Mesh::DT_UINT32:
-                ::glDrawElements(GL_TRIANGLES, obj.GetTriCount() * 3, GL_UNSIGNED_INT, obj.GetTriIndexPointerUInt32());
+                glDrawElements(GL_TRIANGLES, obj.GetTriCount() * 3, GL_UNSIGNED_INT, obj.GetTriIndexPointerUInt32());
                 break;
             default: continue;
         }
