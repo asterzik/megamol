@@ -9069,7 +9069,7 @@ void main(void) {
     if (radicand < 0.0) { discard; }
     
     lambda = d1 - sqrt(radicand);                           // lambda
-    vec3 sphereintersection = lambda * ray + camPos.xyz;    // intersection point
+    vec3 sphereintersection = lambda * ray + camPos.xyz;    // intersection point // + objPos.xyz to get Position in world space [anna]
 
     // "calc" normal at intersection point
     vec3 normal = sphereintersection / rad;
@@ -9618,7 +9618,7 @@ void main(void) {
     float D = K*K + 4.0 * R2 * ( a.z*a.z - r2);
     
     vec4 lambdas = vec4( 0.0, 0.0, 0.0, 0.0);
-    vec3 intersection;
+    vec3 intersection;  // intersection point // + objPos.xyz to get Position in world space [anna]
     // ==> various quartic root solvers (only stabilized ferrari shows good results and performance)
     //int numRoots = quartic( A, B, C, D, lambdas);
     int numRoots = ferrari( A, B, C, D, lambdas);
@@ -11119,6 +11119,8 @@ void main(void) {
       <snippet name="::common::lighting::simple"/>
       <snippet type="string">
         <!--
+
+        //TODO: why is here no main etc?
 #extension GL_EXT_gpu_shader4 : enable
 
 uniform vec4 viewAttr;
