@@ -11382,6 +11382,44 @@ void main()
 
   </namespace>
 
+    <namespace name="contour">
+      <shader name="vertex">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            layout (location = 0) in vec2 aPos;
+            layout (location = 1) in vec2 aTexCoords;
+
+            out vec2 TexCoords;
+
+            void main()
+            {
+                TexCoords = aTexCoords;
+                gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0); 
+            }  
+            -->
+            </snippet>
+        </shader>
+
+        <shader name="fragment">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D screenTexture;
+
+            void main()
+            {
+                vec3 col = texture(screenTexture, TexCoords).rgb;
+                FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            }
+          -->
+        </snippet>
+      </shader>
+    </namespace>
+    
     <namespace name="halo">
       <shader name="GenerateVertex">
         <snippet type="version">110</snippet>

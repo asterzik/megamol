@@ -345,6 +345,8 @@ namespace protein {
         vislib::graphics::gl::GLSLShader silhouetteShader;
         // shader for cheap transparency (postprocessing/blending)
         vislib::graphics::gl::GLSLShader transparencyShader;
+        // shader for contour generation
+        vislib::graphics::gl::GLSLShader contourShader;
 
         ////////////
         // puxels //
@@ -454,6 +456,10 @@ namespace protein {
         GLuint depthTex1;
         GLuint hFilter;
         GLuint vFilter;
+        unsigned int contourFBO;
+        unsigned int contourTexture;
+        unsigned int contourDepthRBO;
+
         // width and height of view
         unsigned int width;
         unsigned int height;

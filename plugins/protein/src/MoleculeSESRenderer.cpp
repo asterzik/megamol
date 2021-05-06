@@ -182,7 +182,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->drawSASParam << saspm;
 
     // ----- ofsfcreen rendering param -----
-    this->offscreenRendering = false;
+    this->offscreenRendering = true;
     param::BoolParam* orpm = new param::BoolParam(this->offscreenRendering);
     this->offscreenRenderingParam << orpm;
 
@@ -209,6 +209,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->depthTex0 = 0;
     this->hFilter = 0;
     this->vFilter = 0;
+    this->contourFBO = 0;
+    this->contourDepthRBO = 0;
+
     // width and height of the screen
     this->width = 0;
     this->height = 0;
@@ -587,6 +590,28 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     }
 
+    //////////////////////////////////////////////////////
+    // load the shader files for contour drawing     //
+    //////////////////////////////////////////////////////
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragment", fragSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load fragment shader source for silhouette drawing shader", this->ClassName());
+        return false;
+    }
+    try {
+        if (!this->contourShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+    } catch (vislib::Exception e) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n",
+            this->ClassName(), e.GetMsgA());
+        return false;
+    }
     //////////////////////////////////////////////////////////////////////////
     // load the shader source for the sphere renderer with clipped interior //
     //////////////////////////////////////////////////////////////////////////
@@ -1270,23 +1295,29 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteFramebuffersEXT(1, &blendFBO);
         glDeleteFramebuffersEXT(1, &horizontalFilterFBO);
         glDeleteFramebuffersEXT(1, &verticalFilterFBO);
+        glDeleteFramebuffers(1, &contourFBO);
+        glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &texture0);
         glDeleteTextures(1, &depthTex0);
         glDeleteTextures(1, &texture1);
         glDeleteTextures(1, &depthTex1);
         glDeleteTextures(1, &hFilter);
         glDeleteTextures(1, &vFilter);
+        glDeleteTextures(1, &contourTexture);
     }
     glGenFramebuffersEXT(1, &colorFBO);
     glGenFramebuffersEXT(1, &blendFBO);
     glGenFramebuffersEXT(1, &horizontalFilterFBO);
     glGenFramebuffersEXT(1, &verticalFilterFBO);
+    glGenFramebuffers(1, &contourFBO);
     glGenTextures(1, &texture0);
     glGenTextures(1, &depthTex0);
     glGenTextures(1, &texture1);
     glGenTextures(1, &depthTex1);
     glGenTextures(1, &hFilter);
     glGenTextures(1, &vFilter);
+    glGenTextures(1, &contourTexture);
+    glGenRenderbuffers(1, &contourDepthRBO);
 
     // color and depth FBO
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->colorFBO);
@@ -1356,6 +1387,31 @@ void MoleculeSESRenderer::CreateFBO() {
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, vFilter, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    // normal FBO
+    glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
+    glBindTexture(GL_TEXTURE_2D, this->contourTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->width, this->height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, contourTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    //TODO: This part ist not really working yet 
+    // glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
+    // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH, this->width, this->height);
+    // glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    
+
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
 }
 
@@ -1418,6 +1474,10 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         if (this->drawSES) {
             // enable torus shader
             if (offscreenRendering) {
+                this->CreateFBO();
+
+                //Bind Framebuffer for offscreen rendering
+                glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
                 this->torusShaderOR.Enable();
                 // set shader variables
                 glUniform4fvARB(this->torusShaderOR.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
@@ -1690,6 +1750,40 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         if (this->currentRendermode == GPU_RAYCASTING) {
             if (offscreenRendering) {
                 this->sphereShaderOR.Disable();
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+                //TODO: invoke contour creation routine
+                glDisable(GL_DEPTH_TEST);
+                glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT);
+                float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+                    // positions   // texCoords
+                    -1.0f,  1.0f,  0.0f, 1.0f,
+                    -1.0f, -1.0f,  0.0f, 0.0f,
+                    1.0f, -1.0f,  1.0f, 0.0f,
+
+                    -1.0f,  1.0f,  0.0f, 1.0f,
+                    1.0f, -1.0f,  1.0f, 0.0f,
+                    1.0f,  1.0f,  1.0f, 1.0f
+                };
+                unsigned int quadVAO, quadVBO;
+                glGenVertexArrays(1, &quadVAO);
+                glGenBuffers(1, &quadVBO);
+                glBindVertexArray(quadVAO);
+                glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+                this->contourShader.Enable();
+                glBindVertexArray(quadVAO);
+                glBindTexture(GL_TEXTURE_2D, contourTexture);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+                glEnable(GL_DEPTH_TEST);
+                this->contourShader.Disable();
             } else {
                 this->sphereShader.Disable();
             }
