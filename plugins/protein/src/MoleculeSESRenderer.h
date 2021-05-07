@@ -200,6 +200,11 @@ namespace protein {
          * Postprocessing: use screen space ambient occlusion
          */
         void PostprocessingSSAO();
+        
+        /**
+         * Postprocessing: use contour shader
+         */
+        void PostprocessingContour();
 
         /**
          * Postprocessing: use silhouette shader

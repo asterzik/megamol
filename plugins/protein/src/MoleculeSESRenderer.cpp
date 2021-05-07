@@ -797,6 +797,7 @@ bool MoleculeSESRenderer::GetExtents(view::CallRender3DGL& call) {
  * MoleculeSESRenderer::Render
  */
 bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
+
     // temporary variables
     unsigned int cntRS = 0;
 
@@ -1094,6 +1095,53 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     this->usePuxels = false;
 #endif
 }
+/*
+ * postprocessing: use screen space ambient occlusion
+ */
+void MoleculeSESRenderer::PostprocessingContour() {
+                
+    // This testing for the default framebuffer is necessary, because it is not 0
+    //TODO: WHY:
+    // Strangely enough this does not always find the buffer which actually produces a rendering output.
+    // while activating drawSES AND offscreenRendering it seems to be 1 even though default_fbo=6??
+    int default_fbo;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
+    std::cout << default_fbo << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+
+    glDisable(GL_DEPTH_TEST);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        1.0f,  1.0f,  1.0f, 1.0f
+    };
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+    this->contourShader.Enable();
+    glBindVertexArray(quadVAO);
+    glBindTexture(GL_TEXTURE_2D, contourTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    this->contourShader.Disable();
+    glDeleteVertexArrays(1, &quadVAO);
+    glDeleteBuffers(1, &quadVBO);
+}
 
 /*
  * postprocessing: use screen space ambient occlusion
@@ -1387,7 +1435,8 @@ void MoleculeSESRenderer::CreateFBO() {
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, vFilter, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // normal FBO
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+    // contour FBO
     glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
     glBindTexture(GL_TEXTURE_2D, this->contourTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->width, this->height, 0, GL_RGB, GL_FLOAT, NULL);
@@ -1408,11 +1457,13 @@ void MoleculeSESRenderer::CreateFBO() {
         Log::DefaultLog.WriteMsg(
             Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    int default_fbo;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
+    std::cout << default_fbo << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
 
     
 
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
 }
 
 
@@ -1476,8 +1527,8 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             if (offscreenRendering) {
                 this->CreateFBO();
 
-                //Bind Framebuffer for offscreen rendering
-                glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
+                // //Bind Framebuffer for offscreen rendering
+                // glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
                 this->torusShaderOR.Enable();
                 // set shader variables
                 glUniform4fvARB(this->torusShaderOR.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
@@ -1750,40 +1801,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         if (this->currentRendermode == GPU_RAYCASTING) {
             if (offscreenRendering) {
                 this->sphereShaderOR.Disable();
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-                //TODO: invoke contour creation routine
-                glDisable(GL_DEPTH_TEST);
-                glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT);
-                float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-                    // positions   // texCoords
-                    -1.0f,  1.0f,  0.0f, 1.0f,
-                    -1.0f, -1.0f,  0.0f, 0.0f,
-                    1.0f, -1.0f,  1.0f, 0.0f,
-
-                    -1.0f,  1.0f,  0.0f, 1.0f,
-                    1.0f, -1.0f,  1.0f, 0.0f,
-                    1.0f,  1.0f,  1.0f, 1.0f
-                };
-                unsigned int quadVAO, quadVBO;
-                glGenVertexArrays(1, &quadVAO);
-                glGenBuffers(1, &quadVBO);
-                glBindVertexArray(quadVAO);
-                glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-                glEnableVertexAttribArray(0);
-                glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-                glEnableVertexAttribArray(1);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
-                this->contourShader.Enable();
-                glBindVertexArray(quadVAO);
-                glBindTexture(GL_TEXTURE_2D, contourTexture);
-                glDrawArrays(GL_TRIANGLES, 0, 6);
-                glEnable(GL_DEPTH_TEST);
-                this->contourShader.Disable();
             } else {
                 this->sphereShader.Disable();
             }
@@ -1795,7 +1812,15 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
         glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 5, 0);
 #endif
+        //TODO: This is not working when in the offscreen mode... Why?
+        if (offscreenRendering)
+        {
+        this->PostprocessingContour();
+        }
+    
     }
+
+    
 
     // delete pointers
     delete[] clearColor;

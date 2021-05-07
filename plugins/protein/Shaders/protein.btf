@@ -11408,11 +11408,11 @@ void main()
             out vec4 FragColor;
             in vec2 TexCoords;
 
-            uniform sampler2D screenTexture;
+            uniform sampler2D contourTexture;
 
             void main()
             {
-                vec3 col = texture(screenTexture, TexCoords).rgb;
+                vec3 col = texture(contourTexture, TexCoords).rgb;
                 FragColor = vec4(1.0, 1.0, 1.0, 1.0);
             }
           -->
