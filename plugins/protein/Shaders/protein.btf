@@ -11129,7 +11129,6 @@ void main(void) {
       <snippet type="string">
         <!--
 
-        //TODO: why is here no main etc?
 #extension GL_EXT_gpu_shader4 : enable
 
 uniform vec4 viewAttr;
@@ -11296,7 +11295,11 @@ void main(void) {
 
     // phong lighting with directional light
     //gl_FragColor = vec4( LocalLighting(ray, normal, lightPos.xyz, color), 1.0);
-    gl_FragData[0] = vec4(color,1.0);
+    // gl_FragData[0] = vec4(color,1.0);
+
+    //nv lighting for contour generation
+    float diff = dot(normalize(camPos.xyz), normal);
+    gl_FragData[0] = vec4(diff, diff, diff, 1.0);
     
     // calculate depth
 #ifdef DEPTH

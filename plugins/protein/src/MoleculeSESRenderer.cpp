@@ -1448,7 +1448,6 @@ void MoleculeSESRenderer::CreateFBO() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, contourTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    //TODO: This part ist not really working yet 
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
@@ -1471,7 +1470,6 @@ void MoleculeSESRenderer::CreateFBO() {
  * Render the molecular surface using GPU raycasting
  */
 void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // TODO: attribute locations nicht jedes mal neu abfragen!
 
     auto resolution = cameraInfo.resolution_gate();
