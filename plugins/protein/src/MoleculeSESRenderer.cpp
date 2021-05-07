@@ -1104,13 +1104,13 @@ void MoleculeSESRenderer::PostprocessingContour() {
     //TODO: WHY:
     // Strangely enough this does not always find the buffer which actually produces a rendering output.
     // while activating drawSES AND offscreenRendering it seems to be 1 even though default_fbo=6??
-    int default_fbo;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
-    std::cout << default_fbo << std::endl;
+    // int default_fbo;
+    // glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
+    // std::cout << default_fbo << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
 
     glDisable(GL_DEPTH_TEST);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    //TODO: Background color is black at the moment, I guess the texture is black in the background. Change that to standard background color
     glClear(GL_COLOR_BUFFER_BIT);
     float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
         // positions   // texCoords
@@ -1122,6 +1122,7 @@ void MoleculeSESRenderer::PostprocessingContour() {
         1.0f, -1.0f,  1.0f, 0.0f,
         1.0f,  1.0f,  1.0f, 1.0f
     };
+    //TODO: Do not call this in rendering loop
     unsigned int quadVAO, quadVBO;
     glGenVertexArrays(1, &quadVAO);
     glGenBuffers(1, &quadVBO);
@@ -1448,10 +1449,10 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindTexture(GL_TEXTURE_2D, 0);
 
     //TODO: This part ist not really working yet 
-    // glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
-    // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH, this->width, this->height);
-    // glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
         Log::DefaultLog.WriteMsg(
@@ -1459,7 +1460,6 @@ void MoleculeSESRenderer::CreateFBO() {
     }
     int default_fbo;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
-    std::cout << default_fbo << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
 
     
@@ -1471,6 +1471,7 @@ void MoleculeSESRenderer::CreateFBO() {
  * Render the molecular surface using GPU raycasting
  */
 void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // TODO: attribute locations nicht jedes mal neu abfragen!
 
     auto resolution = cameraInfo.resolution_gate();
@@ -1527,8 +1528,9 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             if (offscreenRendering) {
                 this->CreateFBO();
 
-                // //Bind Framebuffer for offscreen rendering
-                // glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
+                //Bind Framebuffer for offscreen rendering
+                glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
+
                 this->torusShaderOR.Enable();
                 // set shader variables
                 glUniform4fvARB(this->torusShaderOR.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
