@@ -11425,6 +11425,21 @@ void main()
             void main()
             {
                 vec3 col = texture(contourTexture, TexCoords).rgb;
+                //Get rid of background
+                //it might be, that I lose some contour-pixels as well, this doesnt seem to be a big problem though...
+                //TODO: maybe try using a stencil buffer to avoid
+                if(length(col)== 0){
+                    // col = vec3(1.0, 0.0, 0.0);
+                    discard;
+                }
+                //Get rid of non-contours
+                else if(length(col)> 0.8){
+                    discard;
+                }
+                else{
+                //invert contour color, because background is dark
+                col = vec3(1.0, 1.0, 1.0) - col;
+                }
                 FragColor = vec4(col, 1.0);
             }
           -->
