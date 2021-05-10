@@ -11421,25 +11421,43 @@ void main()
             in vec2 TexCoords;
 
             uniform sampler2D contourTexture;
+            uniform vec2 pixelSize;
 
             void main()
             {
                 vec3 col = texture(contourTexture, TexCoords).rgb;
-                //Get rid of background
-                //it might be, that I lose some contour-pixels as well, this doesnt seem to be a big problem though...
-                //TODO: maybe try using a stencil buffer to avoid
-                if(length(col)== 0){
-                    // col = vec3(1.0, 0.0, 0.0);
+                vec2 neighbours[8] = vec2[](
+                    vec2(-pixelSize.x,  pixelSize.y), // top-left
+                    vec2( 0.0f,    pixelSize.y), // top-center
+                    vec2( pixelSize.x,  pixelSize.y), // top-right
+                    vec2(-pixelSize.x,  0.0f),   // center-left
+                    // vec2( 0.0f,    0.0f),   // center-center
+                    vec2( pixelSize.x,  0.0f),   // center-right
+                    vec2(-pixelSize.x, -pixelSize.y), // bottom-left
+                    vec2( 0.0f,   -pixelSize.y), // bottom-center
+                    vec2( pixelSize.x, -pixelSize.y)  // bottom-right    
+                );
+                int darker = 0;
+                float maxIntensity = col.r;
+                for(int i = 0; i < 8; i++){
+                    vec3 cur = texture(contourTexture, TexCoords + neighbours[i]).rgb;
+                    if(cur.r < col.r)
+                        ++darker;
+                    if(cur.r > maxIntensity)
+                        maxIntensity = cur.r;
+                }
+                if(darker > 2){
                     discard;
                 }
-                //Get rid of non-contours
-                else if(length(col)> 0.8){
+                if(maxIntensity - col.r < 0.1){
                     discard;
                 }
-                else{
+
+                // //Get rid of non-contours
+                // else if(length(col)> 0.8){
+                //     discard;
                 //invert contour color, because background is dark
                 col = vec3(1.0, 1.0, 1.0) - col;
-                }
                 FragColor = vec4(col, 1.0);
             }
           -->

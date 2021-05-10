@@ -1134,9 +1134,11 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
+    glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
     this->contourShader.Enable();
     glBindVertexArray(quadVAO);
     glBindTexture(GL_TEXTURE_2D, contourTexture);
+    glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     this->contourShader.Disable();
