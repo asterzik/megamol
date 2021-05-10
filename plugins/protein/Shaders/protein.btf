@@ -11425,38 +11425,70 @@ void main()
 
             void main()
             {
+                //parameter
+                int radius = 2;
+                float neighbourThreshold = 0.2;
+                float intensityDiffThreshold = 0.2;
+
                 vec3 col = texture(contourTexture, TexCoords).rgb;
-                vec2 neighbours[8] = vec2[](
-                    vec2(-pixelSize.x,  pixelSize.y), // top-left
-                    vec2( 0.0f,    pixelSize.y), // top-center
-                    vec2( pixelSize.x,  pixelSize.y), // top-right
-                    vec2(-pixelSize.x,  0.0f),   // center-left
-                    // vec2( 0.0f,    0.0f),   // center-center
-                    vec2( pixelSize.x,  0.0f),   // center-right
-                    vec2(-pixelSize.x, -pixelSize.y), // bottom-left
-                    vec2( 0.0f,   -pixelSize.y), // bottom-center
-                    vec2( pixelSize.x, -pixelSize.y)  // bottom-right    
-                );
+                // vec2 neighbours[8] = vec2[](
+                //     vec2(-pixelSize.x,  pixelSize.y), // top-left
+                //     vec2( 0.0f,    pixelSize.y), // top-center
+                //     vec2( pixelSize.x,  pixelSize.y), // top-right
+                //     vec2(-pixelSize.x,  0.0f),   // center-left
+                //     // vec2( 0.0f,    0.0f),   // center-center
+                //     vec2( pixelSize.x,  0.0f),   // center-right
+                //     vec2(-pixelSize.x, -pixelSize.y), // bottom-left
+                //     vec2( 0.0f,   -pixelSize.y), // bottom-center
+                //     vec2( pixelSize.x, -pixelSize.y)  // bottom-right    
+                // );
                 int darker = 0;
+                int total = 0; // I could hardcode this, as the number will probably never be very high... [Gauss circle problem]
                 float maxIntensity = col.r;
-                for(int i = 0; i < 8; i++){
-                    vec3 cur = texture(contourTexture, TexCoords + neighbours[i]).rgb;
-                    if(cur.r < col.r)
-                        ++darker;
-                    if(cur.r > maxIntensity)
-                        maxIntensity = cur.r;
+                //TODO: I could also calculate the "offsets" on the cpu
+                for(int x = 0; x <= radius; x++){
+                    for(int y = 0; y <= radius; y++){
+                        if(x*x + y*y > radius*radius)
+                            continue;
+                        else{
+                            total += 4;
+                            vec3 cur = texture(contourTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
+                            if(cur.r < col.r)
+                                ++darker;
+                            if(cur.r > maxIntensity)
+                                maxIntensity = cur.r;
+                            cur = texture(contourTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
+                            if(cur.r < col.r)
+                                ++darker;
+                            if(cur.r > maxIntensity)
+                                maxIntensity = cur.r;
+                            cur = texture(contourTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
+                            if(cur.r < col.r)
+                                ++darker;
+                            if(cur.r > maxIntensity)
+                                maxIntensity = cur.r;
+                            cur = texture(contourTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
+                            if(cur.r < col.r)
+                                ++darker;
+                            if(cur.r > maxIntensity)
+                                maxIntensity = cur.r;
+                        }
+                    }
                 }
-                if(darker > 2){
+                // for(int i = 0; i < 8; i++){
+                //     vec3 cur = texture(contourTexture, TexCoords + neighbours[i]).rgb;
+                //     if(cur.r < col.r)
+                //         ++darker;
+                //     if(cur.r > maxIntensity)
+                //         maxIntensity = cur.r;
+                // }
+                if(darker > neighbourThreshold * total){
                     discard;
                 }
-                if(maxIntensity - col.r < 0.1){
+                if(maxIntensity - col.r < intensityDiffThreshold){
                     discard;
                 }
 
-                // //Get rid of non-contours
-                // else if(length(col)> 0.8){
-                //     discard;
-                //invert contour color, because background is dark
                 col = vec3(1.0, 1.0, 1.0) - col;
                 FragColor = vec4(col, 1.0);
             }
