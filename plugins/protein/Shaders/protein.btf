@@ -11422,75 +11422,93 @@ void main()
 
             uniform sampler2D contourTexture;
             uniform vec2 pixelSize;
+            // //parameter
+            const int radius = 5;
+            float neighbourThreshold = 0.5; //percentage s in original  SC paper
+            float intensityDiffThreshold = 0.05; //threshold d in original SC paper
 
             void main()
             {
-                //parameter
-                int radius = 2;
-                float neighbourThreshold = 0.2;
-                float intensityDiffThreshold = 0.2;
+                neighbourThreshold *= (1.0 - 1.0/radius); //scaling according to paper
+                intensityDiffThreshold *= radius; //scaling according to paper
+                //total number of points according to radius [gauss circle problem]
+                int total;
+                if(radius == 1)
+                    total = 1;
+                if(radius == 2)
+                    total = 5;
+                if(radius == 3)
+                    total = 13;
+                if(radius == 4)
+                    total = 29;
+                if(radius == 5)
+                    total = 49;
 
                 vec3 col = texture(contourTexture, TexCoords).rgb;
-                // vec2 neighbours[8] = vec2[](
-                //     vec2(-pixelSize.x,  pixelSize.y), // top-left
-                //     vec2( 0.0f,    pixelSize.y), // top-center
-                //     vec2( pixelSize.x,  pixelSize.y), // top-right
-                //     vec2(-pixelSize.x,  0.0f),   // center-left
-                //     // vec2( 0.0f,    0.0f),   // center-center
-                //     vec2( pixelSize.x,  0.0f),   // center-right
-                //     vec2(-pixelSize.x, -pixelSize.y), // bottom-left
-                //     vec2( 0.0f,   -pixelSize.y), // bottom-center
-                //     vec2( pixelSize.x, -pixelSize.y)  // bottom-right    
-                // );
                 int darker = 0;
-                int total = 0; // I could hardcode this, as the number will probably never be very high... [Gauss circle problem]
                 float maxIntensity = col.r;
                 //TODO: I could also calculate the "offsets" on the cpu
+                float unsorted[49];
+                unsorted[0] = col.r; //collect all values for median filtering
+                int idx = 1;
                 for(int x = 0; x <= radius; x++){
                     for(int y = 0; y <= radius; y++){
                         if(x*x + y*y > radius*radius)
                             continue;
                         else{
-                            total += 4;
                             vec3 cur = texture(contourTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
                             if(cur.r < col.r)
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
+                            unsorted[idx] = cur.r;
+                            idx++;
+
                             cur = texture(contourTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
                             if(cur.r < col.r)
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
+                            unsorted[idx] = cur.r;
+                            idx++;
+
                             cur = texture(contourTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
                             if(cur.r < col.r)
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
+                            unsorted[idx] = cur.r;
+                            idx++;
+
                             cur = texture(contourTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
                             if(cur.r < col.r)
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
+                            unsorted[idx] = cur.r;
+                            idx++;
+
                         }
                     }
                 }
-                // for(int i = 0; i < 8; i++){
-                //     vec3 cur = texture(contourTexture, TexCoords + neighbours[i]).rgb;
-                //     if(cur.r < col.r)
-                //         ++darker;
-                //     if(cur.r > maxIntensity)
-                //         maxIntensity = cur.r;
-                // }
                 if(darker > neighbourThreshold * total){
                     discard;
                 }
                 if(maxIntensity - col.r < intensityDiffThreshold){
                     discard;
                 }
+                for(int n = total-1; n > 0; n = n - 1){
+                    for(int i = 0; i < n; ++i){
+                        float minimum = min(unsorted[i], unsorted[i+1]);
+                        unsorted[i+1] = max(unsorted[i], unsorted[i+1]);
+                        unsorted[i] = minimum;
+                    }
+                }
+                float median = unsorted[int(floor(total * 1.0 / 2.0))];
 
-                col = vec3(1.0, 1.0, 1.0) - col;
-                FragColor = vec4(col, 1.0);
+                float color = 1.0 - median; //invert color because background is dark
+
+                FragColor = vec4(color, color, color, 1.0);
             }
           -->
         </snippet>
