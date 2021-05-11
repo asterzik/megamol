@@ -9096,8 +9096,8 @@ void main(void) {
     // gl_FragData[0] = vec4(color, 1.0);
 
     //output for contour generation
-    //TODO: This is the kind of lighting they use... Is this really the one that I want?
-    float diff = dot(normalize(camPos.xyz), normal);
+    // As I understand from the vertex shader camPos lives in object space, so does sphereintersection -> I think this should be fine
+    float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
     gl_FragData[0] = vec4(diff, diff, diff, 1.0);
 
     // calculate depth
@@ -9719,7 +9719,8 @@ void main(void) {
     // gl_FragData[0] = vec4(color,1.0);
 
     //For contour generation:
-    float diff = dot(normalize(camPos.xyz), normal);
+    // As I understand from the vertex shader camPos lives in object space, so does intersection -> I think this should be fine
+    float diff = dot(normalize(camPos.xyz - intersection), normal);
     gl_FragData[0] = vec4(diff, diff, diff, 1.0);
     
     // calculate depth
@@ -11298,7 +11299,8 @@ void main(void) {
     // gl_FragData[0] = vec4(color,1.0);
 
     //nv lighting for contour generation
-    float diff = dot(normalize(camPos.xyz), normal);
+    // As I understand from the vertex shader camPos lives in object space, so does sphereintersection -> I think this should be fine
+    float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
     gl_FragData[0] = vec4(diff, diff, diff, 1.0);
     
     // calculate depth
@@ -11422,15 +11424,18 @@ void main()
 
             uniform sampler2D contourTexture;
             uniform vec2 pixelSize;
-            // //parameter
+
+            //parameter
             const int radius = 5;
-            float neighbourThreshold = 0.5; //percentage s in original  SC paper
+            float neighbourThreshold = 0.8; //percentage s in original  SC paper
             float intensityDiffThreshold = 0.05; //threshold d in original SC paper
 
             void main()
             {
-                neighbourThreshold *= (1.0 - 1.0/radius); //scaling according to paper
-                intensityDiffThreshold *= radius; //scaling according to paper
+                //scaling of parameters according to original paper
+                neighbourThreshold *= (1.0 - 1.0/radius); 
+                intensityDiffThreshold *= radius; 
+
                 //total number of points according to radius [gauss circle problem]
                 int total;
                 if(radius == 1)
@@ -11445,11 +11450,18 @@ void main()
                     total = 49;
 
                 vec3 col = texture(contourTexture, TexCoords).rgb;
-                int darker = 0;
+
+                int darker = 0; //How many values are darker than the current pixel?
                 float maxIntensity = col.r;
-                //TODO: I could also calculate the "offsets" on the cpu
-                float unsorted[49];
-                unsorted[0] = col.r; //collect all values for median filtering
+                
+                float filterValues[49]; //Use biggest number as OpenGL does not allow variable sized arrays
+                filterValues[0] = col.r;    //collects all values for median filtering. 
+                                            //Incoming values are grayscale therefore r component is sufficient
+
+                 
+                // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
+                // Discard all points that are not part of the circle
+                // Collect data and save all intensities to filterValues
                 int idx = 1;
                 for(int x = 0; x <= radius; x++){
                     for(int y = 0; y <= radius; y++){
@@ -11461,7 +11473,7 @@ void main()
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
-                            unsorted[idx] = cur.r;
+                            filterValues[idx] = cur.r;
                             idx++;
 
                             cur = texture(contourTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
@@ -11469,7 +11481,7 @@ void main()
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
-                            unsorted[idx] = cur.r;
+                            filterValues[idx] = cur.r;
                             idx++;
 
                             cur = texture(contourTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
@@ -11477,7 +11489,7 @@ void main()
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
-                            unsorted[idx] = cur.r;
+                            filterValues[idx] = cur.r;
                             idx++;
 
                             cur = texture(contourTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
@@ -11485,7 +11497,7 @@ void main()
                                 ++darker;
                             if(cur.r > maxIntensity)
                                 maxIntensity = cur.r;
-                            unsorted[idx] = cur.r;
+                            filterValues[idx] = cur.r;
                             idx++;
 
                         }
@@ -11497,14 +11509,16 @@ void main()
                 if(maxIntensity - col.r < intensityDiffThreshold){
                     discard;
                 }
+
+                // Median filtering
                 for(int n = total-1; n > 0; n = n - 1){
                     for(int i = 0; i < n; ++i){
-                        float minimum = min(unsorted[i], unsorted[i+1]);
-                        unsorted[i+1] = max(unsorted[i], unsorted[i+1]);
-                        unsorted[i] = minimum;
+                        float minimum = min(filterValues[i], filterValues[i+1]);
+                        filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
+                        filterValues[i] = minimum;
                     }
                 }
-                float median = unsorted[int(floor(total * 1.0 / 2.0))];
+                float median = filterValues[int(floor(total * 1.0 / 2.0))];
 
                 float color = 1.0 - median; //invert color because background is dark
 
