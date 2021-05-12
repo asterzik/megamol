@@ -313,6 +313,7 @@ bool MoleculeSESRenderer::create(void) {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
 
+
     using namespace vislib::graphics::gl;
 
     ShaderSource compSrc;
@@ -909,6 +910,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     if (this->postprocessing != NONE && virtualViewportChanged)
         this->CreateFBO();
+        this->CreateQuadBuffers();
 
     if (this->allowPuxels && virtualViewportChanged)
         puxelsCreateBuffers();
@@ -1100,39 +1102,18 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
  */
 void MoleculeSESRenderer::PostprocessingContour() {
                 
-    // This testing for the default framebuffer is necessary, because it is not 0
-    //TODO: WHY:
-    // Strangely enough this does not always find the buffer which actually produces a rendering output.
-    // while activating drawSES AND offscreenRendering it seems to be 1 even though default_fbo=6??
+    // The default framebuffer is not 0 therefore:
+    
     // int default_fbo;
     // glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
-    // std::cout << default_fbo << std::endl;
+
+    // strangely enough this does not always find the buffer which actually produces a rendering output.
+    // while activating drawSES AND offscreenRendering it seems to be 1 even though default_fbo=6??
+    
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
 
     glDisable(GL_DEPTH_TEST);
-    //TODO: Background color is black at the moment, I guess the texture is black in the background. Change that to standard background color
     glClear(GL_COLOR_BUFFER_BIT);
-    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-        // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        1.0f,  1.0f,  1.0f, 1.0f
-    };
-    //TODO: Do not call this in rendering loop
-    unsigned int quadVAO, quadVBO;
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
     this->contourShader.Enable();
@@ -1142,8 +1123,8 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     this->contourShader.Disable();
-    glDeleteVertexArrays(1, &quadVAO);
-    glDeleteBuffers(1, &quadVBO);
+    // glDeleteVertexArrays(1, &quadVAO);
+    // glDeleteBuffers(1, &quadVBO);
 }
 
 /*
@@ -1464,6 +1445,35 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
 
     
+
+}
+
+void MoleculeSESRenderer::CreateQuadBuffers() {
+
+    glDeleteVertexArrays(1, &quadVAO);
+    glDeleteBuffers(1, &quadVBO);
+    //Create VAO and VBO for screen filling quad (contour generation)
+    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        1.0f,  1.0f,  1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 }
 
@@ -1814,7 +1824,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
         glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 5, 0);
 #endif
-        //TODO: This is not working when in the offscreen mode... Why?
         if (offscreenRendering)
         {
         this->PostprocessingContour();

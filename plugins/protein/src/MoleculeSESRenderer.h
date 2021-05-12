@@ -183,6 +183,11 @@ namespace protein {
         void CreateFBO();
 
         /**
+         * Creates the frame buffer object and textures needed for offscreen rendering.
+         */
+        void CreateQuadBuffers();
+        
+        /**
          * Render the molecular surface using GPU raycasting.
          *
          * @param protein Pointer to the protein data interface.
@@ -464,6 +469,9 @@ namespace protein {
         unsigned int contourFBO;
         unsigned int contourTexture;
         unsigned int contourDepthRBO;
+
+        //VAO and VBO for screen filling quad
+        unsigned int quadVAO, quadVBO;
 
         // width and height of view
         unsigned int width;
