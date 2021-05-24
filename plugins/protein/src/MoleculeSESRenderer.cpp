@@ -182,7 +182,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->drawSASParam << saspm;
 
     // ----- ofsfcreen rendering param -----
-    //TODO: Why has this true no effect on the gui?
     this->offscreenRendering = true;
     param::BoolParam* orpm = new param::BoolParam(this->offscreenRendering);
     this->offscreenRenderingParam << orpm;

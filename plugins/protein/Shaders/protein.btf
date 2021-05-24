@@ -11426,9 +11426,9 @@ void main()
             uniform vec2 pixelSize;
 
             //parameter
-            const int radius = 5;
-            float neighbourThreshold = 0.8; //percentage s in original  SC paper
-            float intensityDiffThreshold = 0.05; //threshold d in original SC paper
+            const int radius = 4;
+            float neighbourThreshold = 0.2; //percentage s in original  SC paper //  in original paper 0.2
+            float intensityDiffThreshold = 0.05; //threshold d in original SC paper // in original paper 0.25
 
             void main()
             {
@@ -11506,7 +11506,7 @@ void main()
                 if(darker > neighbourThreshold * total){
                     discard;
                 }
-                if(maxIntensity - col.r < intensityDiffThreshold){
+                if(maxIntensity - col.r <= intensityDiffThreshold){
                     discard;
                 }
 

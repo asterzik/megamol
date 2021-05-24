@@ -1,13 +1,17 @@
-#include "ShaderTools/VertexArrayObject.h"
-#include "ShaderTools/FrameBufferObject.h"
+// #include "ShaderTools/VertexArrayObject.h"
+// #include "ShaderTools/FrameBufferObject.h"
+#include "vislib/graphics/gl/GLSLShader.h"
+#include "mmcore/CoreInstance.h"
+#include <string>
 
 class Pyramid
 {
 public:
-    Pyramid(int width, int height, std::string pullFragmentShaderPath, std::string pushFragmentShaderPath = std::string());
+    Pyramid();
 	
 	~Pyramid();
 
+    bool create(int width, int height, megamol::core::CoreInstance* ci); 
     Pyramid* push();
     Pyramid* push(int level);
     Pyramid* pull();
@@ -25,24 +29,34 @@ public:
 	GLuint get(std::string name);
 	int getMipmapNumber();
 
-	template <class T>
-	Pyramid* update(std::string name, T value) {
-		pushShaderProgram->update(name, value);
-		if (pullShaderProgram != NULL) {
-			pullShaderProgram->update(name, value);
-		}
-		return this;
-	}
+	// template <class T>
+	// Pyramid* update(std::string name, T value) {
+	// 	pushShaderProgram->update(name, value);
+	// 	if (pullShaderProgram != NULL) {
+	// 		pullShaderProgram->update(name, value);
+	// 	}
+	// 	return this;
+	// }
 
 private:
 	std::map<std::string, GLuint> textureMap;
+	// megamol::core::CoreInstance* ci;
+
 
 	// Shader programs to use
-	ShaderProgram* pushShaderProgram;
-	ShaderProgram* pullShaderProgram;
+	// std::string vertexPullPath;
+	// std::string fragmentPullPath;
+	// std::string vertexPushPath;
+	// std::string fragmentPushPath;
+	vislib::graphics::gl::GLSLShader pushShaderProgram;
+	vislib::graphics::gl::GLSLShader pullShaderProgram;
+	// ShaderProgram* pushShaderProgram;
+	// ShaderProgram* pullShaderProgram;
 
 	// Vertex array object to render 
-	VertexArrayObject* vertexArrayObject;
+	// VertexArrayObject* vertexArrayObject;
+	GLuint VBO;
+	GLuint VAO;
 
 	// mip framebuffer objects to render to
 	std::vector<GLuint> fboHandles;
