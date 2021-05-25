@@ -16,6 +16,7 @@
 #include <vector>
 #include "Color.h"
 #include "ReducedSurface.h"
+#include "Pyramid.h"
 #include "mmcore/CallerSlot.h"
 #include "mmcore/param/ParamSlot.h"
 #include "mmcore/view/CallRender3DGL.h"
@@ -337,6 +338,9 @@ namespace protein {
         std::vector<std::vector<ReducedSurface*>> reducedSurfaceAllFrames;
         /** the reduced surface(s) */
         std::vector<ReducedSurface*> reducedSurface;
+
+        // The pull-push pyramid
+        Pyramid pyramid;
 
         // shader for the cylinders (raycasting view)
         vislib::graphics::gl::GLSLShader cylinderShader;

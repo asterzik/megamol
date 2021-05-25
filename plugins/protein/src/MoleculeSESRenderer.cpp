@@ -14,7 +14,6 @@
 #include <math.h>
 #include "Color.h"
 #include "MoleculeSESRenderer.h"
-#include "Pyramid.h"
 #include "mmcore/CoreInstance.h"
 #include "mmcore/param/BoolParam.h"
 #include "mmcore/param/EnumParam.h"
@@ -910,7 +909,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     if (virtualViewportChanged)
     {
-        this->BuildPyramid();
+        pyramid.create(this->width, this->height, this->GetCoreInstance());
         this->CreateQuadBuffers();
         this->CreateFBO();
     }
@@ -1104,16 +1103,22 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
 #endif
 }
 /*
- * Build pyramide from pull-push algrithm
- */
-void MoleculeSESRenderer::BuildPyramid() {
-    Pyramid pyramid;
-    pyramid.create(this->width, this->height, this->GetCoreInstance());
-}
-/*
  * postprocessing: use contour generation
  */
 void MoleculeSESRenderer::PostprocessingContour() {
+    glDisable(GL_DEPTH_TEST);
+
+    glBindTexture(GL_TEXTURE_2D, contourTexture);
+    pyramid.texture("inputTex_fragNormal", contourTexture);
+    pyramid.clear();
+    pyramid.pull_until(3);
+    pyramid.push_from(3);
+
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT);
                 
     // The default framebuffer is not 0 therefore:
     
@@ -1123,15 +1128,11 @@ void MoleculeSESRenderer::PostprocessingContour() {
     // strangely enough this does not always find the buffer which actually produces a rendering output.
     // while activating drawSES AND offscreenRendering it seems to be 1 even though default_fbo=6??
     
-    glBindFramebuffer(GL_FRAMEBUFFER, 1);
-
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT);
 
     glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
     this->contourShader.Enable();
     glBindVertexArray(quadVAO);
-    glBindTexture(GL_TEXTURE_2D, contourTexture);
+    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
     glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);

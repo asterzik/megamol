@@ -13,26 +13,26 @@ uniform float lf;
 uniform int level;
 
 uniform sampler2D inputTex_fragNormal;
-uniform sampler2D inputTex_fragBarycenter;
-uniform sampler2D inputTex_fragPosition;
+// uniform sampler2D inputTex_fragBarycenter;
+// uniform sampler2D inputTex_fragPosition;
 uniform sampler2D pyramid_fragNormal;
 
-vec4 getBlTlTrBrInverseDistanceWeights() {
-    vec4 fragPosition = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), level);
+// vec4 getBlTlTrBrInverseDistanceWeights() {
+//     // vec4 fragPosition = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), level);
 
-    vec4 fragPosition_bl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level-1));
-    vec4 fragPosition_tl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level-1));
-    vec4 fragPosition_tr = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level-1));
-    vec4 fragPosition_br = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level-1));
+//     vec4 fragPosition_bl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level-1));
+//     vec4 fragPosition_tl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level-1));
+//     vec4 fragPosition_tr = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level-1));
+//     vec4 fragPosition_br = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level-1));
 
-    float exp = 2;
-    return vec4(
-    1.0 / pow(length(fragPosition.xyz - fragPosition_bl.xyz), exp),
-    1.0 / pow(length(fragPosition.xyz - fragPosition_tl.xyz), exp),
-    1.0 / pow(length(fragPosition.xyz - fragPosition_tr.xyz), exp),
-    1.0 / pow(length(fragPosition.xyz - fragPosition_br.xyz), exp)
-    );
-}
+//     float exp = 2;
+//     return vec4(
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_bl.xyz), exp),
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_tl.xyz), exp),
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_tr.xyz), exp),
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_br.xyz), exp)
+//     );
+// }
 
 void pull(out vec4 pulledFragNormal)
 {
@@ -77,10 +77,11 @@ void main() {
 
     if (level == 0) {
         fragNormal = texelFetch(inputTex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-        float fragBarycenter = texelFetch(inputTex_fragBarycenter, ivec2(gl_FragCoord.xy), 0).x;
-        float fragZ = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).z);
+        // float fragBarycenter = texelFetch(inputTex_fragBarycenter, ivec2(gl_FragCoord.xy), 0).x;
+        // float fragZ = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).z);
 
-        float distanceWeight = fragZ*fragZ;
+        //TODO: Introduce meaningful weights
+        float distanceWeight = 1.0; //fragZ*fragZ;
 
         if (fragNormal.xyz != vec3(0)) {
             fragNormal.w = 0.001 * distanceWeight; // weight for this pixel
