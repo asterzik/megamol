@@ -37,7 +37,42 @@ using namespace megamol::core;
 using namespace megamol::protein;
 using namespace megamol::protein_calls;
 using namespace megamol::core::utility::log;
+unsigned int loadTexture(char const* path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
 
+    int width, height, nrComponents;
+    unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
+}
 /*
  * MoleculeSESRenderer::MoleculeSESRenderer
  */
@@ -912,6 +947,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         pyramid.create(this->width, this->height, this->GetCoreInstance());
         this->CreateQuadBuffers();
         this->CreateFBO();
+        texturePy = loadTexture("brickwall.jpg");
     }
 
     // if (this->postprocessing != NONE && virtualViewportChanged){
@@ -1108,12 +1144,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
 void MoleculeSESRenderer::PostprocessingContour() {
     glDisable(GL_DEPTH_TEST);
 
-    glBindTexture(GL_TEXTURE_2D, contourTexture);
-    pyramid.texture("inputTex_fragNormal", contourTexture);
+    glBindTexture(GL_TEXTURE_2D, texturePy);
+    pyramid.texture("inputTex_fragNormal", texturePy);
     pyramid.clear();
-    pyramid.pull_until(3);
-    pyramid.push_from(3);
-
+    pyramid.run();
     
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
 

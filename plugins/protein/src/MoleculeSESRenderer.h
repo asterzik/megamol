@@ -31,6 +31,7 @@
 #include "vislib/graphics/gl/GLSLShader.h"
 #include "vislib/graphics/gl/SimpleFont.h"
 #include "vislib/math/Quaternion.h"
+#include "stb_image.h"
 
 namespace megamol {
 namespace protein {
@@ -333,6 +334,9 @@ namespace protein {
         bool drawSES;
         bool drawSAS;
         bool offscreenRendering;
+
+        //Testing
+        unsigned int texturePy;
 
         /** the reduced surface(s) */
         std::vector<std::vector<ReducedSurface*>> reducedSurfaceAllFrames;
