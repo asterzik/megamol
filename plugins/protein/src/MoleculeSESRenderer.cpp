@@ -14,6 +14,7 @@
 #include <math.h>
 #include "Color.h"
 #include "MoleculeSESRenderer.h"
+#include "Pyramid.h"
 #include "mmcore/CoreInstance.h"
 #include "mmcore/param/BoolParam.h"
 #include "mmcore/param/EnumParam.h"
@@ -907,9 +908,15 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         virtualViewportChanged = true;
     }
 
-    if (this->postprocessing != NONE && virtualViewportChanged)
-        this->CreateFBO();
+    if (virtualViewportChanged)
+    {
+        this->BuildPyramid();
         this->CreateQuadBuffers();
+        this->CreateFBO();
+    }
+
+    // if (this->postprocessing != NONE && virtualViewportChanged){
+    // }
 
     if (this->allowPuxels && virtualViewportChanged)
         puxelsCreateBuffers();
@@ -1097,7 +1104,14 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
 #endif
 }
 /*
- * postprocessing: use screen space ambient occlusion
+ * Build pyramide from pull-push algrithm
+ */
+void MoleculeSESRenderer::BuildPyramid() {
+    Pyramid pyramid;
+    pyramid.create(this->width, this->height, this->GetCoreInstance());
+}
+/*
+ * postprocessing: use contour generation
  */
 void MoleculeSESRenderer::PostprocessingContour() {
                 
@@ -1121,7 +1135,11 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
     this->contourShader.Disable();
+    int default_fbo;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
     // glDeleteVertexArrays(1, &quadVAO);
     // glDeleteBuffers(1, &quadVBO);
 }
@@ -1473,6 +1491,7 @@ void MoleculeSESRenderer::CreateQuadBuffers() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    std::cout << "quadBuffer" << std::endl;
 
 }
 
@@ -1535,10 +1554,11 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         if (this->drawSES) {
             // enable torus shader
             if (offscreenRendering) {
-                this->CreateFBO();
+
 
                 //Bind Framebuffer for offscreen rendering
                 glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
                 this->torusShaderOR.Enable();
                 // set shader variables
@@ -1825,7 +1845,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
 #endif
         if (offscreenRendering)
         {
-        this->PostprocessingContour();
+            this->PostprocessingContour();
         }
     
     }

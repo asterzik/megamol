@@ -143,12 +143,14 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return true;
 }
 
 Pyramid::~Pyramid() {
 }
 
 Pyramid* Pyramid::pull() {
+    std::cout << "Pull starting" << std::endl;
     pullShaderProgram.Enable();
     for (int level = 0; level < getMipmapNumber(); level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
@@ -165,6 +167,7 @@ Pyramid* Pyramid::pull() {
 
 Pyramid *Pyramid::pull_until(int target_level)
 {
+    std::cout << "Pull until starting" << std::endl;
     pullShaderProgram.Enable();
     for (int level = 0; level <= target_level; level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
@@ -181,12 +184,14 @@ Pyramid *Pyramid::pull_until(int target_level)
 
 Pyramid *Pyramid::push_from(int start_level)
 {
+    std::cout << "Push from starting" << std::endl;
     for(int i = start_level - 1; i >= 0; i--)
         this->push(i);
 	return this;
 }
 
 Pyramid* Pyramid::push() {
+    std::cout << "Push starting" << std::endl;
     pushShaderProgram.Enable();
     glUniform1i(this->pushShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
     for (int level = getMipmapNumber() - 2; level >= 0; level--) {
@@ -203,6 +208,7 @@ Pyramid* Pyramid::push() {
 
 Pyramid *Pyramid::push(int level)
 {
+    std::cout << "Push int level" << std::endl;
     if(level > getMipmapNumber() - 1 || level < 0) {
         return this;
     }
@@ -220,6 +226,7 @@ Pyramid *Pyramid::push(int level)
 }
 
 Pyramid* Pyramid::run() {
+    std::cout << "run" << std::endl;
     pull();
     push();
 
@@ -227,6 +234,7 @@ Pyramid* Pyramid::run() {
 }
 
 Pyramid* Pyramid::texture(std::string name, GLuint textureHandle) {
+    std::cout << "texture" << std::endl;
     if (pullShaderProgram != NULL) {
         glUniform1i(this->pullShaderProgram.ParameterLocation("name"), textureHandle);
     }
@@ -249,6 +257,7 @@ Pyramid* Pyramid::texture(std::string name, GLuint textureHandle) {
 // }
 
 Pyramid* Pyramid::clear(float r, float g, float b, float a, int level) {
+    std::cout << "clear" << std::endl;
     glClearColor(r, g, b, a);
 
     if (level == -1) {
@@ -266,14 +275,17 @@ Pyramid* Pyramid::clear(float r, float g, float b, float a, int level) {
 }
 
 Pyramid* Pyramid::clear(int level) {
+    std::cout << "clear int level" << std::endl;
     clear(0, 0, 0, 0, level);
     return this;
 }
 
 GLuint Pyramid::get(std::string name) {
+    std::cout << "get" << std::endl;
     return textureMap[name];
 }
 
 int Pyramid::getMipmapNumber() {
+    std::cout << "MipmapNumber" << std::endl;
     return fboHandles.size();
 }

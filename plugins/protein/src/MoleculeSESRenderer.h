@@ -202,6 +202,11 @@ namespace protein {
         void RenderDebugStuff(const megamol::protein_calls::MolecularDataCall* mol);
 
         /**
+         * Build pyramid from pull-push algorithm 
+         */
+        void BuildPyramid();
+
+        /**
          * Postprocessing: use screen space ambient occlusion
          */
         void PostprocessingSSAO();

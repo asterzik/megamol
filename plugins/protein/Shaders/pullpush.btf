@@ -93,7 +93,7 @@ void main() {
     pull(fragNormal);
 }
 
-}
+
 -->
             </snippet>
         </shader>
@@ -190,7 +190,7 @@ void main() {
     push(fragNormal);
 }
 
-}
+
 -->
             </snippet>
         </shader>
