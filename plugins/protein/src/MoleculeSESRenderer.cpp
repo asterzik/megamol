@@ -1142,25 +1142,24 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
  * postprocessing: use contour generation
  */
 void MoleculeSESRenderer::PostprocessingContour() {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
 
-    glActiveTexture(GL_TEXTURE0);
+    // glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texturePy);
     pyramid.texture("inputTex_fragNormal", texturePy);
     pyramid.clear();
-    pyramid.run();
+    pyramid.pull_until(3);
+    pyramid.push_from(3);
 
     
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
                 
-    // The default framebuffer is not 0 therefore:
+    //TODO: Why does the default framebuffer sometimes change 
+    //and why does the default framebuffer not always correpsond to the output on the screen?
     
-    int default_fbo;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
-    std::cout << "default_fbo"<< default_fbo << std::endl;
-
-    // strangely enough this does not always find the buffer which actually produces a rendering output.
-    // while activating drawSES AND offscreenRendering it seems to be 1 even though default_fbo=6??
     
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
@@ -1173,7 +1172,7 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     this->contourShader.Disable();
-    // int default_fbo;
+    int default_fbo;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
     // glDeleteVertexArrays(1, &quadVAO);
