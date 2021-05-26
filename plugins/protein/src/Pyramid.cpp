@@ -98,6 +98,7 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
     // Generate texture shader-output.
     // A mipmap is also generated 
     GLuint handle = textures[0];
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, handle);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -111,9 +112,11 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
     glGenerateMipmap(GL_TEXTURE_2D);
 
     drawBuffers[0] = GL_COLOR_ATTACHMENT0 + 0;
-
-    glUniform1i(this->pullShaderProgram.ParameterLocation("pyramid_fragNormal"), handle);
-    glUniform1i(this->pushShaderProgram.ParameterLocation("pyramid_fragNormal"), handle);
+    
+    pullShaderProgram.Enable();
+    glUniform1i(this->pullShaderProgram.ParameterLocation("pyramid_fragNormal"), 1);
+    pushShaderProgram.Enable();
+    glUniform1i(this->pushShaderProgram.ParameterLocation("pyramid_fragNormal"), 1);
     textureMap["fragNormal"] = handle;
 
     int mipmapNumber = (int)glm::log2(glm::max<float>(width, height)) + 1;
@@ -151,6 +154,9 @@ Pyramid::~Pyramid() {
 
 Pyramid* Pyramid::pull() {
     pullShaderProgram.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
+
     for (int level = 0; level < getMipmapNumber(); level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
@@ -167,6 +173,8 @@ Pyramid* Pyramid::pull() {
 Pyramid *Pyramid::pull_until(int target_level)
 {
     pullShaderProgram.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
     for (int level = 0; level <= target_level; level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
@@ -189,6 +197,8 @@ Pyramid *Pyramid::push_from(int start_level)
 
 Pyramid* Pyramid::push() {
     pushShaderProgram.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
     glUniform1i(this->pushShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
     for (int level = getMipmapNumber() - 2; level >= 0; level--) {
 
@@ -209,6 +219,8 @@ Pyramid *Pyramid::push(int level)
     }
 
     pushShaderProgram.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
     glUniform1i(this->pushShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
     glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
@@ -229,10 +241,10 @@ Pyramid* Pyramid::run() {
 
 Pyramid* Pyramid::texture(std::string name, GLuint textureHandle) {
     if (pullShaderProgram != NULL) {
-        glUniform1i(this->pullShaderProgram.ParameterLocation("name"), textureHandle);
+        glUniform1i(pullShaderProgram.ParameterLocation(name.c_str()), textureHandle);
     }
     if (pushShaderProgram != NULL) {
-        glUniform1i(this->pushShaderProgram.ParameterLocation("name"), textureHandle);
+        glUniform1i(pushShaderProgram.ParameterLocation(name.c_str()), textureHandle);
     }
     return this;
 }

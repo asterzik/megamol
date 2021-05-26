@@ -51,6 +51,7 @@ void main() {
         if (fragNormal.xyz == vec3(0)) {
             fragNormal.w = 0;// no weight for this void pixel
         }
+        else fragNormal.w = 0.2;
         return;
     }
 
@@ -77,19 +78,19 @@ uniform int level_max;
 
 void addTexel(ivec2 offset, inout vec4 pushedFragNormal, inout float factor_sum, float factor)
 {
-    ivec2 c = offset + ivec2(gl_FragCoord.xy / 2);
+    ivec2 c = offset + ivec2(gl_FragCoord.xy / 2); //gets current coordinate for coarser level
     int max_coord = int(0.5/lf - 1);
     if (c.x < 0 || c.y < 0 || c.x > max_coord || c.y > max_coord)
     return;
 
-    vec4 n = (texelFetch(pyramid_fragNormal, c, level + 1));
+    vec4 n = (texelFetch(pyramid_fragNormal, c, level + 1)); //coarser level texel
 
     if (any(isnan(n)) || any(isinf(n))) {
         return;
     }
 
     if( n.xyz != vec3(0)) {
-        pushedFragNormal.xyz += normalize(n.xyz) * factor * n.w ;
+        pushedFragNormal.xyz += n.xyz * factor * n.w;//normalize(n.xyz) * factor * n.w ;
         pushedFragNormal.w += n.w * factor * n.w ;
         factor_sum += factor * n.w ;
     }
@@ -105,7 +106,7 @@ void push(out vec4 pushedFragNormal)
     if (originalFragNormal.w == 1.0){
         pushedFragNormal = originalFragNormal;
         return;
-    }
+    } 
 
     addTexel(ivec2(0, 0),  pushedFragNormal, f_sum, 9);
     if (int(gl_FragCoord.x) % 2 == 0) {
@@ -135,7 +136,8 @@ void push(out vec4 pushedFragNormal)
     }
 
     if (pushedFragNormal.xyz != vec3(0) && f_sum > 0) {
-        pushedFragNormal.xyz = normalize(pushedFragNormal.xyz);
+        // pushedFragNormal.xyz = normalize(pushedFragNormal.xyz);
+        pushedFragNormal.xyz /= 4;
         pushedFragNormal.w /= f_sum;
     } else {
         pushedFragNormal.w = 0;
@@ -145,7 +147,7 @@ void push(out vec4 pushedFragNormal)
     alpha = 1 - pow(1 - alpha, 1);
     pushedFragNormal.w = min(1, pushedFragNormal.w * (1 - alpha) + alpha);
     pushedFragNormal.xyz = originalFragNormal.xyz * alpha + pushedFragNormal.xyz * (1 - alpha);
-    pushedFragNormal.xyz = normalize(pushedFragNormal.xyz);
+    //pushedFragNormal.xyz = normalize(pushedFragNormal.xyz);
 //    pushedFragNormal.xyz = (pushedFragNormal.xyz);
 }
 

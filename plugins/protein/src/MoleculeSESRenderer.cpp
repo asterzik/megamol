@@ -1142,37 +1142,38 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
  * postprocessing: use contour generation
  */
 void MoleculeSESRenderer::PostprocessingContour() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
 
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texturePy);
     pyramid.texture("inputTex_fragNormal", texturePy);
     pyramid.clear();
     pyramid.run();
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 1);
 
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT);
+    
                 
     // The default framebuffer is not 0 therefore:
     
-    // int default_fbo;
-    // glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
+    int default_fbo;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
+    std::cout << "default_fbo"<< default_fbo << std::endl;
 
     // strangely enough this does not always find the buffer which actually produces a rendering output.
     // while activating drawSES AND offscreenRendering it seems to be 1 even though default_fbo=6??
     
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
 
     glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
     this->contourShader.Enable();
     glBindVertexArray(quadVAO);
-    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
     glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     this->contourShader.Disable();
-    int default_fbo;
+    // int default_fbo;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
     // glDeleteVertexArrays(1, &quadVAO);
@@ -1474,6 +1475,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
     // contour FBO
     glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, this->contourTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->width, this->height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
