@@ -479,9 +479,10 @@ namespace protein {
         GLuint depthTex1;
         GLuint hFilter;
         GLuint vFilter;
-        unsigned int contourFBO;
-        unsigned int contourTexture;
-        unsigned int contourDepthRBO;
+        GLuint contourFBO;
+        GLuint normalTexture;
+        GLuint positionTexture;
+        GLuint contourDepthRBO;
 
         //VAO and VBO for screen filling quad
         unsigned int quadVAO, quadVBO;

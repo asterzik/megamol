@@ -9098,7 +9098,8 @@ void main(void) {
     //output for contour generation
     // As I understand from the vertex shader camPos lives in object space, so does sphereintersection -> I think this should be fine
     float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
-    gl_FragData[0] = vec4(diff, diff, diff, 1.0);
+    gl_FragData[2] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
+    gl_FragData[0] = vec4(normal, 1.0); 
 
     // calculate depth
 #ifdef DEPTH
@@ -9721,7 +9722,8 @@ void main(void) {
     //For contour generation:
     // As I understand from the vertex shader camPos lives in object space, so does intersection -> I think this should be fine
     float diff = dot(normalize(camPos.xyz - intersection), normal);
-    gl_FragData[0] = vec4(diff, diff, diff, 1.0);
+    gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
+    gl_FragData[2] = vec4(normalize(camPos.xyz -intersection), 1.0);
     
     // calculate depth
 #ifdef DEPTH
@@ -11301,7 +11303,8 @@ void main(void) {
     //nv lighting for contour generation
     // As I understand from the vertex shader camPos lives in object space, so does sphereintersection -> I think this should be fine
     float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
-    gl_FragData[0] = vec4(diff, diff, diff, 1.0);
+    gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
+    gl_FragData[2] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
     
     // calculate depth
 #ifdef DEPTH
@@ -11422,12 +11425,13 @@ void main()
             out vec4 FragColor;
             in vec2 TexCoords;
 
-            uniform sampler2D contourTexture;
+            uniform sampler2D normalTexture;
+            uniform sampler2D positionTexture;
             uniform vec2 pixelSize;
 
             //parameter
             const int radius = 4;
-            float neighbourThreshold = 0.2; //percentage s in original  SC paper //  in original paper 0.2
+            float neighbourThreshold = 0.8; //percentage s in original  SC paper //  in original paper 0.2
             float intensityDiffThreshold = 0.05; //threshold d in original SC paper // in original paper 0.25
 
             void main()
@@ -11449,13 +11453,16 @@ void main()
                 if(radius == 5)
                     total = 49;
 
-                vec3 col = texture(contourTexture, TexCoords).rgb;
+                vec3 normal = texture(normalTexture, TexCoords).rgb;
+                vec3 position = texture(positionTexture, TexCoords).rgb;
+                float col = dot(normal, position);
+
 
                 int darker = 0; //How many values are darker than the current pixel?
-                float maxIntensity = col.r;
+                float maxIntensity = col;
                 
                 float filterValues[49]; //Use biggest number as OpenGL does not allow variable sized arrays
-                filterValues[0] = col.r;    //collects all values for median filtering. 
+                filterValues[0] = col;    //collects all values for median filtering. 
                                             //Incoming values are grayscale therefore r component is sufficient
 
                  
@@ -11468,36 +11475,44 @@ void main()
                         if(x*x + y*y > radius*radius)
                             continue;
                         else{
-                            vec3 cur = texture(contourTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
-                            if(cur.r < col.r)
+                            vec3 cur_normal = texture(normalTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
+                            vec3 cur_position = texture(positionTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
+                            float cur = dot(cur_normal, cur_position);
+                            if(cur < col)
                                 ++darker;
-                            if(cur.r > maxIntensity)
-                                maxIntensity = cur.r;
-                            filterValues[idx] = cur.r;
+                            if(cur > maxIntensity)
+                                maxIntensity = cur;
+                            filterValues[idx] = cur;
                             idx++;
 
-                            cur = texture(contourTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
-                            if(cur.r < col.r)
+                            cur_normal = texture(normalTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
+                            cur_position = texture(positionTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
+                            cur = dot(cur_normal, cur_position);
+                            if(cur < col)
                                 ++darker;
-                            if(cur.r > maxIntensity)
-                                maxIntensity = cur.r;
-                            filterValues[idx] = cur.r;
+                            if(cur > maxIntensity)
+                                maxIntensity = cur;
+                            filterValues[idx] = cur;
                             idx++;
 
-                            cur = texture(contourTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
-                            if(cur.r < col.r)
+                            cur_normal = texture(normalTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
+                            cur_position = texture(positionTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
+                            cur = dot(cur_normal, cur_position);
+                            if(cur < col)
                                 ++darker;
-                            if(cur.r > maxIntensity)
-                                maxIntensity = cur.r;
-                            filterValues[idx] = cur.r;
+                            if(cur > maxIntensity)
+                                maxIntensity = cur;
+                            filterValues[idx] = cur;
                             idx++;
 
-                            cur = texture(contourTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
-                            if(cur.r < col.r)
+                            cur_normal = texture(normalTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
+                            cur_position = texture(positionTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
+                            cur = dot(cur_normal, cur_position);
+                            if(cur < col)
                                 ++darker;
-                            if(cur.r > maxIntensity)
-                                maxIntensity = cur.r;
-                            filterValues[idx] = cur.r;
+                            if(cur > maxIntensity)
+                                maxIntensity = cur;
+                            filterValues[idx] = cur;
                             idx++;
 
                         }
@@ -11506,7 +11521,7 @@ void main()
                 if(darker > neighbourThreshold * total){
                     discard;
                 }
-                if(maxIntensity - col.r <= intensityDiffThreshold){
+                if(maxIntensity - col <= intensityDiffThreshold){
                     discard;
                 }
 

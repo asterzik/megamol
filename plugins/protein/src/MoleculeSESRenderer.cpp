@@ -1143,27 +1143,26 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
  */
 void MoleculeSESRenderer::PostprocessingContour() {
 
-
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    /*
+     * Execute Pull-Push algorithm
+     */
     glDisable(GL_DEPTH_TEST);
-
-    // glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texturePy);
-    pyramid.texture("inputTex_fragNormal", texturePy);
-    pyramid.clear();
-    pyramid.pull_until(3);
-    pyramid.push_from(3);
+    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    // pyramid.texture("inputTex_fragNormal", normalTexture);
+    // pyramid.clear();
+    // pyramid.pull_until(3);
+    // pyramid.push_from(3);
 
     
-    glBindFramebuffer(GL_FRAMEBUFFER, 1);
-                
+    /*
+     * Contour-Generation
+     */
+    
     //TODO: Why does the default framebuffer sometimes change 
     //and why does the default framebuffer not always correpsond to the output on the screen?
-    
-    
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
-
+    // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
     glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
     this->contourShader.Enable();
     glBindVertexArray(quadVAO);
@@ -1387,7 +1386,8 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &depthTex1);
         glDeleteTextures(1, &hFilter);
         glDeleteTextures(1, &vFilter);
-        glDeleteTextures(1, &contourTexture);
+        glDeleteTextures(1, &normalTexture);
+        glDeleteTextures(1, &positionTexture);
     }
     glGenFramebuffersEXT(1, &colorFBO);
     glGenFramebuffersEXT(1, &blendFBO);
@@ -1400,7 +1400,8 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenTextures(1, &depthTex1);
     glGenTextures(1, &hFilter);
     glGenTextures(1, &vFilter);
-    glGenTextures(1, &contourTexture);
+    glGenTextures(1, &normalTexture);
+    glGenTextures(1, &positionTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
 
     // color and depth FBO
@@ -1474,16 +1475,34 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
     // contour FBO
     glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
+
+    //texture for normals
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, this->contourTexture);
+    glBindTexture(GL_TEXTURE_2D, this->normalTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->width, this->height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, contourTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, normalTexture, 0);
+    contourShader.Enable();
+    glUniform1i(contourShader.ParameterLocation("normalTexture"),0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    //texture for positions
+    glActiveTexture(GL_TEXTURE2); //2 because GL_TEXTURE1 use one in the pyramid class
+    glBindTexture(GL_TEXTURE_2D, this->positionTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->width, this->height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, normalTexture, 0);
+    glUniform1i(contourShader.ParameterLocation("positionTexture"),2);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+
+    //Depth RBO
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
