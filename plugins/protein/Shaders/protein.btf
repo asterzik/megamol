@@ -9100,8 +9100,8 @@ void main(void) {
     float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
     // gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
     // gl_FragData[0] = vec4(normal, 1.0); 
-    gl_FragData[0] = vec4(1.0, 1.0, 1.0, 1.0);
-    gl_FragData[1] = vec4(1.0, 1.0, 1.0, 1.0);
+    gl_FragData[0] = vec4(1.0, 0.0, 0.0, 1.0);
+    gl_FragData[1] = vec4(0.0, 1.0, 0.0, 1.0);
 
     // calculate depth
 #ifdef DEPTH
@@ -11429,12 +11429,12 @@ void main()
 
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
-            uniform vec2 pixelSize;
+            // uniform vec2 pixelSize;
 
-            //parameter
-            const int radius = 4;
-            float neighbourThreshold = 0.8; //percentage s in original  SC paper //  in original paper 0.2
-            float intensityDiffThreshold = 0.05; //threshold d in original SC paper // in original paper 0.25
+            // //parameter
+            // const int radius = 4;
+            // float neighbourThreshold = 0.8; //percentage s in original  SC paper //  in original paper 0.2
+            // float intensityDiffThreshold = 0.05; //threshold d in original SC paper // in original paper 0.25
 
             void main()
             {
@@ -11455,8 +11455,8 @@ void main()
                 // if(radius == 5)
                 //     total = 49;
 
-                vec3 normal = texture(normalTexture, TexCoords).rgb * 4;
-                vec3 position = texture(positionTexture, TexCoords).rgb;
+                // vec3 normal = texture(normalTexture, TexCoords).rgb;
+                // vec3 position = texture(positionTexture, TexCoords).rgb;
                 // float col = dot(normal, position);
 
 
@@ -11541,7 +11541,7 @@ void main()
 
                 // FragColor = vec4(color, color, color, 1.0);
 
-                FragColor = vec4(normal, 1.0);
+                FragColor = texture(normalTexture, TexCoords) + texture(positionTexture, TexCoords); 
             }
           -->
         </snippet>

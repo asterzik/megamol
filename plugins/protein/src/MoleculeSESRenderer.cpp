@@ -1162,14 +1162,18 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     this->contourShader.Enable();
     glDisable(GL_DEPTH_TEST);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texturePy);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texturePy);
-    glUniform1i(contourShader.ParameterLocation("normalTexture"),0);
-    glUniform1i(contourShader.ParameterLocation("positionTexture"),1);
-    glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
-    glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
+    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(contourShader.ParameterLocation("positionTexture"),0);
+    // glActiveTexture(GL_TEXTURE1);
+    // glActiveTexture(GL_TEXTURE1);
+    // glBindTexture(GL_TEXTURE_2D, texturePy);
+    // glUniform1i(contourShader.ParameterLocation("positionTexture"),1);
+    // glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
+    // glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
