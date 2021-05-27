@@ -1146,8 +1146,6 @@ void MoleculeSESRenderer::PostprocessingContour() {
     /*
      * Execute Pull-Push algorithm
      */
-    glDisable(GL_DEPTH_TEST);
-    glBindTexture(GL_TEXTURE_2D, normalTexture);
     // pyramid.texture("inputTex_fragNormal", normalTexture);
     // pyramid.clear();
     // pyramid.pull_until(3);
@@ -1161,12 +1159,19 @@ void MoleculeSESRenderer::PostprocessingContour() {
     //TODO: Why does the default framebuffer sometimes change 
     //and why does the default framebuffer not always correpsond to the output on the screen?
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
-    glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
+
     this->contourShader.Enable();
-    glBindVertexArray(quadVAO);
+    glDisable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texturePy);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, texturePy);
+    glUniform1i(contourShader.ParameterLocation("normalTexture"),0);
+    glUniform1i(contourShader.ParameterLocation("positionTexture"),1);
+    glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
     glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
+    // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
+    glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
@@ -1477,36 +1482,34 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
 
     //texture for normals
-    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->width, this->height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, normalTexture, 0);
     contourShader.Enable();
-    glUniform1i(contourShader.ParameterLocation("normalTexture"),0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     //texture for positions
-    glActiveTexture(GL_TEXTURE2); //2 because GL_TEXTURE1 use one in the pyramid class
     glBindTexture(GL_TEXTURE_2D, this->positionTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->width, this->height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, normalTexture, 0);
-    glUniform1i(contourShader.ParameterLocation("positionTexture"),2);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, positionTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
-
 
     //Depth RBO
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
+
+    GLuint attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+    glDrawBuffers(2, attachments);
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
         Log::DefaultLog.WriteMsg(
