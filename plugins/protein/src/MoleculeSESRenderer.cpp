@@ -1162,19 +1162,16 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     this->contourShader.Enable();
     glDisable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE2);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, normalTexture);
-    glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
+    glBindTexture(GL_TEXTURE_2D,positionTexture);
+    glUniform1i(contourShader.ParameterLocation("positionTexture"),1);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
-    glUniform1i(contourShader.ParameterLocation("positionTexture"),0);
-    // glActiveTexture(GL_TEXTURE1);
-    // glActiveTexture(GL_TEXTURE1);
-    // glBindTexture(GL_TEXTURE_2D, texturePy);
-    // glUniform1i(contourShader.ParameterLocation("positionTexture"),1);
-    // glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
-    // glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
+    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    glUniform1i(contourShader.ParameterLocation("normalTexture"),0);
+    glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
+    glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
@@ -1487,7 +1484,7 @@ void MoleculeSESRenderer::CreateFBO() {
 
     //texture for normals
     glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1498,7 +1495,7 @@ void MoleculeSESRenderer::CreateFBO() {
 
     //texture for positions
     glBindTexture(GL_TEXTURE_2D, this->positionTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
