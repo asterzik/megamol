@@ -9097,12 +9097,9 @@ void main(void) {
 
     //output for contour generation
     // As I understand from the vertex shader camPos lives in object space, so does sphereintersection -> I think this should be fine
-    float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
-    gl_FragData[0] = vec4(normal, 1.0);
-    gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
-    // vec4 viewSpacePos = gl_ModelViewMatrix * vec4(sphereintersection + objPos.xyz, 1.0);
-    // gl_FragData[1] = viewSpacePos;
-    // gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0); // get eye space normal
+    // float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
+    // gl_FragData[0] = vec4(normal, 1.0);
+    // gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
 
     // calculate depth
 #ifdef DEPTH
@@ -9159,6 +9156,11 @@ void main(void) {
     */
     
     // gl_FragData[1] = gl_ModelViewMatrix*vec4(pos - objPos.xyz, 1.0);
+    // gl_FragData[0] = vec4(normal, 1.0);
+    // gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
+    vec4 viewSpacePos = gl_ModelViewMatrix * vec4(sphereintersection + objPos.xyz, 1.0);
+    gl_FragData[1] = viewSpacePos;
+    gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0); // get eye space normal
 }
 -->
       </snippet>
@@ -9724,12 +9726,9 @@ void main(void) {
 
     //For contour generation:
     // As I understand from the vertex shader camPos lives in object space, so does intersection -> I think this should be fine
-    float diff = dot(normalize(camPos.xyz - intersection), normal);
+    // float diff = dot(normalize(camPos.xyz - intersection), normal);
     gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
     gl_FragData[1] = vec4(normalize(camPos.xyz -intersection), 1.0);
-    // vec4 viewSpacePos = gl_ModelViewMatrix * vec4(intersection + objPos.xyz, 1.0);
-    // gl_FragData[1] = viewSpacePos;
-    // gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0);
     
     // calculate depth
 #ifdef DEPTH
@@ -9783,7 +9782,12 @@ void main(void) {
     if (mc < 0.05) { gl_FragColor = vec4( LocalLighting( ray, tmp, lightPos.xyz, colorX), 1.0); }
 #endif // AXISHINTS
 
-    // gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0);
+    // gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
+    // gl_FragData[1] = vec4(normalize(camPos.xyz -intersection), 1.0);
+    // Hier haben sie oben obj.Pos schon dazu gerechnet
+    vec4 viewSpacePos = gl_ModelViewMatrix * vec4(intersection, 1.0);
+    gl_FragData[1] = viewSpacePos;
+    gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0);
 }
 -->
       </snippet>
@@ -11308,12 +11312,9 @@ void main(void) {
 
     //nv lighting for contour generation
     // As I understand from the vertex shader camPos lives in object space, so does sphereintersection -> I think this should be fine
-    float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
-    gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
-    gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
-    // vec4 viewSpacePos = gl_ModelViewMatrix * vec4(sphereintersection + objPos.xyz, 1.0);
-    // gl_FragData[1] = viewSpacePos;
-    // gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0);
+    // float diff = dot(normalize(camPos.xyz - sphereintersection), normal);
+    // gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
+    // gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
     // calculate depth
 #ifdef DEPTH
     vec4 Ding = vec4(sphereintersection + objPos.xyz, 1.0);
@@ -11355,6 +11356,11 @@ void main(void) {
     { gl_FragData[0] = vec4( LocalLighting( ray, normal, lightPos.xyz, colorX), 1.0); }
     if (mc < 0.05) { gl_FragColor = vec4( LocalLighting( ray, normal, lightPos.xyz, colorX), 1.0); }
 #endif // AXISHINTS
+    // gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
+    // gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
+    vec4 viewSpacePos = gl_ModelViewMatrix * vec4(sphereintersection + objPos.xyz, 1.0);
+    gl_FragData[1] = viewSpacePos;
+    gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0);
 
 
 
@@ -11444,109 +11450,109 @@ void main()
             void main()
             {
                 // scaling of parameters according to original paper
-                neighbourThreshold *= (1.0 - 1.0/radius); 
-                intensityDiffThreshold *= radius; 
+                // neighbourThreshold *= (1.0 - 1.0/radius); 
+                // intensityDiffThreshold *= radius; 
 
-                //total number of points according to radius [gauss circle problem]
-                int total;
-                if(radius == 1)
-                    total = 1;
-                if(radius == 2)
-                    total = 5;
-                if(radius == 3)
-                    total = 13;
-                if(radius == 4)
-                    total = 29;
-                if(radius == 5)
-                    total = 49;
+                // //total number of points according to radius [gauss circle problem]
+                // int total;
+                // if(radius == 1)
+                //     total = 1;
+                // if(radius == 2)
+                //     total = 5;
+                // if(radius == 3)
+                //     total = 13;
+                // if(radius == 4)
+                //     total = 29;
+                // if(radius == 5)
+                //     total = 49;
 
                 vec3 normal = texture(normalTexture, TexCoords).rgb;
                 vec3 position = texture(positionTexture, TexCoords).rgb;
-                vec3 lightdir = position; //normalize(vec3(0.0, 0.0, 0.0) - position); //TODO: right now i get worldspace position from the texture, view space coordinates are not just right yet.
-                float col = dot(normal, position);
+                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); //TODO: right now i get worldspace position from the texture, view space coordinates are not just right yet.
+                float col = dot(normal, lightdir);
                 
 
 
-                int darker = 0; //How many values are darker than the current pixel?
-                float maxIntensity = col;
+                // int darker = 0; //How many values are darker than the current pixel?
+                // float maxIntensity = col;
                 
-                float filterValues[49]; //Use biggest number as OpenGL does not allow variable sized arrays
-                filterValues[0] = col;    //collects all values for median filtering. 
-                                            //Incoming values are grayscale therefore r component is sufficient
+                // float filterValues[49]; //Use biggest number as OpenGL does not allow variable sized arrays
+                // filterValues[0] = col;    //collects all values for median filtering. 
+                //                             //Incoming values are grayscale therefore r component is sufficient
 
                  
-                // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
-                // Discard all points that are not part of the circle
-                // Collect data and save all intensities to filterValues
-                int idx = 1;
-                for(int x = 0; x <= radius; x++){
-                    for(int y = 0; y <= radius; y++){
-                        if(x*x + y*y > radius*radius)
-                            continue;
-                        else{
-                            vec3 cur_normal = texture(normalTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
-                            vec3 cur_position = texture(positionTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
-                            float cur = dot(cur_normal, cur_position);
-                            if(cur < col)
-                                ++darker;
-                            if(cur > maxIntensity)
-                                maxIntensity = cur;
-                            filterValues[idx] = cur;
-                            idx++;
+                // // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
+                // // Discard all points that are not part of the circle
+                // // Collect data and save all intensities to filterValues
+                // int idx = 1;
+                // for(int x = 0; x <= radius; x++){
+                //     for(int y = 0; y <= radius; y++){
+                //         if(x*x + y*y > radius*radius)
+                //             continue;
+                //         else{
+                //             vec3 cur_normal = texture(normalTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
+                //             vec3 cur_position = texture(positionTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
+                //             float cur = dot(cur_normal, cur_position);
+                //             if(cur < col)
+                //                 ++darker;
+                //             if(cur > maxIntensity)
+                //                 maxIntensity = cur;
+                //             filterValues[idx] = cur;
+                //             idx++;
 
-                            cur_normal = texture(normalTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
-                            cur_position = texture(positionTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
-                            cur = dot(cur_normal, cur_position);
-                            if(cur < col)
-                                ++darker;
-                            if(cur > maxIntensity)
-                                maxIntensity = cur;
-                            filterValues[idx] = cur;
-                            idx++;
+                //             cur_normal = texture(normalTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
+                //             cur_position = texture(positionTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
+                //             cur = dot(cur_normal, cur_position);
+                //             if(cur < col)
+                //                 ++darker;
+                //             if(cur > maxIntensity)
+                //                 maxIntensity = cur;
+                //             filterValues[idx] = cur;
+                //             idx++;
 
-                            cur_normal = texture(normalTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
-                            cur_position = texture(positionTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
-                            cur = dot(cur_normal, cur_position);
-                            if(cur < col)
-                                ++darker;
-                            if(cur > maxIntensity)
-                                maxIntensity = cur;
-                            filterValues[idx] = cur;
-                            idx++;
+                //             cur_normal = texture(normalTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
+                //             cur_position = texture(positionTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
+                //             cur = dot(cur_normal, cur_position);
+                //             if(cur < col)
+                //                 ++darker;
+                //             if(cur > maxIntensity)
+                //                 maxIntensity = cur;
+                //             filterValues[idx] = cur;
+                //             idx++;
 
-                            cur_normal = texture(normalTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
-                            cur_position = texture(positionTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
-                            cur = dot(cur_normal, cur_position);
-                            if(cur < col)
-                                ++darker;
-                            if(cur > maxIntensity)
-                                maxIntensity = cur;
-                            filterValues[idx] = cur;
-                            idx++;
+                //             cur_normal = texture(normalTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
+                //             cur_position = texture(positionTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
+                //             cur = dot(cur_normal, cur_position);
+                //             if(cur < col)
+                //                 ++darker;
+                //             if(cur > maxIntensity)
+                //                 maxIntensity = cur;
+                //             filterValues[idx] = cur;
+                //             idx++;
 
-                        }
-                    }
-                }
-                if(darker > neighbourThreshold * total){
-                    discard;
-                }
-                if(maxIntensity - col <= intensityDiffThreshold){
-                    discard;
-                }
+                //         }
+                //     }
+                // }
+                // if(darker > neighbourThreshold * total){
+                //     discard;
+                // }
+                // if(maxIntensity - col <= intensityDiffThreshold){
+                //     discard;
+                // }
 
-                // Median filtering
-                for(int n = total-1; n > 0; n = n - 1){
-                    for(int i = 0; i < n; ++i){
-                        float minimum = min(filterValues[i], filterValues[i+1]);
-                        filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
-                        filterValues[i] = minimum;
-                    }
-                }
-                float median = filterValues[int(floor(total * 1.0 / 2.0))];
+                // // Median filtering
+                // for(int n = total-1; n > 0; n = n - 1){
+                //     for(int i = 0; i < n; ++i){
+                //         float minimum = min(filterValues[i], filterValues[i+1]);
+                //         filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
+                //         filterValues[i] = minimum;
+                //     }
+                // }
+                // float median = filterValues[int(floor(total * 1.0 / 2.0))];
 
-                float color = 1.0 - median; //invert color because background is dark
+                // float color = 1.0 - median; //invert color because background is dark
 
-                FragColor = vec4(color, color, color, 1.0);
+                FragColor = vec4(col, col, col, 1.0);
             }
           -->
         </snippet>

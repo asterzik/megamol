@@ -1031,6 +1031,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
+    glActiveTexture(GL_TEXTURE0);
 
     return true;
 }
@@ -1143,6 +1144,11 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
  */
 void MoleculeSESRenderer::PostprocessingContour() {
 
+const GLubyte* vendor = glGetString(GL_VENDOR); // Returns the vendor
+const GLubyte* renderer = glGetString(GL_RENDERER); // Returns a hint to the model
+std::cout << "vendor" << vendor << std::endl;
+std::cout << "renderer" << renderer << std::endl;
+
     /*
      * Execute Pull-Push algorithm
      */
@@ -1162,14 +1168,14 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     this->contourShader.Enable();
     glDisable(GL_DEPTH_TEST);
-    glActiveTexture(GL_TEXTURE2);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D,positionTexture);
-    glUniform1i(contourShader.ParameterLocation("positionTexture"),1);
-    glActiveTexture(GL_TEXTURE0);
     // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, normalTexture);
-    glUniform1i(contourShader.ParameterLocation("normalTexture"),0);
+    glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D,positionTexture);
+    glUniform1i(contourShader.ParameterLocation("positionTexture"),2);
+    glGetError();
     glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
     glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     glBindVertexArray(quadVAO);
