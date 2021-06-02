@@ -1144,18 +1144,18 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
  */
 void MoleculeSESRenderer::PostprocessingContour() {
 
-const GLubyte* vendor = glGetString(GL_VENDOR); // Returns the vendor
-const GLubyte* renderer = glGetString(GL_RENDERER); // Returns a hint to the model
-std::cout << "vendor" << vendor << std::endl;
-std::cout << "renderer" << renderer << std::endl;
+    glDisable(GL_DEPTH_TEST);
 
     /*
      * Execute Pull-Push algorithm
      */
-    // pyramid.texture("inputTex_fragNormal", normalTexture);
-    // pyramid.clear();
-    // pyramid.pull_until(3);
-    // pyramid.push_from(3);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    pyramid.pullShaderProgram.Enable();
+    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
+    pyramid.clear();
+    pyramid.pull_until(3);
+    pyramid.push_from(3);
 
     
     /*
@@ -1167,10 +1167,9 @@ std::cout << "renderer" << renderer << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
 
     this->contourShader.Enable();
-    glDisable(GL_DEPTH_TEST);
-    // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
+    // glBindTexture(GL_TEXTURE_2D, normalTexture);
     glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D,positionTexture);

@@ -29,6 +29,8 @@ public:
 	GLuint get(std::string name);
 	int getMipmapNumber();
 
+	vislib::graphics::gl::GLSLShader pushShaderProgram;
+	vislib::graphics::gl::GLSLShader pullShaderProgram;
 	// template <class T>
 	// Pyramid* update(std::string name, T value) {
 	// 	pushShaderProgram->update(name, value);
@@ -48,8 +50,6 @@ private:
 	// std::string fragmentPullPath;
 	// std::string vertexPushPath;
 	// std::string fragmentPushPath;
-	vislib::graphics::gl::GLSLShader pushShaderProgram;
-	vislib::graphics::gl::GLSLShader pullShaderProgram;
 	// ShaderProgram* pushShaderProgram;
 	// ShaderProgram* pullShaderProgram;
 
