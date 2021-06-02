@@ -1149,10 +1149,14 @@ void MoleculeSESRenderer::PostprocessingContour() {
     /*
      * Execute Pull-Push algorithm
      */
+    pyramid.pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, normalTexture);
-    pyramid.pullShaderProgram.Enable();
     glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+
     pyramid.clear();
     pyramid.pull_until(3);
     pyramid.push_from(3);
