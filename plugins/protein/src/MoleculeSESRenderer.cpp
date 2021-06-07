@@ -1172,15 +1172,13 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     this->contourShader.Enable();
     glActiveTexture(GL_TEXTURE1);
-    // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
-    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
+    // glBindTexture(GL_TEXTURE_2D, normalTexture);
     glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D,positionTexture);
     glUniform1i(contourShader.ParameterLocation("positionTexture"),2);
     glGetError();
-    glm::vec2 pixelSize = glm::vec2(1.0 / this->width, 1.0 /this->height);
-    glUniform2fvARB(this->contourShader.ParameterLocation("pixelSize"), 1, glm::value_ptr(pixelSize));
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
@@ -1624,6 +1622,8 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             if (offscreenRendering) {
 
 
+                // Make sure the background color does not interfere with the data
+                glClearColor(0.0, 0.0, 0.0, 1.0);
                 //Bind Framebuffer for offscreen rendering
                 glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
