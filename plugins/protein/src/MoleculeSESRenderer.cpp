@@ -1172,8 +1172,8 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     this->contourShader.Enable();
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
-    // glBindTexture(GL_TEXTURE_2D, normalTexture);
+    // glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
+    glBindTexture(GL_TEXTURE_2D, normalTexture);
     glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D,positionTexture);

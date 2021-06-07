@@ -11444,115 +11444,131 @@ void main()
 
             //parameter
             const int radius = 4;
-            float neighbourThreshold = 0.8; //percentage s in original  SC paper //  in original paper 0.2
-            float intensityDiffThreshold = 0.05; //threshold d in original SC paper // in original paper 0.25
+            float neighbourThreshold = 0.2; //percentage s in original  SC paper //  in original paper 0.2
+            float intensityDiffThreshold = 0.25; //threshold d in original SC paper // in original paper 0.25
 
             void main()
             {
                 // scaling of parameters according to original paper
+                //TODO: The parameter values don't make sense: This would be 0 for radius=1
                 // neighbourThreshold *= (1.0 - 1.0/radius); 
                 // intensityDiffThreshold *= radius; 
 
-                // //total number of points according to radius [gauss circle problem]
-                // int total;
-                // if(radius == 1)
-                //     total = 1;
-                // if(radius == 2)
-                //     total = 5;
-                // if(radius == 3)
-                //     total = 13;
-                // if(radius == 4)
-                //     total = 29;
-                // if(radius == 5)
-                //     total = 49;
+                //total number of points according to radius [gauss circle problem]
+                int total;
+                if(radius == 1)
+                    total = 5;
+                if(radius == 2)
+                    total = 13;
+                if(radius == 3)
+                    total = 29;
+                if(radius == 4)
+                    total = 49;
+                if(radius == 5)
+                    total = 81;
 
-                vec3 normal = texture(normalTexture, TexCoords).rgb;
-                vec3 position = texture(positionTexture, TexCoords).rgb;
-                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); //TODO: right now i get worldspace position from the texture, view space coordinates are not just right yet.
+                vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
                 float col = dot(normal, lightdir);
-                
 
-
-                // int darker = 0; //How many values are darker than the current pixel?
-                // float maxIntensity = col;
+                int darker = 0; //How many values are darker than the current pixel?
+                float maxIntensity = col;
                 
-                // float filterValues[49]; //Use biggest number as OpenGL does not allow variable sized arrays
-                // filterValues[0] = col;    //collects all values for median filtering. 
-                //                             //Incoming values are grayscale therefore r component is sufficient
+                float filterValues[81]; //Use biggest number as OpenGL does not allow variable sized arrays
+                filterValues[0] = col;    //collects all values for median filtering. 
+                                            //Incoming values are grayscale therefore r component is sufficient
 
                  
-                // // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
-                // // Discard all points that are not part of the circle
-                // // Collect data and save all intensities to filterValues
-                // int idx = 1;
-                // for(int x = 0; x <= radius; x++){
-                //     for(int y = 0; y <= radius; y++){
-                //         if(x*x + y*y > radius*radius)
-                //             continue;
-                //         else{
-                //             vec3 cur_normal = texture(normalTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
-                //             vec3 cur_position = texture(positionTexture, TexCoords + vec2(x,y) * pixelSize).rgb;
-                //             float cur = dot(cur_normal, cur_position);
-                //             if(cur < col)
-                //                 ++darker;
-                //             if(cur > maxIntensity)
-                //                 maxIntensity = cur;
-                //             filterValues[idx] = cur;
-                //             idx++;
+                // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
+                // Discard all points that are not part of the circle
+                // Collect data and save all intensities to filterValues
+                int idx = 1;
+                vec3 cur_normal;
+                vec3 cur_position;
+                vec3 cur_lightdir;
+                float cur;
+                for(int x = 0; x <= radius; x++){
+                    for(int y = 0; y <= radius; y++){
+                        if(x == 0 && y == 0)
+                            continue;
+                        else if(x*x + y*y > radius*radius)
+                            continue;
+                        else{
+                            cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
+                            cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
+                            cur_lightdir = normalize(-cur_position);
+                            cur = dot(cur_normal, cur_lightdir);
+                            if(cur < col)
+                                ++darker;
+                            if(cur > maxIntensity)
+                                maxIntensity = cur;
+                            filterValues[idx] = cur;
+                            idx++;
 
-                //             cur_normal = texture(normalTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
-                //             cur_position = texture(positionTexture, TexCoords + vec2(-x,y) * pixelSize).rgb;
-                //             cur = dot(cur_normal, cur_position);
-                //             if(cur < col)
-                //                 ++darker;
-                //             if(cur > maxIntensity)
-                //                 maxIntensity = cur;
-                //             filterValues[idx] = cur;
-                //             idx++;
+                            if(x != 0){
+                                cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
+                                cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
+                                cur_lightdir = normalize(-cur_position);
+                                cur = dot(cur_normal, cur_lightdir);
+                                if(cur < col)
+                                    ++darker;
+                                if(cur > maxIntensity)
+                                    maxIntensity = cur;
+                                filterValues[idx] = cur;
+                                idx++;
+                                
+                                if(y != 0){
+                                    cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
+                                    cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
+                                    cur_lightdir = normalize(-cur_position);
+                                    cur = dot(cur_normal, cur_lightdir);
+                                    if(cur < col)
+                                        ++darker;
+                                    if(cur > maxIntensity)
+                                        maxIntensity = cur;
+                                    filterValues[idx] = cur;
+                                    idx++;
+                                }
+                            }
 
-                //             cur_normal = texture(normalTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
-                //             cur_position = texture(positionTexture, TexCoords + vec2(-x,-y) * pixelSize).rgb;
-                //             cur = dot(cur_normal, cur_position);
-                //             if(cur < col)
-                //                 ++darker;
-                //             if(cur > maxIntensity)
-                //                 maxIntensity = cur;
-                //             filterValues[idx] = cur;
-                //             idx++;
+                            if(y!= 0){
+                                cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
+                                cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
+                                cur_lightdir = normalize(-cur_position);
+                                cur = dot(cur_normal, cur_lightdir);
+                                if(cur < col)
+                                    ++darker;
+                                if(cur > maxIntensity)
+                                    maxIntensity = cur;
+                                filterValues[idx] = cur;
+                                idx++;
+                            }
 
-                //             cur_normal = texture(normalTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
-                //             cur_position = texture(positionTexture, TexCoords + vec2(x,-y) * pixelSize).rgb;
-                //             cur = dot(cur_normal, cur_position);
-                //             if(cur < col)
-                //                 ++darker;
-                //             if(cur > maxIntensity)
-                //                 maxIntensity = cur;
-                //             filterValues[idx] = cur;
-                //             idx++;
+                        }
+                    }
+                }
+                if(darker > neighbourThreshold * total){
+                    discard;
+                }
+                if(maxIntensity - col <= intensityDiffThreshold){
+                    discard;
+                }
 
-                //         }
-                //     }
-                // }
-                // if(darker > neighbourThreshold * total){
-                //     discard;
-                // }
-                // if(maxIntensity - col <= intensityDiffThreshold){
-                //     discard;
-                // }
+                // Median filtering
+                for(int n = total-1; n > 0; n = n - 1){
+                    for(int i = 0; i < n; ++i){
+                        float minimum = min(filterValues[i], filterValues[i+1]);
+                        filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
+                        filterValues[i] = minimum;
+                    }
+                }
+                //assign col to the median
+                col = filterValues[int(floor(total * 1.0 / 2.0))];
 
-                // // Median filtering
-                // for(int n = total-1; n > 0; n = n - 1){
-                //     for(int i = 0; i < n; ++i){
-                //         float minimum = min(filterValues[i], filterValues[i+1]);
-                //         filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
-                //         filterValues[i] = minimum;
-                //     }
-                // }
-                // float median = filterValues[int(floor(total * 1.0 / 2.0))];
+                col = 1.0 - col; //invert color because background is dark
 
-                // float color = 1.0 - median; //invert color because background is dark
-
-                FragColor = vec4(col, col, col, 1.0);
+                FragColor = vec4(col, col, col, neighbourThreshold);
             }
           -->
         </snippet>
