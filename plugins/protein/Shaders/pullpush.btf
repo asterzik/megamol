@@ -16,22 +16,22 @@ uniform sampler2D inputTex_fragNormal;
 uniform sampler2D inputTex_fragPosition;
 uniform sampler2D pyramid_fragNormal;
 
-vec4 getBlTlTrBrInverseDistanceWeights() {
-    vec4 fragPosition = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), level);
+// vec4 getBlTlTrBrInverseDistanceWeights() {
+//     vec4 fragPosition = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), level);
 
-    vec4 fragPosition_bl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level-1));
-    vec4 fragPosition_tl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level-1));
-    vec4 fragPosition_tr = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level-1));
-    vec4 fragPosition_br = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level-1));
+//     vec4 fragPosition_bl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level-1));
+//     vec4 fragPosition_tl = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level-1));
+//     vec4 fragPosition_tr = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level-1));
+//     vec4 fragPosition_br = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level-1));
 
-    float exp = 2;
-    return vec4(
-    1.0 / pow(length(fragPosition.xyz - fragPosition_bl.xyz), exp),
-    1.0 / pow(length(fragPosition.xyz - fragPosition_tl.xyz), exp),
-    1.0 / pow(length(fragPosition.xyz - fragPosition_tr.xyz), exp),
-    1.0 / pow(length(fragPosition.xyz - fragPosition_br.xyz), exp)
-    );
-}
+//     float exp = 2;
+//     return vec4(
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_bl.xyz), exp),
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_tl.xyz), exp),
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_tr.xyz), exp),
+//     1.0 / pow(length(fragPosition.xyz - fragPosition_br.xyz), exp)
+//     );
+// }
 
 void pull(out vec4 pulledFragNormal)
 {
@@ -65,7 +65,7 @@ void pull(out vec4 pulledFragNormal)
 
     if (pulledFragNormal.xyz != vec3(0)) {
         pulledFragNormal.xyz = normalize(pulledFragNormal.xyz);
-        pulledFragNormal.w = min(1, pulledFragNormal.w / distanceWeightsSum * 4);
+        pulledFragNormal.w = min(1, pulledFragNormal.w);
     } else {
         pulledFragNormal.w = 0;
     }
@@ -81,11 +81,13 @@ void main() {
         float distanceWeight = fragZ*fragZ;
 
         if (fragNormal.xyz != vec3(0)) {
-            fragNormal.w = 0.001 * distanceWeight; // weight for this pixel
-        } else {
+            fragNormal.w = 0.0001 * distanceWeight; // weight for this pixel
+        }
+         else {
             fragNormal.w = 0;// no weight for this void pixel
         }
         return;
+
     }
 
     pull(fragNormal);
@@ -139,6 +141,11 @@ void push(out vec4 pushedFragNormal)
         pushedFragNormal = originalFragNormal;
         return;
     }
+    // // Let background stay background
+    // if(originalFragNormal == vec4(0.0f)){
+    //     pushedFragNormal = originalFragNormal;
+    //     return;
+    // }
 
     addTexel(ivec2(0, 0),  pushedFragNormal, f_sum, 9);
     if (int(gl_FragCoord.x) % 2 == 0) {
@@ -173,9 +180,10 @@ void push(out vec4 pushedFragNormal)
     } else {
         pushedFragNormal.w = 0;
     }
-
+ 
+    // Lineare Interpolation zwischen original und pushed
     float alpha = originalFragNormal.w;
-    alpha = 1 - pow(1 - alpha, 1);
+    alpha = 1 - pow(1 - alpha, 1); //Frage: Warum? das ist doch einfach nur alpha?
     pushedFragNormal.w = min(1, pushedFragNormal.w * (1 - alpha) + alpha);
     pushedFragNormal.xyz = originalFragNormal.xyz * alpha + pushedFragNormal.xyz * (1 - alpha);
     pushedFragNormal.xyz = normalize(pushedFragNormal.xyz);

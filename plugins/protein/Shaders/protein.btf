@@ -11444,7 +11444,7 @@ void main()
             //parameter
             const int radius = 4;
             float neighbourThreshold = 0.2; //percentage s in original  SC paper //  in original paper 0.2
-            float intensityDiffThreshold = 0.25; //threshold d in original SC paper // in original paper 0.25
+            float intensityDiffThreshold = 0.2; //threshold d in original SC paper // in original paper 0.25
 
             void main()
             {
@@ -11498,7 +11498,7 @@ void main()
                             cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
                             cur_lightdir = normalize(-cur_position);
                             cur = dot(cur_normal, cur_lightdir);
-                            if(cur < col)
+                            if(cur <= col)
                                 ++darker;
                             if(cur > maxIntensity)
                                 maxIntensity = cur;
@@ -11510,7 +11510,7 @@ void main()
                                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
                                 cur_lightdir = normalize(-cur_position);
                                 cur = dot(cur_normal, cur_lightdir);
-                                if(cur < col)
+                                if(cur <= col)
                                     ++darker;
                                 if(cur > maxIntensity)
                                     maxIntensity = cur;
@@ -11522,7 +11522,7 @@ void main()
                                     cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
                                     cur_lightdir = normalize(-cur_position);
                                     cur = dot(cur_normal, cur_lightdir);
-                                    if(cur < col)
+                                    if(cur <= col)
                                         ++darker;
                                     if(cur > maxIntensity)
                                         maxIntensity = cur;
@@ -11536,7 +11536,7 @@ void main()
                                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
                                 cur_lightdir = normalize(-cur_position);
                                 cur = dot(cur_normal, cur_lightdir);
-                                if(cur < col)
+                                if(cur <= col)
                                     ++darker;
                                 if(cur > maxIntensity)
                                     maxIntensity = cur;
@@ -11547,6 +11547,11 @@ void main()
                         }
                     }
                 }
+                //TODO: Ich habe keine Ahnung, warum der Hintergrund schwarz bleibt...
+                // -Zurück Ändern der Clear Color zu blau nach dem rendern der normal und view textures
+                // funktioniert nicht
+                // DirektEinfluss nehmen auf die Farbe scheine ich auch nicht zu können. Als Ausgabe für die Frag Color des Backgrounds bekomme ich schwarz, also col=0.
+                // Wenn ich versuche für col = 0 FragColor auf rot zu stellen, bleibt der Hintergrund aber immernoch rot
                 if(darker > neighbourThreshold * total){
                     discard;
                 }
@@ -11554,20 +11559,20 @@ void main()
                     discard;
                 }
 
-                // Median filtering
-                for(int n = total-1; n > 0; n = n - 1){
-                    for(int i = 0; i < n; ++i){
-                        float minimum = min(filterValues[i], filterValues[i+1]);
-                        filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
-                        filterValues[i] = minimum;
-                    }
-                }
-                //assign col to the median
-                col = filterValues[int(floor(total * 1.0 / 2.0))];
+                // //Median filtering
+                // for(int n = total-1; n > 0; n = n - 1){
+                //     for(int i = 0; i < n; ++i){
+                //         float minimum = min(filterValues[i], filterValues[i+1]);
+                //         filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
+                //         filterValues[i] = minimum;
+                //     }
+                // }
+                // // assign col to the median
+                // col = filterValues[int(floor(total * 1.0 / 2.0))];
 
                 col = 1.0 - col; //invert color because background is dark
 
-                FragColor = vec4(col, col, col, neighbourThreshold);
+                FragColor = vec4(col, col, col, 1.0);
             }
           -->
         </snippet>

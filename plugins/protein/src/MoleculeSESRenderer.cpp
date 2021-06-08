@@ -1158,17 +1158,16 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
 
     pyramid.clear();
-    pyramid.pull_until(3);
-    pyramid.push_from(3);
+    pyramid.pull_until(1);
+    pyramid.push_from(1);
 
     
     /*
      * Contour-Generation
      */
     
-    //TODO: Why does the default framebuffer sometimes change 
-    //and why does the default framebuffer not always correpsond to the output on the screen?
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     this->contourShader.Enable();
     glActiveTexture(GL_TEXTURE1);
@@ -1621,11 +1620,10 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             // enable torus shader
             if (offscreenRendering) {
 
-
-                // Make sure the background color does not interfere with the data
-                glClearColor(0.0, 0.0, 0.0, 1.0);
                 //Bind Framebuffer for offscreen rendering
                 glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
+                // Make sure the background color does not interfere with the data
+                glClearColor(0.0, 0.0, 0.0, 0.0);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
                 this->torusShaderOR.Enable();
