@@ -100,6 +100,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , colorTableFileParam("color::colorTableFilename", "The filename of the color table.")
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
+        , pyramidWeightsParam("pyramidWeightsParam", "The factor for the weights in the pull phase of the pull-push algorithm")
         , puxelSizeBuffer(512 << 20)
         , computeSesPerMolecule(false) {
     this->molDataCallerSlot.SetCompatibleCall<MolecularDataCallDescription>();
@@ -231,6 +232,11 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     Color::ReadColorTableFromFile(filename, this->colorLookupTable);
     this->colorTableFileParam.SetParameter(new param::StringParam(A2T(filename)));
     this->MakeSlotAvailable(&this->colorTableFileParam);
+
+    // Parameters for pyramid
+    this->pyramidWeight = 0.0001f;
+    this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
+    this->MakeSlotAvailable(&this->pyramidWeightsParam);
 
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -1130,6 +1136,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->preComputationDone = false;
         this->probeRadiusSlot.ResetDirty();
     }
+    if (this->pyramidWeightsParam.IsDirty()) {
+        this->pyramidWeight = this->pyramidWeightsParam.Param<param::FloatParam>()->Value();
+        this->pyramidWeightsParam.ResetDirty();
+    }
 
     if (recomputeColors) {
         this->preComputationDone = false;
@@ -1156,6 +1166,7 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, positionTexture);
     glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+    glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
 
     pyramid.clear();
     pyramid.pull_until(1);

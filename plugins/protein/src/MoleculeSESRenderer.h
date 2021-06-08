@@ -327,6 +327,9 @@ namespace protein {
         /** Parameter to toggle offscreen rendering */
         megamol::core::param::ParamSlot offscreenRenderingParam;
         megamol::core::param::ParamSlot probeRadiusSlot;
+        /** Pyramid Parameters */
+        megamol::core::param::ParamSlot pyramidWeightsParam;
+        GLfloat pyramidWeight;
 
         bool usePuxels;
         bool allowPuxels;
