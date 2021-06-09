@@ -89,7 +89,7 @@ out vec4 fragNormal;
 
 uniform sampler2D pyramid_fragNormal;
 
-uniform double lf;
+uniform float lf;
 uniform int level;
 uniform int level_max;
 uniform int gamma;

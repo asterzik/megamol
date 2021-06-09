@@ -204,8 +204,8 @@ Pyramid* Pyramid::push() {
 
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
         glUniform1i(this->pushShaderProgram.ParameterLocation("level"), level);
-        double lf = 1.0/ glm::pow(2, getMipmapNumber()-level-1);
-        glUniform1d(this->pushShaderProgram.ParameterLocation("lf"), lf);
+        float lf = 1.0/ glm::pow(2, getMipmapNumber()-level-1);
+        glUniform1f(this->pushShaderProgram.ParameterLocation("lf"), lf);
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
