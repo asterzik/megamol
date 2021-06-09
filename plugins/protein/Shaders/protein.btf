@@ -11442,9 +11442,9 @@ void main()
             uniform sampler2D diffuseTexture;
 
             //parameter
-            const int radius = 4;
-            float neighbourThreshold = 0.2; //percentage s in original  SC paper //  in original paper 0.2
-            float intensityDiffThreshold = 0.2; //threshold d in original SC paper // in original paper 0.25
+            uniform int radius;
+            uniform float neighbourThreshold; //percentage s in original  SC paper //  in original paper 0.2
+            uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
 
             void main()
             {

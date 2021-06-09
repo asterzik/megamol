@@ -336,6 +336,13 @@ namespace protein {
         GLint pyramidLayers;
         megamol::core::param::ParamSlot pyramidGammaParam;
         GLint pyramidGamma;
+        /** Suggestive Contours Parametes */
+        megamol::core::param::ParamSlot SCRadiusParam;
+        GLint SCRadius;
+        megamol::core::param::ParamSlot SCNeighbourThresholdParam;
+        GLfloat SCNeighbourThreshold;
+        megamol::core::param::ParamSlot SCDiffThresholdParam;
+        GLfloat SCDiffThreshold;
         
 
         bool usePuxels;

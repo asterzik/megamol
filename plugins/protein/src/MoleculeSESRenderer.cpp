@@ -104,6 +104,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , pyramidWeightsParam("pyramidWeightsParam", "The factor for the weights in the pull phase of the pull-push algorithm")
         , pyramidLayersParam("pyramidLayersParam", "Number of layers in the pull-push pyramid")
         , pyramidGammaParam("pyramidGammaParam", "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
+        , SCRadiusParam("SCRadiusParam", "Radius to consider around one pixel for SC")
+        , SCNeighbourThresholdParam("SCNeighbourThresholdParam", "How many darker pixels are allowed to be in the surrounding to still be rendered")
+        , SCDiffThresholdParam("SCDiffThresholdParam", "How much intensity difference needs to be there, for the pixel to be rendered")
         , puxelSizeBuffer(512 << 20)
         , computeSesPerMolecule(false) {
     this->molDataCallerSlot.SetCompatibleCall<MolecularDataCallDescription>();
@@ -253,7 +256,20 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->pyramidGammaParam.SetParameter(new param::IntParam(this->pyramidGamma));
     this->MakeSlotAvailable(&this->pyramidGammaParam);
 
-    // fill rainbow color table
+    // // Suggestive Contours parameters
+
+    this->SCRadius = 3;
+    this->SCRadiusParam.SetParameter(new param::IntParam(this->SCRadius, 1, 5));
+    this->MakeSlotAvailable(&this->SCRadiusParam);
+    
+    this->SCNeighbourThreshold = 0.2f; //percentage s in original  SC paper //  in original paper 0.2
+    this->SCNeighbourThresholdParam.SetParameter(new param::FloatParam(this->SCNeighbourThreshold, 0.0, 1.0));
+    this->MakeSlotAvailable(&this->SCNeighbourThresholdParam);
+
+    this->SCDiffThreshold = 0.2f; //threshold d in original SC paper // in original paper 0.25
+    this->SCDiffThresholdParam.SetParameter(new param::FloatParam(this->SCDiffThreshold, 0.0, 1.0));
+    this->MakeSlotAvailable(&this->SCDiffThresholdParam);
+    //fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
     // set the FBOs and textures for post processing
@@ -1167,6 +1183,18 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->pyramidGamma = this->pyramidGammaParam.Param<param::IntParam>()->Value();
         this->pyramidGammaParam.ResetDirty();
     }
+    if (this->SCRadiusParam.IsDirty()) {
+        this->SCRadius = this->SCRadiusParam.Param<param::IntParam>()->Value();
+        this->SCRadiusParam.ResetDirty();
+    }
+    if (this->SCNeighbourThresholdParam.IsDirty()) {
+        this->SCNeighbourThreshold = this->SCNeighbourThresholdParam.Param<param::FloatParam>()->Value();
+        this->SCNeighbourThresholdParam.ResetDirty();
+    }
+    if (this->SCNeighbourThresholdParam.IsDirty()) {
+        this->SCNeighbourThreshold = this->SCNeighbourThresholdParam.Param<param::FloatParam>()->Value();
+        this->SCNeighbourThresholdParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -1211,6 +1239,9 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     this->contourShader.Enable();
+    glUniform1i(contourShader.ParameterLocation("radius"), this->SCRadius);
+    glUniform1f(contourShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
+    glUniform1f(contourShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
     glActiveTexture(GL_TEXTURE1);
     if(this->pyramidOn){
         glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
