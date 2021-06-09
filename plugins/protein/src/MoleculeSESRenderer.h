@@ -330,6 +330,13 @@ namespace protein {
         /** Pyramid Parameters */
         megamol::core::param::ParamSlot pyramidWeightsParam;
         GLfloat pyramidWeight;
+        megamol::core::param::ParamSlot pyramidOnParam;
+        GLboolean pyramidOn;
+        megamol::core::param::ParamSlot pyramidLayersParam;
+        GLint pyramidLayers;
+        megamol::core::param::ParamSlot pyramidGammaParam;
+        GLint pyramidGamma;
+        
 
         bool usePuxels;
         bool allowPuxels;

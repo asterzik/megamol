@@ -100,7 +100,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , colorTableFileParam("color::colorTableFilename", "The filename of the color table.")
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
+        , pyramidOnParam("pyramidOnParam", "Determines whether the pull-push algorithm is used or not")
         , pyramidWeightsParam("pyramidWeightsParam", "The factor for the weights in the pull phase of the pull-push algorithm")
+        , pyramidLayersParam("pyramidLayersParam", "Number of layers in the pull-push pyramid")
+        , pyramidGammaParam("pyramidGammaParam", "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
         , puxelSizeBuffer(512 << 20)
         , computeSesPerMolecule(false) {
     this->molDataCallerSlot.SetCompatibleCall<MolecularDataCallDescription>();
@@ -234,9 +237,21 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->MakeSlotAvailable(&this->colorTableFileParam);
 
     // Parameters for pyramid
+    this->pyramidOn = True;
+    this->pyramidOnParam.SetParameter(new param::BoolParam(this->pyramidOn));
+    this->MakeSlotAvailable(&this->pyramidOnParam);
+    
     this->pyramidWeight = 0.0001f;
     this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
     this->MakeSlotAvailable(&this->pyramidWeightsParam);
+
+    this->pyramidLayers = 3;
+    this->pyramidLayersParam.SetParameter(new param::IntParam(this->pyramidLayers, 0));
+    this->MakeSlotAvailable(&this->pyramidLayersParam);
+
+    this->pyramidGamma = 1;
+    this->pyramidGammaParam.SetParameter(new param::IntParam(this->pyramidGamma));
+    this->MakeSlotAvailable(&this->pyramidGammaParam);
 
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -1136,11 +1151,22 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->preComputationDone = false;
         this->probeRadiusSlot.ResetDirty();
     }
+    if (this->pyramidOnParam.IsDirty()) {
+        this->pyramidOn = this->pyramidOnParam.Param<param::BoolParam>()->Value();
+        this->pyramidOnParam.ResetDirty();
+    }
     if (this->pyramidWeightsParam.IsDirty()) {
         this->pyramidWeight = this->pyramidWeightsParam.Param<param::FloatParam>()->Value();
         this->pyramidWeightsParam.ResetDirty();
     }
-
+    if (this->pyramidLayersParam.IsDirty()) {
+        this->pyramidLayers = this->pyramidLayersParam.Param<param::IntParam>()->Value();
+        this->pyramidLayersParam.ResetDirty();
+    }
+    if (this->pyramidGammaParam.IsDirty()) {
+        this->pyramidGamma = this->pyramidGammaParam.Param<param::IntParam>()->Value();
+        this->pyramidGammaParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -1156,21 +1182,25 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     glDisable(GL_DEPTH_TEST);
 
-    /*
-     * Execute Pull-Push algorithm
-     */
-    pyramid.pullShaderProgram.Enable();
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, normalTexture);
-    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
-    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
-    glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
+    if(this->pyramidOn){
+        /*
+        * Execute Pull-Push algorithm
+        */
+        pyramid.pullShaderProgram.Enable();
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, normalTexture);
+        glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, positionTexture);
+        glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+        glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
+        pyramid.pushShaderProgram.Enable();
+        glUniform1i(pyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
 
-    pyramid.clear();
-    pyramid.pull_until(1);
-    pyramid.push_from(1);
+        pyramid.clear();
+        pyramid.pull_until(this->pyramidLayers);
+        pyramid.push_from(this->pyramidLayers);
+    }
 
     
     /*
@@ -1182,8 +1212,12 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     this->contourShader.Enable();
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
-    // glBindTexture(GL_TEXTURE_2D, normalTexture);
+    if(this->pyramidOn){
+        glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
+    }
+    else{
+        glBindTexture(GL_TEXTURE_2D, normalTexture);
+    }
     glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D,positionTexture);
