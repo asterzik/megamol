@@ -15,8 +15,8 @@
 #include <set>
 #include <vector>
 #include "Color.h"
-#include "ReducedSurface.h"
 #include "Pyramid.h"
+#include "ReducedSurface.h"
 #include "mmcore/CallerSlot.h"
 #include "mmcore/param/ParamSlot.h"
 #include "mmcore/view/CallRender3DGL.h"
@@ -24,6 +24,7 @@
 #include "mmcore/view/Renderer3DModuleGL.h"
 #include "protein_calls/BindingSiteCall.h"
 #include "protein_calls/MolecularDataCall.h"
+#include "stb_image.h"
 #include "vislib/Array.h"
 #include "vislib/String.h"
 #include "vislib/graphics/gl/GLSLComputeShader.h"
@@ -31,7 +32,6 @@
 #include "vislib/graphics/gl/GLSLShader.h"
 #include "vislib/graphics/gl/SimpleFont.h"
 #include "vislib/math/Quaternion.h"
-#include "stb_image.h"
 
 namespace megamol {
 namespace protein {
@@ -141,7 +141,7 @@ namespace protein {
          *
          * @param m The probe position.
          */
-        //void RenderProbe(const vislib::math::Vector<float, 3> m);
+        // void RenderProbe(const vislib::math::Vector<float, 3> m);
         void RenderProbeGPU(const vislib::math::Vector<float, 3> m);
 
         /**
@@ -188,7 +188,7 @@ namespace protein {
          * Creates the frame buffer object and textures needed for offscreen rendering.
          */
         void CreateQuadBuffers();
-        
+
         /**
          * Render the molecular surface using GPU raycasting.
          *
@@ -204,7 +204,7 @@ namespace protein {
         void RenderDebugStuff(const megamol::protein_calls::MolecularDataCall* mol);
 
         /**
-         * Build pyramid from pull-push algorithm 
+         * Build pyramid from pull-push algorithm
          */
         void BuildPyramid();
 
@@ -212,7 +212,7 @@ namespace protein {
          * Postprocessing: use screen space ambient occlusion
          */
         void PostprocessingSSAO();
-        
+
         /**
          * Postprocessing: use contour shader
          */
@@ -335,7 +335,7 @@ namespace protein {
         megamol::core::param::ParamSlot pyramidLayersParam;
         GLint pyramidLayers;
         megamol::core::param::ParamSlot pyramidGammaParam;
-        GLint pyramidGamma;
+        GLfloat pyramidGamma;
         /** Suggestive Contours Parametes */
         megamol::core::param::ParamSlot SCRadiusParam;
         GLint SCRadius;
@@ -343,7 +343,7 @@ namespace protein {
         GLfloat SCNeighbourThreshold;
         megamol::core::param::ParamSlot SCDiffThresholdParam;
         GLfloat SCDiffThreshold;
-        
+
 
         bool usePuxels;
         bool allowPuxels;
@@ -352,7 +352,7 @@ namespace protein {
         bool drawSAS;
         bool offscreenRendering;
 
-        //Testing
+        // Testing
         unsigned int texturePy;
 
         /** the reduced surface(s) */
@@ -501,7 +501,7 @@ namespace protein {
         GLuint positionTexture;
         GLuint contourDepthRBO;
 
-        //VAO and VBO for screen filling quad
+        // VAO and VBO for screen filling quad
         unsigned int quadVAO, quadVBO;
 
         // width and height of view

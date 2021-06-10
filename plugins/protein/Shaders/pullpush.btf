@@ -92,7 +92,7 @@ uniform sampler2D pyramid_fragNormal;
 uniform float lf;
 uniform int level;
 uniform int level_max;
-uniform int gamma;
+uniform float gamma;
 
 void addTexel(ivec2 offset, inout vec4 pushedFragNormal, inout float factor_sum, float factor)
 {
@@ -165,13 +165,10 @@ void push(out vec4 pushedFragNormal)
         pushedFragNormal.w = 0;
     }
  
-    // Lineare Interpolation zwischen original und pushed
+    // Interpolation between original and pushed
     float alpha = originalFragNormal.w;
-    //TODO: input gamma here instead of 1 as exponent.
-    //Not yet working, but I don't know why. 
-    //The value of gamma is 1 as default, it arrives in the shader (see ngfx). 
-    //But the last pyramid layer becomes black while pushing.
-    alpha = 1 - pow(1 - alpha, 1); 
+    //These max operations are necessary, because otherwise it could (and does) come to undefined behaviour
+    alpha = 1.0 - pow(max(0.0, 1.0 - alpha),  max(1.0, gamma)); 
     pushedFragNormal.w = min(1, pushedFragNormal.w * (1 - alpha) + alpha);
     pushedFragNormal.xyz = originalFragNormal.xyz * alpha + pushedFragNormal.xyz * (1 - alpha);
     pushedFragNormal.xyz = normalize(pushedFragNormal.xyz);

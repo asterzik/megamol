@@ -5,26 +5,22 @@ using namespace megamol::core::utility::log;
 
 static bool firstFrame = true;
 
-Pyramid::Pyramid()
-{
-    //intentionally empty
+Pyramid::Pyramid() {
+    // intentionally empty
 }
-bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
-{
+bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci) {
     vislib::graphics::gl::ShaderSource vertSrc;
     vislib::graphics::gl::ShaderSource fragSrc;
 
     // Common Full Screen Vertex Shader
     if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-        "%s: Unable to load vertex shader source for pyramid");
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for pyramid");
         return false;
     }
 
     // Create PULL Shader
     if (!ci->ShaderSourceFactory().MakeShaderSource("pullpush::pullNormal", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for pull pyramid");
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for pull pyramid");
         return false;
     }
     try {
@@ -38,8 +34,7 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
 
     // Create PUSH Shader
     if (!ci->ShaderSourceFactory().MakeShaderSource("pullpush::pushNormal", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for push pyramid shader");
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for push pyramid shader");
         return false;
     }
     try {
@@ -53,25 +48,21 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
 
 
     // Create VAO for  screen filling quad
-    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+    float quadVertices[] = {
+        // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
         // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
+        -1.0f, 1.0f, 0.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f,
 
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        1.0f,  1.0f,  1.0f, 1.0f
-    };
+        -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f};
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) (2 * sizeof(float)));
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -96,7 +87,7 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
     glGenTextures(numTextures, &textures[0]);
 
     // Generate texture shader-output.
-    // A mipmap is also generated 
+    // A mipmap is also generated
     GLuint handle = textures[0];
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, handle);
@@ -106,20 +97,20 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    float color[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float color[] = {0.0f, 0.0f, 0.0f, 0.0f};
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, color);
 
     glGenerateMipmap(GL_TEXTURE_2D);
 
     drawBuffers[0] = GL_COLOR_ATTACHMENT0 + 0;
-    
+
     pullShaderProgram.Enable();
     glUniform1i(this->pullShaderProgram.ParameterLocation("pyramid_fragNormal"), 0);
     pushShaderProgram.Enable();
     glUniform1i(this->pushShaderProgram.ParameterLocation("pyramid_fragNormal"), 0);
     textureMap["fragNormal"] = handle;
 
-    int mipmapNumber = (int)glm::log2(glm::max<float>(width, height)) + 1;
+    int mipmapNumber = (int) glm::log2(glm::max<float>(width, height)) + 1;
 
     // Generate FBOs for each mipmap-level
     fboHandles.resize(mipmapNumber);
@@ -136,21 +127,19 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci)
 
     GLenum status;
     status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
-    switch(status)
-    {
+    switch (status) {
     case GL_FRAMEBUFFER_COMPLETE:
-        std::cout << "Pyramid: FBO complete" <<std::endl;
+        std::cout << "Pyramid: FBO complete" << std::endl;
         break;
     default:
-        std::cout << "Pyramid: FBO incomplete" <<std::endl;
+        std::cout << "Pyramid: FBO incomplete" << std::endl;
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return true;
 }
 
-Pyramid::~Pyramid() {
-}
+Pyramid::~Pyramid() {}
 
 Pyramid* Pyramid::pull() {
     pullShaderProgram.Enable();
@@ -161,7 +150,7 @@ Pyramid* Pyramid::pull() {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
         glUniform1i(this->pullShaderProgram.ParameterLocation("level"), level);
-        glUniform1d(this->pullShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2,getMipmapNumber() - level - 1));
+        glUniform1d(this->pullShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2, getMipmapNumber() - level - 1));
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
@@ -170,8 +159,7 @@ Pyramid* Pyramid::pull() {
     return this;
 }
 
-Pyramid *Pyramid::pull_until(int target_level)
-{
+Pyramid* Pyramid::pull_until(int target_level) {
     pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
@@ -179,7 +167,7 @@ Pyramid *Pyramid::pull_until(int target_level)
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
         glUniform1i(this->pullShaderProgram.ParameterLocation("level"), level);
-        glUniform1d(this->pullShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2,getMipmapNumber() - level - 1));
+        glUniform1d(this->pullShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2, getMipmapNumber() - level - 1));
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
@@ -188,11 +176,10 @@ Pyramid *Pyramid::pull_until(int target_level)
     return this;
 }
 
-Pyramid *Pyramid::push_from(int start_level)
-{
-    for(int i = start_level - 1; i >= 0; i--)
+Pyramid* Pyramid::push_from(int start_level) {
+    for (int i = start_level - 1; i >= 0; i--)
         this->push(i);
-	return this;
+    return this;
 }
 
 Pyramid* Pyramid::push() {
@@ -204,7 +191,7 @@ Pyramid* Pyramid::push() {
 
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
         glUniform1i(this->pushShaderProgram.ParameterLocation("level"), level);
-        float lf = 1.0/ glm::pow(2, getMipmapNumber()-level-1);
+        float lf = 1.0 / glm::pow(2, getMipmapNumber() - level - 1);
         glUniform1f(this->pushShaderProgram.ParameterLocation("lf"), lf);
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -213,9 +200,8 @@ Pyramid* Pyramid::push() {
     return this;
 }
 
-Pyramid *Pyramid::push(int level)
-{
-    if(level > getMipmapNumber() - 1 || level < 0) {
+Pyramid* Pyramid::push(int level) {
+    if (level > getMipmapNumber() - 1 || level < 0) {
         return this;
     }
 
@@ -226,7 +212,7 @@ Pyramid *Pyramid::push(int level)
     glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
     glUniform1i(this->pushShaderProgram.ParameterLocation("level"), level);
-    glUniform1d(this->pushShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2,getMipmapNumber() - level - 1));
+    glUniform1d(this->pushShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2, getMipmapNumber() - level - 1));
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 

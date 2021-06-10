@@ -37,15 +37,13 @@ using namespace megamol::core;
 using namespace megamol::protein;
 using namespace megamol::protein_calls;
 using namespace megamol::core::utility::log;
-unsigned int loadTexture(char const* path)
-{
+unsigned int loadTexture(char const* path) {
     unsigned int textureID;
     glGenTextures(1, &textureID);
 
     int width, height, nrComponents;
     unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
-    if (data)
-    {
+    if (data) {
         GLenum format;
         if (nrComponents == 1)
             format = GL_RED;
@@ -64,9 +62,7 @@ unsigned int loadTexture(char const* path)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         stbi_image_free(data);
-    }
-    else
-    {
+    } else {
         std::cout << "Texture failed to load at path: " << path << std::endl;
         stbi_image_free(data);
     }
@@ -101,12 +97,16 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
         , pyramidOnParam("pyramidOnParam", "Determines whether the pull-push algorithm is used or not")
-        , pyramidWeightsParam("pyramidWeightsParam", "The factor for the weights in the pull phase of the pull-push algorithm")
+        , pyramidWeightsParam(
+              "pyramidWeightsParam", "The factor for the weights in the pull phase of the pull-push algorithm")
         , pyramidLayersParam("pyramidLayersParam", "Number of layers in the pull-push pyramid")
-        , pyramidGammaParam("pyramidGammaParam", "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
+        , pyramidGammaParam("pyramidGammaParam",
+              "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
         , SCRadiusParam("SCRadiusParam", "Radius to consider around one pixel for SC")
-        , SCNeighbourThresholdParam("SCNeighbourThresholdParam", "How many darker pixels are allowed to be in the surrounding to still be rendered")
-        , SCDiffThresholdParam("SCDiffThresholdParam", "How much intensity difference needs to be there, for the pixel to be rendered")
+        , SCNeighbourThresholdParam("SCNeighbourThresholdParam",
+              "How many darker pixels are allowed to be in the surrounding to still be rendered")
+        , SCDiffThresholdParam(
+              "SCDiffThresholdParam", "How much intensity difference needs to be there, for the pixel to be rendered")
         , puxelSizeBuffer(512 << 20)
         , computeSesPerMolecule(false) {
     this->molDataCallerSlot.SetCompatibleCall<MolecularDataCallDescription>();
@@ -243,7 +243,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->pyramidOn = True;
     this->pyramidOnParam.SetParameter(new param::BoolParam(this->pyramidOn));
     this->MakeSlotAvailable(&this->pyramidOnParam);
-    
+
     this->pyramidWeight = 0.0001f;
     this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
     this->MakeSlotAvailable(&this->pyramidWeightsParam);
@@ -252,8 +252,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->pyramidLayersParam.SetParameter(new param::IntParam(this->pyramidLayers, 0));
     this->MakeSlotAvailable(&this->pyramidLayersParam);
 
-    this->pyramidGamma = 1;
-    this->pyramidGammaParam.SetParameter(new param::IntParam(this->pyramidGamma));
+    this->pyramidGamma = 1.0f;
+    this->pyramidGammaParam.SetParameter(new param::FloatParam(this->pyramidGamma, 1.0));
     this->MakeSlotAvailable(&this->pyramidGammaParam);
 
     // // Suggestive Contours parameters
@@ -261,15 +261,15 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCRadius = 3;
     this->SCRadiusParam.SetParameter(new param::IntParam(this->SCRadius, 1, 5));
     this->MakeSlotAvailable(&this->SCRadiusParam);
-    
-    this->SCNeighbourThreshold = 0.2f; //percentage s in original  SC paper //  in original paper 0.2
+
+    this->SCNeighbourThreshold = 0.2f; // percentage s in original  SC paper //  in original paper 0.2
     this->SCNeighbourThresholdParam.SetParameter(new param::FloatParam(this->SCNeighbourThreshold, 0.0, 1.0));
     this->MakeSlotAvailable(&this->SCNeighbourThresholdParam);
 
-    this->SCDiffThreshold = 0.2f; //threshold d in original SC paper // in original paper 0.25
+    this->SCDiffThreshold = 0.2f; // threshold d in original SC paper // in original paper 0.25
     this->SCDiffThresholdParam.SetParameter(new param::FloatParam(this->SCDiffThreshold, 0.0, 1.0));
     this->MakeSlotAvailable(&this->SCDiffThresholdParam);
-    //fill rainbow color table
+    // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
     // set the FBOs and textures for post processing
@@ -667,8 +667,8 @@ bool MoleculeSESRenderer::create(void) {
     // load the shader files for contour drawing     //
     //////////////////////////////////////////////////////
     if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
         return false;
     }
     if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragment", fragSrc)) {
@@ -681,8 +681,8 @@ bool MoleculeSESRenderer::create(void) {
             throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
         }
     } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n",
-            this->ClassName(), e.GetMsgA());
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n", this->ClassName(), e.GetMsgA());
         return false;
     }
     //////////////////////////////////////////////////////////////////////////
@@ -979,8 +979,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         virtualViewportChanged = true;
     }
 
-    if (virtualViewportChanged)
-    {
+    if (virtualViewportChanged) {
         pyramid.create(this->width, this->height, this->GetCoreInstance());
         this->CreateQuadBuffers();
         this->CreateFBO();
@@ -1180,7 +1179,7 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->pyramidLayersParam.ResetDirty();
     }
     if (this->pyramidGammaParam.IsDirty()) {
-        this->pyramidGamma = this->pyramidGammaParam.Param<param::IntParam>()->Value();
+        this->pyramidGamma = this->pyramidGammaParam.Param<param::FloatParam>()->Value();
         this->pyramidGammaParam.ResetDirty();
     }
     if (this->SCRadiusParam.IsDirty()) {
@@ -1210,10 +1209,10 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     glDisable(GL_DEPTH_TEST);
 
-    if(this->pyramidOn){
+    if (this->pyramidOn) {
         /*
-        * Execute Pull-Push algorithm
-        */
+         * Execute Pull-Push algorithm
+         */
         pyramid.pullShaderProgram.Enable();
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, normalTexture);
@@ -1223,18 +1222,18 @@ void MoleculeSESRenderer::PostprocessingContour() {
         glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
         glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
         pyramid.pushShaderProgram.Enable();
-        glUniform1i(pyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
+        glUniform1f(pyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
 
         pyramid.clear();
         pyramid.pull_until(this->pyramidLayers);
         pyramid.push_from(this->pyramidLayers);
     }
 
-    
+
     /*
      * Contour-Generation
      */
-    
+
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -1243,16 +1242,15 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glUniform1f(contourShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
     glUniform1f(contourShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
     glActiveTexture(GL_TEXTURE1);
-    if(this->pyramidOn){
-        glBindTexture(GL_TEXTURE_2D,pyramid.get("fragNormal"));
-    }
-    else{
+    if (this->pyramidOn) {
+        glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));
+    } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
-    glUniform1i(contourShader.ParameterLocation("normalTexture"),1);
+    glUniform1i(contourShader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D,positionTexture);
-    glUniform1i(contourShader.ParameterLocation("positionTexture"),2);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(contourShader.ParameterLocation("positionTexture"), 2);
     glGetError();
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -1564,7 +1562,7 @@ void MoleculeSESRenderer::CreateFBO() {
     // contour FBO
     glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
 
-    //texture for normals
+    // texture for normals
     glBindTexture(GL_TEXTURE_2D, this->normalTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1575,7 +1573,7 @@ void MoleculeSESRenderer::CreateFBO() {
     contourShader.Enable();
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    //texture for positions
+    // texture for positions
     glBindTexture(GL_TEXTURE_2D, this->positionTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1585,7 +1583,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, positionTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    //Depth RBO
+    // Depth RBO
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
@@ -1594,46 +1592,37 @@ void MoleculeSESRenderer::CreateFBO() {
     GLuint attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
     glDrawBuffers(2, attachments);
 
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
     }
     int default_fbo;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
-
-    
-
 }
 
 void MoleculeSESRenderer::CreateQuadBuffers() {
 
     glDeleteVertexArrays(1, &quadVAO);
     glDeleteBuffers(1, &quadVBO);
-    //Create VAO and VBO for screen filling quad (contour generation)
-    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+    // Create VAO and VBO for screen filling quad (contour generation)
+    float quadVertices[] = {
+        // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
         // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
+        -1.0f, 1.0f, 0.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f,
 
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        1.0f,  1.0f,  1.0f, 1.0f
-    };
+        -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f};
     glGenVertexArrays(1, &quadVAO);
     glGenBuffers(1, &quadVBO);
     glBindVertexArray(quadVAO);
     glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) (2 * sizeof(float)));
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     std::cout << "quadBuffer" << std::endl;
-
 }
 
 
@@ -1696,7 +1685,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             // enable torus shader
             if (offscreenRendering) {
 
-                //Bind Framebuffer for offscreen rendering
+                // Bind Framebuffer for offscreen rendering
                 glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
                 // Make sure the background color does not interfere with the data
                 glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -1985,14 +1974,11 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
         glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 5, 0);
 #endif
-        if (offscreenRendering)
-        {
+        if (offscreenRendering) {
             this->PostprocessingContour();
         }
-    
     }
 
-    
 
     // delete pointers
     delete[] clearColor;
