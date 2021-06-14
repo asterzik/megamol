@@ -11467,6 +11467,9 @@ void main()
                     total = 81;
 
                 vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                if(normal == vec3(0.0)){
+                    discard;
+                }
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
                 float col = dot(normal, lightdir);

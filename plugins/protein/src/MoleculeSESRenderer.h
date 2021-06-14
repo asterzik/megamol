@@ -360,8 +360,9 @@ namespace protein {
         /** the reduced surface(s) */
         std::vector<ReducedSurface*> reducedSurface;
 
-        // The pull-push pyramid
-        Pyramid pyramid;
+        // The pull-push pyramids
+        Pyramid pyramid; // Normal smoothing
+        Pyramid depthPyramid;
 
         // shader for the cylinders (raycasting view)
         vislib::graphics::gl::GLSLShader cylinderShader;

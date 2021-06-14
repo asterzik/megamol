@@ -10,7 +10,8 @@ public:
 
     ~Pyramid();
 
-    bool create(int width, int height, megamol::core::CoreInstance* ci);
+    bool create(std::string name, int width, int height, megamol::core::CoreInstance* ci, std::string pullPath,
+        std::string pushPath = "pullpush::pushNormal");
     Pyramid* push();
     Pyramid* push(int level);
     Pyramid* pull();
@@ -41,6 +42,7 @@ public:
 
 private:
     std::map<std::string, GLuint> textureMap;
+    std::string textureName;
     // megamol::core::CoreInstance* ci;
 
 

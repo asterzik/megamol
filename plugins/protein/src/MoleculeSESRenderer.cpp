@@ -244,12 +244,16 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->pyramidOnParam.SetParameter(new param::BoolParam(this->pyramidOn));
     this->MakeSlotAvailable(&this->pyramidOnParam);
 
-    this->pyramidWeight = 0.0001f;
+    this->pyramidWeight = 0.5f;
     this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
     this->MakeSlotAvailable(&this->pyramidWeightsParam);
 
+    // pyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
+    //     "pullpush::pushNormal");
+    const int mipmapNumber = (int) glm::log2(glm::max<float>(this->width, this->height)) + 1;
     this->pyramidLayers = 3;
-    this->pyramidLayersParam.SetParameter(new param::IntParam(this->pyramidLayers, 0));
+    // TODO: somehow this breaks if i do not hardcode the second parameter
+    this->pyramidLayersParam.SetParameter(new param::IntParam(this->pyramidLayers, 1, 11));
     this->MakeSlotAvailable(&this->pyramidLayersParam);
 
     this->pyramidGamma = 1.0f;
@@ -861,7 +865,6 @@ bool MoleculeSESRenderer::GetExtents(view::CallRender3DGL& call) {
 
     call.AccessBoundingBoxes() = mol->AccessBoundingBoxes();
     call.SetTimeFramesCount(mol->FrameCount());
-
     return true;
 }
 
@@ -980,7 +983,10 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     }
 
     if (virtualViewportChanged) {
-        pyramid.create(this->width, this->height, this->GetCoreInstance());
+        pyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
+            "pullpush::pushNormal");
+        depthPyramid.create(
+            "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
         this->CreateQuadBuffers();
         this->CreateFBO();
         texturePy = loadTexture("brickwall.jpg");
@@ -1211,7 +1217,17 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     if (this->pyramidOn) {
         /*
-         * Execute Pull-Push algorithm
+         * Find maximum depth using pull phase of pull-push algorithm
+         */
+        depthPyramid.pullShaderProgram.Enable();
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, positionTexture);
+        glUniform1i(depthPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
+
+        depthPyramid.clear();
+        depthPyramid.pull();
+        /*
+         * Execute Pull-Push algorithm for smoothing
          */
         pyramid.pullShaderProgram.Enable();
         glActiveTexture(GL_TEXTURE1);
@@ -1220,6 +1236,9 @@ void MoleculeSESRenderer::PostprocessingContour() {
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, positionTexture);
         glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
+        glUniform1i(pyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
         glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
         pyramid.pushShaderProgram.Enable();
         glUniform1f(pyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);

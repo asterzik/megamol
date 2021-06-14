@@ -1,4 +1,5 @@
 #include "Pyramid.h"
+#include <string>
 // #include "ShaderTools/VertexArrayObjects/Quad.h"
 using namespace megamol::core::utility::log;
 
@@ -8,18 +9,20 @@ static bool firstFrame = true;
 Pyramid::Pyramid() {
     // intentionally empty
 }
-bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci) {
+bool Pyramid::create(std::string name, int width, int height, megamol::core::CoreInstance* ci, std::string pullPath,
+    std::string pushPath /* = "pullpush::pushNormal" */) {
     vislib::graphics::gl::ShaderSource vertSrc;
     vislib::graphics::gl::ShaderSource fragSrc;
+
+    textureName = name;
 
     // Common Full Screen Vertex Shader
     if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for pyramid");
         return false;
     }
-
     // Create PULL Shader
-    if (!ci->ShaderSourceFactory().MakeShaderSource("pullpush::pullNormal", fragSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource(pullPath.c_str(), fragSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for pull pyramid");
         return false;
     }
@@ -33,7 +36,7 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci) {
     }
 
     // Create PUSH Shader
-    if (!ci->ShaderSourceFactory().MakeShaderSource("pullpush::pushNormal", fragSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource(pushPath.c_str(), fragSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for push pyramid shader");
         return false;
     }
@@ -66,19 +69,6 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci) {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    // ShaderProgram* temp_SP = NULL;
-
-    // if(pullShaderProgram)
-    //     temp_SP = pullShaderProgram;
-    // else if(pushShaderProgram)
-    //     temp_SP = pushShaderProgram;
-
-    // if (!temp_SP)
-    // {
-    //     std::cerr << "No shader paths given!" << std::endl;
-    //     return;
-    // }
-
     int numTextures = 1;
 
     std::vector<GLuint> textures(numTextures);
@@ -91,7 +81,8 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci) {
     GLuint handle = textures[0];
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, handle);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, 0);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
@@ -105,10 +96,12 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci) {
     drawBuffers[0] = GL_COLOR_ATTACHMENT0 + 0;
 
     pullShaderProgram.Enable();
-    glUniform1i(this->pullShaderProgram.ParameterLocation("pyramid_fragNormal"), 0);
+    std::string texture_name = "pyramid_";
+    texture_name += textureName;
+    glUniform1i(this->pullShaderProgram.ParameterLocation(texture_name.c_str()), 0);
     pushShaderProgram.Enable();
-    glUniform1i(this->pushShaderProgram.ParameterLocation("pyramid_fragNormal"), 0);
-    textureMap["fragNormal"] = handle;
+    glUniform1i(this->pushShaderProgram.ParameterLocation(texture_name.c_str()), 0);
+    textureMap[textureName.c_str()] = handle;
 
     int mipmapNumber = (int) glm::log2(glm::max<float>(width, height)) + 1;
 
@@ -129,10 +122,10 @@ bool Pyramid::create(int width, int height, megamol::core::CoreInstance* ci) {
     status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
     switch (status) {
     case GL_FRAMEBUFFER_COMPLETE:
-        std::cout << "Pyramid: FBO complete" << std::endl;
+        std::cout << textureName << "Pyramid: FBO complete" << std::endl;
         break;
     default:
-        std::cout << "Pyramid: FBO incomplete" << std::endl;
+        std::cout << textureName << "Pyramid: FBO incomplete" << std::endl;
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -144,8 +137,8 @@ Pyramid::~Pyramid() {}
 Pyramid* Pyramid::pull() {
     pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
-
+    glBindTexture(GL_TEXTURE_2D, textureMap[textureName]);
+    glUniform1i(this->pullShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
     for (int level = 0; level < getMipmapNumber(); level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
@@ -162,7 +155,8 @@ Pyramid* Pyramid::pull() {
 Pyramid* Pyramid::pull_until(int target_level) {
     pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
+    glBindTexture(GL_TEXTURE_2D, textureMap[textureName]);
+    glUniform1i(this->pullShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
     for (int level = 0; level <= target_level; level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 
@@ -185,7 +179,7 @@ Pyramid* Pyramid::push_from(int start_level) {
 Pyramid* Pyramid::push() {
     pushShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
+    glBindTexture(GL_TEXTURE_2D, textureMap[textureName]);
     glUniform1i(this->pushShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
     for (int level = getMipmapNumber() - 2; level >= 0; level--) {
 
@@ -207,7 +201,7 @@ Pyramid* Pyramid::push(int level) {
 
     pushShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureMap["fragNormal"]);
+    glBindTexture(GL_TEXTURE_2D, textureMap[textureName]);
     glUniform1i(this->pushShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
     glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
 

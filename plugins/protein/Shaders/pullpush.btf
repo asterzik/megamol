@@ -11,11 +11,13 @@ out vec4 fragNormal;
 
 uniform float lf;
 uniform int level;
+uniform int level_max;
 uniform float weightFactor;
 
 uniform sampler2D inputTex_fragNormal;
 uniform sampler2D inputTex_fragPosition;
 uniform sampler2D pyramid_fragNormal;
+uniform sampler2D maxDepth_texture;
 
 
 void pull(out vec4 pulledFragNormal)
@@ -63,8 +65,9 @@ void main() {
 
         float distanceWeight = fragZ*fragZ;
 
+        float maxDepth = texelFetch(maxDepth_texture, ivec2(0,0), level_max - 1).x;
         if (fragNormal.xyz != vec3(0)) {
-            fragNormal.w = weightFactor * distanceWeight; // weight for this pixel
+            fragNormal.w = weightFactor * distanceWeight / (maxDepth * maxDepth); // weight for this pixel
         }
          else {
             fragNormal.w = 0;// no weight for this void pixel
@@ -179,6 +182,44 @@ void main() {
     push(fragNormal);
 }
 
+-->
+            </snippet>
+        </shader>
+
+        <shader name="pullMaxDepth">
+            <snippet type="version">430</snippet>
+            <snippet name="::protein::commondefines"/>
+            <snippet type="string">
+<!--
+out vec4 fragMaxDepth;
+
+uniform int level;
+
+uniform sampler2D inputTex_fragPosition;
+uniform sampler2D pyramid_fragMaxDepth;
+
+
+void pull(out vec4 pulledFragMaxDepth) {
+    // read all finer pixels' values
+    float md_bl = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level - 1)).x;
+    float md_tl = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level - 1)).x;
+    float md_tr = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level - 1)).x;
+    float md_br = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level - 1)).x;
+    float maximum = max(max(md_bl, md_tl), max(md_tr, md_br));
+    pulledFragMaxDepth = vec4(maximum);
+}
+
+void main() {
+    fragMaxDepth = vec4(0.0f);
+
+    if (level == 0) {
+        float depth = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).z);
+        fragMaxDepth = vec4(depth);
+        return;
+    }
+
+    pull(fragMaxDepth);
+}
 -->
             </snippet>
         </shader>
