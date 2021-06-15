@@ -298,7 +298,7 @@ bool MoleculeSESRenderer::create(void) {
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
 
 
-#pragma region // Initialise all the shaders
+#pragma region // Initialise all the MoleculeSES shaders
     using namespace vislib::graphics::gl;
 
     ShaderSource compSrc;
@@ -497,6 +497,8 @@ bool MoleculeSESRenderer::GetExtents(view::CallRender3DGL& call) {
  * MoleculeSESRenderer::Render
  */
 bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
+
+#pragma region // Set up camera variables
     // temporary variables
     unsigned int cntRS = 0;
 
@@ -519,8 +521,11 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     glLoadIdentity();
     glLoadMatrixf(glm::value_ptr(view));
 
+#pragma endregion // Set up camera variables
+
     float callTime = call.Time();
 
+#pragma region // Get Protein an Binding Site data
     // get pointer to CallProteinData
     MolecularDataCall* mol = this->molDataCallerSlot.CallAs<MolecularDataCall>();
     // if something went wrong --> return
@@ -538,7 +543,9 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         (*bs)(BindingSiteCall::CallForGetData);
     }
 
-    // ==================== check parameters ====================
+#pragma endregion // Get Protein an Binding Site data
+
+    // check parameter
     this->UpdateParameters(mol, bs);
 
     // ==================== Precomputations ====================
@@ -615,14 +622,12 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         this->CreateFBO();
     }
 
-    // ==================== Scale & Translate ====================
-
+    // Scale & Translate
     glPushMatrix();
 
     // ==================== Start actual rendering ====================
 
     glDisable(GL_BLEND);
-    // glEnable( GL_NORMALIZE);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_ARB);
     glEnable(GL_VERTEX_PROGRAM_TWO_SIDE);
@@ -658,6 +663,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     // unlock the current frame
     mol->Unlock();
 
+#pragma region // do some matrix stuff
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
@@ -665,6 +671,8 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
+#pragma endregion // do some matrix stuff
+
     glActiveTexture(GL_TEXTURE0);
 
     return true;
