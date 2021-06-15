@@ -53,7 +53,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , maxGradColorParam("color::maxGradColor", "The color for the maximum value for gradient coloring")
         , drawSESParam("drawSES", "Draw the SES: ")
         , drawSASParam("drawSAS", "Draw the SAS: ")
-        , fogstartParam("fogStart", "Fog Start: ")
         , molIdxListParam("molIdxList", "The list of molecule indices for RS computation:")
         , colorTableFileParam("color::colorTableFilename", "The filename of the color table.")
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
@@ -91,10 +90,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     ppm->SetTypePair(NONE, "None");
     this->postprocessingParam << ppm;
 
-    // ----- set start value for fogging -----
-    this->fogStart = 0.5f;
-    param::FloatParam* fs = new param::FloatParam(this->fogStart, 0.0f);
-    this->fogstartParam << fs;
 
     // coloring modes
     this->currentColoringMode0 = Color::CHAIN;
@@ -218,7 +213,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 
 #pragma region // export parameters
     this->MakeSlotAvailable(&this->postprocessingParam);
-    this->MakeSlotAvailable(&this->fogstartParam);
     this->MakeSlotAvailable(&this->drawSESParam);
     this->MakeSlotAvailable(&this->drawSASParam);
     this->MakeSlotAvailable(&this->offscreenRenderingParam);
@@ -676,10 +670,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->coloringModeParam1.ResetDirty();
         this->cmWeightParam.ResetDirty();
     }
-    if (this->fogstartParam.IsDirty()) {
-        this->fogStart = this->fogstartParam.Param<param::FloatParam>()->Value();
-        this->fogstartParam.ResetDirty();
-    }
     if (this->drawSESParam.IsDirty()) {
         this->drawSES = this->drawSESParam.Param<param::BoolParam>()->Value();
         this->drawSESParam.ResetDirty();
@@ -968,7 +958,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
     float farplane = cameraInfo.far_clipping_plane();
 #pragma endregion // set camerastuff
 
-    // get clear color (i.e. background color) for fogging
+    // get clear color (i.e. background color
     float* clearColor = new float[4];
     glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColor);
     vislib::math::Vector<float, 3> fogCol(clearColor[0], clearColor[1], clearColor[2]);
@@ -1002,9 +992,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fvARB(this->torusShaderOR.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
                 glUniform3fvARB(this->torusShaderOR.ParameterLocation("camRight"), 1, glm::value_ptr(right));
                 glUniform3fvARB(this->torusShaderOR.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(this->torusShaderOR.ParameterLocation("zValues"), fogStart, nearplane, farplane);
-                glUniform3fARB(
-                    this->torusShaderOR.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
+                glUniform3fARB(this->torusShaderOR.ParameterLocation("zValues"), 0.0, nearplane, farplane);
 
                 attribInParams = glGetAttribLocationARB(this->torusShaderOR, "inParams");
                 attribQuatC = glGetAttribLocationARB(this->torusShaderOR, "quatC");
@@ -1021,9 +1009,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fvARB(this->torusShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
                 glUniform3fvARB(this->torusShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
                 glUniform3fvARB(this->torusShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(this->torusShader.ParameterLocation("zValues"), fogStart, nearplane, farplane);
-                glUniform3fARB(
-                    this->torusShader.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
+                glUniform3fARB(this->torusShader.ParameterLocation("zValues"), 0.0, nearplane, farplane);
                 // get attribute locations
                 attribInParams = glGetAttribLocationARB(this->torusShader, "inParams");
                 attribQuatC = glGetAttribLocationARB(this->torusShader, "quatC");
@@ -1097,10 +1083,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fvARB(
                     this->sphericalTriangleShaderOR.ParameterLocation("camRight"), 1, glm::value_ptr(right));
                 glUniform3fvARB(this->sphericalTriangleShaderOR.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(
-                    this->sphericalTriangleShaderOR.ParameterLocation("zValues"), fogStart, nearplane, farplane);
-                glUniform3fARB(this->sphericalTriangleShaderOR.ParameterLocation("fogCol"), fogCol.GetX(),
-                    fogCol.GetY(), fogCol.GetZ());
+                glUniform3fARB(this->sphericalTriangleShaderOR.ParameterLocation("zValues"), 0.0, nearplane, farplane);
                 glUniform2fARB(this->sphericalTriangleShaderOR.ParameterLocation("texOffset"),
                     1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
                 // get attribute locations
@@ -1120,10 +1103,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
                 glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
                 glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(
-                    this->sphericalTriangleShader.ParameterLocation("zValues"), fogStart, nearplane, farplane);
-                glUniform3fARB(this->sphericalTriangleShader.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(),
-                    fogCol.GetZ());
+                glUniform3fARB(this->sphericalTriangleShader.ParameterLocation("zValues"), 0.0, nearplane, farplane);
                 glUniform2fARB(this->sphericalTriangleShader.ParameterLocation("texOffset"),
                     1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
                 // get attribute locations
@@ -1198,9 +1178,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
             glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camRight"), 1, glm::value_ptr(right));
             glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-            glUniform3fARB(this->sphereShaderOR.ParameterLocation("zValues"), fogStart, nearplane, farplane);
-            glUniform3fARB(
-                this->sphereShaderOR.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
+            glUniform3fARB(this->sphereShaderOR.ParameterLocation("zValues"), 0.0, nearplane, farplane);
 #pragma endregion // set shader variables
         } else {
             this->sphereShader.Enable();
@@ -1211,8 +1189,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             glUniform3fvARB(this->sphereShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
             glUniform3fvARB(this->sphereShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
             glUniform3fvARB(this->sphereShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-            glUniform3fARB(this->sphereShader.ParameterLocation("zValues"), fogStart, nearplane, farplane);
-            glUniform3fARB(this->sphereShader.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
+            glUniform3fARB(this->sphereShader.ParameterLocation("zValues"), 0.0, nearplane, farplane);
         }
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_COLOR_ARRAY);

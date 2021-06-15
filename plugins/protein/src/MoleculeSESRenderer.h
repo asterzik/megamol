@@ -264,7 +264,6 @@ namespace protein {
         megamol::core::param::ParamSlot midGradColorParam;
         /** parameter slot for max color of gradient color mode */
         megamol::core::param::ParamSlot maxGradColorParam;
-        megamol::core::param::ParamSlot fogstartParam;
         megamol::core::param::ParamSlot drawSESParam;
         megamol::core::param::ParamSlot drawSASParam;
         megamol::core::param::ParamSlot molIdxListParam;
@@ -397,10 +396,6 @@ namespace protein {
         std::vector<unsigned int> singTexWidth, singTexHeight;
         // data of the singularity texture
         float* singTexData;
-
-
-        // start value for fogging
-        float fogStart;
 
         // the list of molecular indices
         vislib::Array<vislib::StringA> molIdxList;
