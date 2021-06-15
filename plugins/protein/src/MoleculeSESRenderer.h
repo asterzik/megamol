@@ -43,7 +43,7 @@ namespace protein {
     class MoleculeSESRenderer : public megamol::core::view::Renderer3DModuleGL {
     public:
         /** postprocessing modi */
-        enum PostprocessingMode { NONE = 0, AMBIENT_OCCLUSION = 1 };
+        enum PostprocessingMode { NONE = 0 };
 
         /** render modi */
         enum RenderMode {
@@ -200,11 +200,6 @@ namespace protein {
         void BuildPyramid();
 
         /**
-         * Postprocessing: use screen space ambient occlusion
-         */
-        void PostprocessingSSAO();
-
-        /**
          * Postprocessing: use contour shader
          */
         void PostprocessingContour();
@@ -288,8 +283,6 @@ namespace protein {
         megamol::core::param::ParamSlot coloringModeParam1;
         /** parameter slot for coloring mode weighting*/
         megamol::core::param::ParamSlot cmWeightParam;
-        megamol::core::param::ParamSlot sigmaParam;
-        megamol::core::param::ParamSlot lambdaParam;
         /** parameter slot for min color of gradient color mode */
         megamol::core::param::ParamSlot minGradColorParam;
         /** parameter slot for mid color of gradient color mode */
@@ -356,9 +349,6 @@ namespace protein {
         vislib::graphics::gl::GLSLShader torusShaderOR;
         // shader for per pixel lighting (polygonal view)
         vislib::graphics::gl::GLSLShader lightShader;
-        // shader for 1D gaussian filtering (postprocessing)
-        vislib::graphics::gl::GLSLShader hfilterShader;
-        vislib::graphics::gl::GLSLShader vfilterShader;
         // shader for contour generation
         vislib::graphics::gl::GLSLShader contourShader;
         ////////////
@@ -418,8 +408,6 @@ namespace protein {
         GLuint depthTex0;
         GLuint texture1;
         GLuint depthTex1;
-        GLuint hFilter;
-        GLuint vFilter;
         GLuint contourFBO;
         GLuint normalTexture;
         GLuint positionTexture;
@@ -431,10 +419,6 @@ namespace protein {
         // width and height of view
         unsigned int width;
         unsigned int height;
-        // sigma factor for screen space ambient occlusion
-        float sigma;
-        // lambda factor for screen space ambient occlusion
-        float lambda;
 
         /** The color lookup table (for chains, amino acids,...) */
         vislib::Array<vislib::math::Vector<float, 3>> colorLookupTable;

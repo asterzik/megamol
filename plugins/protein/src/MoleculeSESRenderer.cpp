@@ -49,8 +49,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , coloringModeParam0("color::coloringMode0", "The first coloring mode.")
         , coloringModeParam1("color::coloringMode1", "The second coloring mode.")
         , cmWeightParam("color::colorWeighting", "The weighting of the two coloring modes.")
-        , sigmaParam("SSAOsigma", "Sigma value for SSAO: ")
-        , lambdaParam("SSAOlambda", "Lambda value for SSAO: ")
         , minGradColorParam("color::minGradColor", "The color for the minimum value for gradient coloring")
         , midGradColorParam("color::midGradColor", "The color for the middle value for gradient coloring")
         , maxGradColorParam("color::maxGradColor", "The color for the maximum value for gradient coloring")
@@ -93,7 +91,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->postprocessing = NONE;
     param::EnumParam* ppm = new param::EnumParam(int(this->postprocessing));
     ppm->SetTypePair(NONE, "None");
-    ppm->SetTypePair(AMBIENT_OCCLUSION, "Screen Space Ambient Occlusion");
     this->postprocessingParam << ppm;
 
     // ----- choose current render mode -----
@@ -105,16 +102,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     param::EnumParam* rm = new param::EnumParam(int(this->currentRendermode));
     rm->SetTypePair(GPU_RAYCASTING, "GPU Ray Casting");
     this->rendermodeParam << rm;
-
-    // ----- set sigma for screen space ambient occlusion (SSAO) -----
-    this->sigma = 5.0f;
-    param::FloatParam* ssaos = new param::FloatParam(this->sigma);
-    this->sigmaParam << ssaos;
-
-    // ----- set lambda for screen space ambient occlusion (SSAO) -----
-    this->lambda = 10.0f;
-    param::FloatParam* ssaol = new param::FloatParam(this->lambda);
-    this->lambdaParam << ssaol;
 
     // ----- set start value for fogging -----
     this->fogStart = 0.5f;
@@ -236,8 +223,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->verticalFilterFBO = 0;
     this->texture0 = 0;
     this->depthTex0 = 0;
-    this->hFilter = 0;
-    this->vFilter = 0;
 #pragma endregion set the FBOs and textures for post processing
     this->contourFBO = 0;
     this->contourDepthRBO = 0;
@@ -256,8 +241,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 #pragma region // export parameters
     this->MakeSlotAvailable(&this->rendermodeParam);
     this->MakeSlotAvailable(&this->postprocessingParam);
-    this->MakeSlotAvailable(&this->sigmaParam);
-    this->MakeSlotAvailable(&this->lambdaParam);
     this->MakeSlotAvailable(&this->fogstartParam);
     this->MakeSlotAvailable(&this->debugParam);
     this->MakeSlotAvailable(&this->drawSESParam);
@@ -280,8 +263,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
         glDeleteTextures(1, &depthTex0);
         glDeleteTextures(1, &texture1);
         glDeleteTextures(1, &depthTex1);
-        glDeleteTextures(1, &hFilter);
-        glDeleteTextures(1, &vFilter);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
@@ -293,8 +274,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     this->sphericalTriangleShader.Release();
     this->torusShader.Release();
     this->lightShader.Release();
-    this->hfilterShader.Release();
-    this->vfilterShader.Release();
     this->Release();
 }
 
@@ -489,7 +468,7 @@ bool MoleculeSESRenderer::create(void) {
     }
     if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragment", fragSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for silhouette drawing shader", this->ClassName());
+            "%s: Unable to load fragment shader source for contour drawing shader", this->ClassName());
         return false;
     }
     try {
@@ -502,75 +481,6 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     }
 
-    // //////////////////////////////////////////////////////
-    // // load the shader files for the per pixel lighting //
-    // //////////////////////////////////////////////////////
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::perpixellightVertex", vertSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load vertex shader source for per pixel lighting shader", this->ClassName());
-    //     return false;
-    // }
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::perpixellightFragment", fragSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load fragment shader source for per pixel lighting shader", this->ClassName());
-    //     return false;
-    // }
-    // try {
-    //     if (!this->lightShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-    //     }
-    // } catch (vislib::Exception e) {
-    //     Log::DefaultLog.WriteMsg(
-    //         Log::LEVEL_ERROR, "%s: Unable to create per pixel lighting shader: %s\n", this->ClassName(),
-    //         e.GetMsgA());
-    //     return false;
-    // }
-
-    // /////////////////////////////////////////////////////////////////
-    // // load the shader files for horizontal 1D gaussian filtering  //
-    // /////////////////////////////////////////////////////////////////
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::hfilterVertex", vertSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load vertex shader source for horizontal 1D gaussian filter shader", this->ClassName());
-    //     return false;
-    // }
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::hfilterFragment", fragSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load fragment shader source for horizontal 1D gaussian filter shader", this->ClassName());
-    //     return false;
-    // }
-    // try {
-    //     if (!this->hfilterShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-    //     }
-    // } catch (vislib::Exception e) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create horizontal 1D gaussian filter shader: %s\n",
-    //         this->ClassName(), e.GetMsgA());
-    //     return false;
-    // }
-
-    // ///////////////////////////////////////////////////////////////
-    // // load the shader files for vertical 1D gaussian filtering  //
-    // ///////////////////////////////////////////////////////////////
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::vfilterVertex", vertSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load vertex shader source for vertical 1D gaussian filter shader", this->ClassName());
-    //     return false;
-    // }
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::vfilterFragment", fragSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load fragment shader source for vertical 1D gaussian filter shader", this->ClassName());
-    //     return false;
-    // }
-    // try {
-    //     if (!this->vfilterShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-    //     }
-    // } catch (vislib::Exception e) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create vertical 1D gaussian filter shader: %s\n",
-    //         this->ClassName(), e.GetMsgA());
-    // return false;
-    // }
     return true;
 }
 
@@ -749,9 +659,6 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     if (this->postprocessing != NONE) {
         // stop rendering to frame buffer object
         glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-
-        if (this->postprocessing == AMBIENT_OCCLUSION)
-            this->PostprocessingSSAO();
     }
 
     glPopMatrix();
@@ -807,14 +714,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->coloringModeParam0.ResetDirty();
         this->coloringModeParam1.ResetDirty();
         this->cmWeightParam.ResetDirty();
-    }
-    if (this->sigmaParam.IsDirty()) {
-        this->sigma = this->sigmaParam.Param<param::FloatParam>()->Value();
-        this->sigmaParam.ResetDirty();
-    }
-    if (this->lambdaParam.IsDirty()) {
-        this->lambda = this->lambdaParam.Param<param::FloatParam>()->Value();
-        this->lambdaParam.ResetDirty();
     }
     if (this->fogstartParam.IsDirty()) {
         this->fogStart = this->fogstartParam.Param<param::FloatParam>()->Value();
@@ -963,83 +862,6 @@ void MoleculeSESRenderer::PostprocessingContour() {
 }
 
 /*
- * postprocessing: use screen space ambient occlusion
- */
-void MoleculeSESRenderer::PostprocessingSSAO() {
-    // START draw overlay
-    glBindTexture(GL_TEXTURE_2D, this->depthTex0);
-    // --> this seems to be unnecessary since no mipmap but the original resolution is used
-    // glGenerateMipmapEXT( GL_TEXTURE_2D);
-
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
-
-    glPushAttrib(GL_LIGHTING_BIT);
-    glDisable(GL_LIGHTING);
-
-    // ----- START gaussian filtering + SSAO -----
-    // apply horizontal filter
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->horizontalFilterFBO);
-
-    this->hfilterShader.Enable();
-
-    glUniform1fARB(this->hfilterShader.ParameterLocation("sigma"), this->sigma);
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    glBegin(GL_QUADS);
-    glVertex2f(0.0f, 0.0f);
-    glVertex2f(1.0f, 0.0f);
-    glVertex2f(1.0f, 1.0f);
-    glVertex2f(0.0f, 1.0f);
-    glEnd();
-
-    this->hfilterShader.Disable();
-
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-
-    // apply vertical filter to horizontally filtered image and compute colors
-    glBindTexture(GL_TEXTURE_2D, this->hFilter);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, this->texture0);
-
-    this->vfilterShader.Enable();
-
-    glUniform1iARB(this->vfilterShader.ParameterLocation("tex"), 0);
-    glUniform1iARB(this->vfilterShader.ParameterLocation("colorTex"), 1);
-    glUniform1fARB(this->vfilterShader.ParameterLocation("sigma"), this->sigma);
-    glUniform1fARB(this->vfilterShader.ParameterLocation("lambda"), this->lambda);
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    glBegin(GL_QUADS);
-    glVertex2f(0.0f, 0.0f);
-    glVertex2f(1.0f, 0.0f);
-    glVertex2f(1.0f, 1.0f);
-    glVertex2f(0.0f, 1.0f);
-    glEnd();
-
-    this->vfilterShader.Disable();
-    // ----- END gaussian filtering + SSAO -----
-
-    glPopAttrib();
-
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    // END draw overlay
-}
-
-/*
  * Create the fbo and texture needed for offscreen rendering
  */
 void MoleculeSESRenderer::CreateFBO() {
@@ -1054,8 +876,6 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &depthTex0);
         glDeleteTextures(1, &texture1);
         glDeleteTextures(1, &depthTex1);
-        glDeleteTextures(1, &hFilter);
-        glDeleteTextures(1, &vFilter);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
     }
@@ -1068,8 +888,6 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenTextures(1, &depthTex0);
     glGenTextures(1, &texture1);
     glGenTextures(1, &depthTex1);
-    glGenTextures(1, &hFilter);
-    glGenTextures(1, &vFilter);
     glGenTextures(1, &normalTexture);
     glGenTextures(1, &positionTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
@@ -1095,28 +913,6 @@ void MoleculeSESRenderer::CreateFBO() {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameterf(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, this->depthTex0, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // horizontal filter FBO
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->horizontalFilterFBO);
-    glBindTexture(GL_TEXTURE_2D, this->hFilter);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16_EXT, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, hFilter, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // vertical filter FBO
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->verticalFilterFBO);
-    glBindTexture(GL_TEXTURE_2D, this->vFilter);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16_EXT, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, vFilter, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
@@ -2498,8 +2294,6 @@ void MoleculeSESRenderer::deinitialise(void) {
         glDeleteTextures(1, &depthTex0);
         glDeleteTextures(1, &texture1);
         glDeleteTextures(1, &depthTex1);
-        glDeleteTextures(1, &hFilter);
-        glDeleteTextures(1, &vFilter);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
@@ -2511,8 +2305,6 @@ void MoleculeSESRenderer::deinitialise(void) {
     this->sphericalTriangleShader.Release();
     this->torusShader.Release();
     this->lightShader.Release();
-    this->hfilterShader.Release();
-    this->vfilterShader.Release();
 }
 
 
