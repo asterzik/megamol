@@ -86,8 +86,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->epsilon = vislib::math::FLOAT_EPSILON;
     // set probe radius
     this->probeRadius = 1.4f;
-    // set transparency
-    this->transparency = 0.5f;
 
     this->probeRadiusSlot.SetParameter(new param::FloatParam(1.4f, 0.1f));
     this->MakeSlotAvailable(&this->probeRadiusSlot);
@@ -98,7 +96,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     ppm->SetTypePair(NONE, "None");
     ppm->SetTypePair(AMBIENT_OCCLUSION, "Screen Space Ambient Occlusion");
     ppm->SetTypePair(SILHOUETTE, "Silhouette");
-    // ppm->SetTypePair( TRANSPARENCY, "Transparency");
     this->postprocessingParam << ppm;
 
     // ----- choose current render mode -----
@@ -308,7 +305,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     this->hfilterShader.Release();
     this->vfilterShader.Release();
     this->silhouetteShader.Release();
-    this->transparencyShader.Release();
 
     this->Release();
 }
@@ -342,6 +338,7 @@ bool MoleculeSESRenderer::create(void) {
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
 
 
+#pragma region // Initialise all the shaders
     using namespace vislib::graphics::gl;
 
     ShaderSource compSrc;
@@ -469,166 +466,6 @@ bool MoleculeSESRenderer::create(void) {
             Log::LEVEL_ERROR, "%s: Unable to create spherical triangle shader: %s\n", this->ClassName(), e.GetMsgA());
         return false;
     }
-
-    //////////////////////////////////////////////////////
-    // load the shader files for contour drawing     //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for silhouette drawing shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->contourShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-    //////////////////////////////////////////////////////////////////////////
-    // load the shader source for the sphere renderer with clipped interior //
-    //////////////////////////////////////////////////////////////////////////
-    /*
-fragSrc.Append( vertSrc.Append(new ShaderSource::VersionSnippet(120)));
-    // vertex shader
-    vertSrc.Append( this->shaderSnippetFactory().Create("commondefines",
-            "protein", Utility::ShaderSnippetFactory::GLSL_COMMON_SHADER));
-    vertSrc.Append( this->shaderSnippetFactory().Create("sphereSES_clipinterior",
-        "protein", Utility::ShaderSnippetFactory::GLSL_VERTEX_SHADER));
-    // fragment shader
-    fragSrc.Append( this->shaderSnippetFactory().Create("commondefines",
-            "protein", Utility::ShaderSnippetFactory::GLSL_COMMON_SHADER));
-    fragSrc.Append( this->shaderSnippetFactory().Create("lightdirectional",
-            "protein", Utility::ShaderSnippetFactory::GLSL_COMMON_SHADER));
-    fragSrc.Append( this->shaderSnippetFactory().Create("sphereSES_clipinterior",
-        "protein", Utility::ShaderSnippetFactory::GLSL_FRAGMENT_SHADER));
-    // create the shader
-    this->sphereClipInteriorShader.Create( vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count());
-    //clear fragment source
-    fragSrc.Clear();
-    //clear vertex source
-    vertSrc.Clear();
-    */
-
-    //////////////////////////////////////////////////////
-    // load the shader files for the per pixel lighting //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::perpixellightVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for per pixel lighting shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::perpixellightFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for per pixel lighting shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->lightShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create per pixel lighting shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    /////////////////////////////////////////////////////////////////
-    // load the shader files for horizontal 1D gaussian filtering  //
-    /////////////////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::hfilterVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for horizontal 1D gaussian filter shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::hfilterFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for horizontal 1D gaussian filter shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->hfilterShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create horizontal 1D gaussian filter shader: %s\n",
-            this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    ///////////////////////////////////////////////////////////////
-    // load the shader files for vertical 1D gaussian filtering  //
-    ///////////////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::vfilterVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for vertical 1D gaussian filter shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::vfilterFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for vertical 1D gaussian filter shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->vfilterShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create vertical 1D gaussian filter shader: %s\n",
-            this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    //////////////////////////////////////////////////////
-    // load the shader files for silhouette drawing     //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::silhouetteVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for silhouette drawing shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::silhouetteFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for silhouette drawing shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->silhouetteShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create vertical 1D gaussian filter shader: %s\n",
-            this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    //////////////////////////////////////////////////////
-    // load the shader files for transparency           //
-    //////////////////////////////////////////////////////
-    /*
-    // version 120
-    fragSrc.Append(vertSrc.Append(new ShaderSource::VersionSnippet(120)));
-    // vertex shader
-    vertSrc.Append( this->shaderSnippetFactory().Create("transparency",
-        "protein", Utility::ShaderSnippetFactory::GLSL_VERTEX_SHADER));
-    // fragment shader
-    fragSrc.Append( this->shaderSnippetFactory().Create("transparency",
-        "protein", Utility::ShaderSnippetFactory::GLSL_FRAGMENT_SHADER));
-    // create the shader
-    this->transparencyShader.Create( vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count());
-    //clear fragment source
-    fragSrc.Clear();
-    //clear vertex source
-    vertSrc.Clear();
-    */
-
     //////////////////////////////////////////////////////
     // load the shader source for the cylinder renderer //
     //////////////////////////////////////////////////////
@@ -651,6 +488,123 @@ fragSrc.Append( vertSrc.Append(new ShaderSource::VersionSnippet(120)));
             Log::LEVEL_ERROR, "%s: Unable to create cylinder shader: %s\n", this->ClassName(), e.GetMsgA());
         return false;
     }
+
+#pragma endregion // Initialise all the shaders
+    //////////////////////////////////////////////////////
+    // load the shader files for contour drawing     //
+    //////////////////////////////////////////////////////
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragment", fragSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load fragment shader source for silhouette drawing shader", this->ClassName());
+        return false;
+    }
+    try {
+        if (!this->contourShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+    } catch (vislib::Exception e) {
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n", this->ClassName(), e.GetMsgA());
+        return false;
+    }
+
+    // //////////////////////////////////////////////////////
+    // // load the shader files for the per pixel lighting //
+    // //////////////////////////////////////////////////////
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::perpixellightVertex", vertSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load vertex shader source for per pixel lighting shader", this->ClassName());
+    //     return false;
+    // }
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::perpixellightFragment", fragSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load fragment shader source for per pixel lighting shader", this->ClassName());
+    //     return false;
+    // }
+    // try {
+    //     if (!this->lightShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+    //     }
+    // } catch (vislib::Exception e) {
+    //     Log::DefaultLog.WriteMsg(
+    //         Log::LEVEL_ERROR, "%s: Unable to create per pixel lighting shader: %s\n", this->ClassName(),
+    //         e.GetMsgA());
+    //     return false;
+    // }
+
+    // /////////////////////////////////////////////////////////////////
+    // // load the shader files for horizontal 1D gaussian filtering  //
+    // /////////////////////////////////////////////////////////////////
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::hfilterVertex", vertSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load vertex shader source for horizontal 1D gaussian filter shader", this->ClassName());
+    //     return false;
+    // }
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::hfilterFragment", fragSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load fragment shader source for horizontal 1D gaussian filter shader", this->ClassName());
+    //     return false;
+    // }
+    // try {
+    //     if (!this->hfilterShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+    //     }
+    // } catch (vislib::Exception e) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create horizontal 1D gaussian filter shader: %s\n",
+    //         this->ClassName(), e.GetMsgA());
+    //     return false;
+    // }
+
+    // ///////////////////////////////////////////////////////////////
+    // // load the shader files for vertical 1D gaussian filtering  //
+    // ///////////////////////////////////////////////////////////////
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::vfilterVertex", vertSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load vertex shader source for vertical 1D gaussian filter shader", this->ClassName());
+    //     return false;
+    // }
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::vfilterFragment", fragSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load fragment shader source for vertical 1D gaussian filter shader", this->ClassName());
+    //     return false;
+    // }
+    // try {
+    //     if (!this->vfilterShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+    //     }
+    // } catch (vislib::Exception e) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create vertical 1D gaussian filter shader: %s\n",
+    //         this->ClassName(), e.GetMsgA());
+    //     return false;
+    // }
+
+    // //////////////////////////////////////////////////////
+    // // load the shader files for silhouette drawing     //
+    // //////////////////////////////////////////////////////
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::silhouetteVertex", vertSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load vertex shader source for silhouette drawing shader", this->ClassName());
+    //     return false;
+    // }
+    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::silhouetteFragment", fragSrc)) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+    //         "%s: Unable to load fragment shader source for silhouette drawing shader", this->ClassName());
+    //     return false;
+    // }
+    // try {
+    //     if (!this->silhouetteShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+    //     }
+    // } catch (vislib::Exception e) {
+    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create vertical 1D gaussian filter shader: %s\n",
+    //         this->ClassName(), e.GetMsgA());
+    //     return false;
+    // }
 
     return true;
 }
@@ -806,19 +760,11 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_ARB);
     glEnable(GL_VERTEX_PROGRAM_TWO_SIDE);
 
-    if (this->postprocessing == TRANSPARENCY) {
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->blendFBO);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        if (this->drawRS)
-            this->RenderDebugStuff(mol);
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-    } else {
-        if (this->drawRS) {
-            this->RenderDebugStuff(mol);
-            // DEMO
-            glPopMatrix();
-            return true;
-        }
+    if (this->drawRS) {
+        this->RenderDebugStuff(mol);
+        // DEMO
+        glPopMatrix();
+        return true;
     }
 
     // start rendering to frame buffer object
@@ -843,8 +789,6 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
             this->PostprocessingSSAO();
         else if (this->postprocessing == SILHOUETTE)
             this->PostprocessingSilhouette();
-        else if (this->postprocessing == TRANSPARENCY)
-            this->PostprocessingTransparency(0.5f);
     }
 
     glPopMatrix();
@@ -1190,66 +1134,6 @@ void MoleculeSESRenderer::PostprocessingSilhouette() {
     // END draw overlay
 }
 
-
-/*
- * postprocessing: transparency (blend two images)
- */
-void MoleculeSESRenderer::PostprocessingTransparency(float transparency) {
-    // START draw overlay
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
-
-    glPushAttrib(GL_LIGHTING_BIT);
-    glDisable(GL_LIGHTING);
-
-    // ----- START -----
-    glBindTexture(GL_TEXTURE_2D, this->depthTex0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, this->texture0);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, this->depthTex1);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, this->texture1);
-
-    this->transparencyShader.Enable();
-
-    glUniform1iARB(this->transparencyShader.ParameterLocation("depthTex0"), 0);
-    glUniform1iARB(this->transparencyShader.ParameterLocation("colorTex0"), 1);
-    glUniform1iARB(this->transparencyShader.ParameterLocation("depthTex1"), 2);
-    glUniform1iARB(this->transparencyShader.ParameterLocation("colorTex1"), 3);
-    glUniform1fARB(this->transparencyShader.ParameterLocation("transparency"), transparency);
-    glBegin(GL_QUADS);
-    glVertex2f(0.0f, 0.0f);
-    glVertex2f(1.0f, 0.0f);
-    glVertex2f(1.0f, 1.0f);
-    glVertex2f(0.0f, 1.0f);
-    glEnd();
-
-    this->transparencyShader.Disable();
-    // ----- END -----
-
-    glPopAttrib();
-
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    // END draw overlay
-}
-
-
 /*
  * Create the fbo and texture needed for offscreen rendering
  */
@@ -1306,29 +1190,6 @@ void MoleculeSESRenderer::CreateFBO() {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameterf(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, this->depthTex0, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // color and depth FBO for blending (transparency)
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->blendFBO);
-    // init texture1 (color)
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16_EXT, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, texture1, 0);
-    // init depth texture
-    glBindTexture(GL_TEXTURE_2D, depthTex1);
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, this->width, this->height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, this->depthTex1, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // horizontal filter FBO
@@ -1492,7 +1353,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fARB(this->torusShaderOR.ParameterLocation("zValues"), fogStart, nearplane, farplane);
                 glUniform3fARB(
                     this->torusShaderOR.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
-                glUniform1fARB(this->torusShaderOR.ParameterLocation("alpha"), this->transparency);
                 // get attribute locations
                 attribInParams = glGetAttribLocationARB(this->torusShaderOR, "inParams");
                 attribQuatC = glGetAttribLocationARB(this->torusShaderOR, "quatC");
@@ -1511,7 +1371,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fARB(this->torusShader.ParameterLocation("zValues"), fogStart, nearplane, farplane);
                 glUniform3fARB(
                     this->torusShader.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
-                glUniform1fARB(this->torusShader.ParameterLocation("alpha"), this->transparency);
                 // get attribute locations
                 attribInParams = glGetAttribLocationARB(this->torusShader, "inParams");
                 attribQuatC = glGetAttribLocationARB(this->torusShader, "quatC");
@@ -1582,7 +1441,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                     fogCol.GetY(), fogCol.GetZ());
                 glUniform2fARB(this->sphericalTriangleShaderOR.ParameterLocation("texOffset"),
                     1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
-                glUniform1fARB(this->sphericalTriangleShaderOR.ParameterLocation("alpha"), this->transparency);
                 // get attribute locations
                 attribVec1 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec1");
                 attribVec2 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec2");
@@ -1605,7 +1463,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                     fogCol.GetZ());
                 glUniform2fARB(this->sphericalTriangleShader.ParameterLocation("texOffset"),
                     1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
-                glUniform1fARB(this->sphericalTriangleShader.ParameterLocation("alpha"), this->transparency);
                 // get attribute locations
                 attribVec1 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec1");
                 attribVec2 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec2");
@@ -1676,7 +1533,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fARB(this->sphereShaderOR.ParameterLocation("zValues"), fogStart, nearplane, farplane);
                 glUniform3fARB(
                     this->sphereShaderOR.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
-                glUniform1fARB(this->sphereShaderOR.ParameterLocation("alpha"), this->transparency);
             } else {
                 this->sphereShader.Enable();
                 // set shader variables
@@ -1689,7 +1545,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glUniform3fARB(this->sphereShader.ParameterLocation("zValues"), fogStart, nearplane, farplane);
                 glUniform3fARB(
                     this->sphereShader.ParameterLocation("fogCol"), fogCol.GetX(), fogCol.GetY(), fogCol.GetZ());
-                glUniform1fARB(this->sphereShader.ParameterLocation("alpha"), this->transparency);
             }
         } else { // GPU_RAYCASTING_INTERIOR_CLIPPING
             this->sphereClipInteriorShader.Enable();
@@ -2754,7 +2609,6 @@ void MoleculeSESRenderer::deinitialise(void) {
     this->hfilterShader.Release();
     this->vfilterShader.Release();
     this->silhouetteShader.Release();
-    this->transparencyShader.Release();
 }
 
 

@@ -43,7 +43,7 @@ namespace protein {
     class MoleculeSESRenderer : public megamol::core::view::Renderer3DModuleGL {
     public:
         /** postprocessing modi */
-        enum PostprocessingMode { NONE = 0, AMBIENT_OCCLUSION = 1, SILHOUETTE = 2, TRANSPARENCY = 3 };
+        enum PostprocessingMode { NONE = 0, AMBIENT_OCCLUSION = 1, SILHOUETTE = 2 };
 
         /** render modi */
         enum RenderMode {
@@ -224,11 +224,6 @@ namespace protein {
         void PostprocessingSilhouette();
 
         /**
-         * Postprocessing: transparency (blend two images)
-         */
-        void PostprocessingTransparency(float transparency);
-
-        /**
          * returns the color of the atom 'idx' for the current coloring mode
          *
          * @param idx The index of the atom.
@@ -381,8 +376,6 @@ namespace protein {
         vislib::graphics::gl::GLSLShader vfilterShader;
         // shader for silhouette drawing (postprocessing)
         vislib::graphics::gl::GLSLShader silhouetteShader;
-        // shader for cheap transparency (postprocessing/blending)
-        vislib::graphics::gl::GLSLShader transparencyShader;
         // shader for contour generation
         vislib::graphics::gl::GLSLShader contourShader;
         ////////////
@@ -485,8 +478,6 @@ namespace protein {
 
         // start value for fogging
         float fogStart;
-        // transparency value
-        float transparency;
 
         // the list of molecular indices
         vislib::Array<vislib::StringA> molIdxList;
