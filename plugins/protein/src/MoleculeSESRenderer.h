@@ -50,7 +50,6 @@ namespace protein {
             GPU_RAYCASTING = 0,
             // POLYGONAL = 1,
             // POLYGONAL_GPU = 2,
-            GPU_RAYCASTING_INTERIOR_CLIPPING = 3,
             GPU_SIMPLIFIED = 4
         };
 
@@ -339,8 +338,6 @@ namespace protein {
         // shader for the spheres (raycasting view)
         vislib::graphics::gl::GLSLShader sphereShader;
         vislib::graphics::gl::GLSLShader sphereShaderOR;
-        // shader for the spheres with clipped interior (raycasting view)
-        vislib::graphics::gl::GLSLShader sphereClipInteriorShader;
         // shader for the spherical triangles (raycasting view)
         vislib::graphics::gl::GLSLShader sphericalTriangleShader;
         vislib::graphics::gl::GLSLShader sphericalTriangleShaderOR;
@@ -429,12 +426,6 @@ namespace protein {
         // data of the singularity texture
         float* singTexData;
 
-        // texture for interior clipping / cutting planes (convex spherical cutouts)
-        std::vector<GLuint> cutPlanesTexture;
-        // sizes of the cutting planes textures
-        std::vector<unsigned int> cutPlanesTexWidth, cutPlanesTexHeight;
-        // data of the cutting planes texture
-        std::vector<vislib::Array<float>> cutPlanesTexData;
 
         // start value for fogging
         float fogStart;
