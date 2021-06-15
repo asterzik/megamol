@@ -49,7 +49,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , coloringModeParam0("color::coloringMode0", "The first coloring mode.")
         , coloringModeParam1("color::coloringMode1", "The second coloring mode.")
         , cmWeightParam("color::colorWeighting", "The weighting of the two coloring modes.")
-        , silhouettecolorParam("silhouetteColor", "Silhouette Color: ")
         , sigmaParam("SSAOsigma", "Sigma value for SSAO: ")
         , lambdaParam("SSAOlambda", "Lambda value for SSAO: ")
         , minGradColorParam("color::minGradColor", "The color for the minimum value for gradient coloring")
@@ -95,7 +94,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     param::EnumParam* ppm = new param::EnumParam(int(this->postprocessing));
     ppm->SetTypePair(NONE, "None");
     ppm->SetTypePair(AMBIENT_OCCLUSION, "Screen Space Ambient Occlusion");
-    ppm->SetTypePair(SILHOUETTE, "Silhouette");
     this->postprocessingParam << ppm;
 
     // ----- choose current render mode -----
@@ -107,12 +105,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     param::EnumParam* rm = new param::EnumParam(int(this->currentRendermode));
     rm->SetTypePair(GPU_RAYCASTING, "GPU Ray Casting");
     this->rendermodeParam << rm;
-
-
-    // ----- set the default color for the silhouette -----
-    this->SetSilhouetteColor(1.0f, 1.0f, 1.0f);
-    param::IntParam* sc = new param::IntParam(this->codedSilhouetteColor, 0, 255255255);
-    this->silhouettecolorParam << sc;
 
     // ----- set sigma for screen space ambient occlusion (SSAO) -----
     this->sigma = 5.0f;
@@ -264,7 +256,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 #pragma region // export parameters
     this->MakeSlotAvailable(&this->rendermodeParam);
     this->MakeSlotAvailable(&this->postprocessingParam);
-    this->MakeSlotAvailable(&this->silhouettecolorParam);
     this->MakeSlotAvailable(&this->sigmaParam);
     this->MakeSlotAvailable(&this->lambdaParam);
     this->MakeSlotAvailable(&this->fogstartParam);
@@ -304,8 +295,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     this->lightShader.Release();
     this->hfilterShader.Release();
     this->vfilterShader.Release();
-    this->silhouetteShader.Release();
-
     this->Release();
 }
 
@@ -580,32 +569,8 @@ bool MoleculeSESRenderer::create(void) {
     // } catch (vislib::Exception e) {
     //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create vertical 1D gaussian filter shader: %s\n",
     //         this->ClassName(), e.GetMsgA());
-    //     return false;
+    // return false;
     // }
-
-    // //////////////////////////////////////////////////////
-    // // load the shader files for silhouette drawing     //
-    // //////////////////////////////////////////////////////
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::silhouetteVertex", vertSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load vertex shader source for silhouette drawing shader", this->ClassName());
-    //     return false;
-    // }
-    // if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::silhouetteFragment", fragSrc)) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-    //         "%s: Unable to load fragment shader source for silhouette drawing shader", this->ClassName());
-    //     return false;
-    // }
-    // try {
-    //     if (!this->silhouetteShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-    //         throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-    //     }
-    // } catch (vislib::Exception e) {
-    //     Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create vertical 1D gaussian filter shader: %s\n",
-    //         this->ClassName(), e.GetMsgA());
-    //     return false;
-    // }
-
     return true;
 }
 
@@ -787,8 +752,6 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
         if (this->postprocessing == AMBIENT_OCCLUSION)
             this->PostprocessingSSAO();
-        else if (this->postprocessing == SILHOUETTE)
-            this->PostprocessingSilhouette();
     }
 
     glPopMatrix();
@@ -844,10 +807,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->coloringModeParam0.ResetDirty();
         this->coloringModeParam1.ResetDirty();
         this->cmWeightParam.ResetDirty();
-    }
-    if (this->silhouettecolorParam.IsDirty()) {
-        this->SetSilhouetteColor(this->DecodeColor(this->silhouettecolorParam.Param<param::IntParam>()->Value()));
-        this->silhouettecolorParam.ResetDirty();
     }
     if (this->sigmaParam.IsDirty()) {
         this->sigma = this->sigmaParam.Param<param::FloatParam>()->Value();
@@ -1065,60 +1024,6 @@ void MoleculeSESRenderer::PostprocessingSSAO() {
 
     this->vfilterShader.Disable();
     // ----- END gaussian filtering + SSAO -----
-
-    glPopAttrib();
-
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    // END draw overlay
-}
-
-
-/*
- * postprocessing: use silhouette shader
- */
-void MoleculeSESRenderer::PostprocessingSilhouette() {
-    // START draw overlay
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
-
-    glPushAttrib(GL_LIGHTING_BIT);
-    glDisable(GL_LIGHTING);
-
-    // ----- START -----
-    glBindTexture(GL_TEXTURE_2D, this->depthTex0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, this->texture0);
-
-    this->silhouetteShader.Enable();
-
-    glUniform1iARB(this->silhouetteShader.ParameterLocation("tex"), 0);
-    glUniform1iARB(this->silhouetteShader.ParameterLocation("colorTex"), 1);
-    glUniform1fARB(this->silhouetteShader.ParameterLocation("difference"), 0.025f);
-    glColor4f(this->silhouetteColor.GetX(), this->silhouetteColor.GetY(), this->silhouetteColor.GetZ(), 1.0f);
-    glBegin(GL_QUADS);
-    glVertex2f(0.0f, 0.0f);
-    glVertex2f(1.0f, 0.0f);
-    glVertex2f(1.0f, 1.0f);
-    glVertex2f(0.0f, 1.0f);
-    glEnd();
-
-    this->silhouetteShader.Disable();
-    // ----- END -----
 
     glPopAttrib();
 
@@ -2608,7 +2513,6 @@ void MoleculeSESRenderer::deinitialise(void) {
     this->lightShader.Release();
     this->hfilterShader.Release();
     this->vfilterShader.Release();
-    this->silhouetteShader.Release();
 }
 
 

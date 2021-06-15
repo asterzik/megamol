@@ -43,7 +43,7 @@ namespace protein {
     class MoleculeSESRenderer : public megamol::core::view::Renderer3DModuleGL {
     public:
         /** postprocessing modi */
-        enum PostprocessingMode { NONE = 0, AMBIENT_OCCLUSION = 1, SILHOUETTE = 2 };
+        enum PostprocessingMode { NONE = 0, AMBIENT_OCCLUSION = 1 };
 
         /** render modi */
         enum RenderMode {
@@ -104,15 +104,6 @@ namespace protein {
         /** Set probe radius */
         void SetProbeRadius(const float rad) {
             probeRadius = rad;
-        };
-
-        /** set the color of the silhouette */
-        void SetSilhouetteColor(float r, float g, float b) {
-            silhouetteColor.Set(r, g, b);
-            codedSilhouetteColor = int(r * 255.0f) * 1000000 + int(g * 255.0f) * 1000 + int(b * 255.0f);
-        };
-        void SetSilhouetteColor(vislib::math::Vector<float, 3> color) {
-            SetSilhouetteColor(color.GetX(), color.GetY(), color.GetZ());
         };
 
     protected:
@@ -219,11 +210,6 @@ namespace protein {
         void PostprocessingContour();
 
         /**
-         * Postprocessing: use silhouette shader
-         */
-        void PostprocessingSilhouette();
-
-        /**
          * returns the color of the atom 'idx' for the current coloring mode
          *
          * @param idx The index of the atom.
@@ -302,7 +288,6 @@ namespace protein {
         megamol::core::param::ParamSlot coloringModeParam1;
         /** parameter slot for coloring mode weighting*/
         megamol::core::param::ParamSlot cmWeightParam;
-        megamol::core::param::ParamSlot silhouettecolorParam;
         megamol::core::param::ParamSlot sigmaParam;
         megamol::core::param::ParamSlot lambdaParam;
         /** parameter slot for min color of gradient color mode */
@@ -374,8 +359,6 @@ namespace protein {
         // shader for 1D gaussian filtering (postprocessing)
         vislib::graphics::gl::GLSLShader hfilterShader;
         vislib::graphics::gl::GLSLShader vfilterShader;
-        // shader for silhouette drawing (postprocessing)
-        vislib::graphics::gl::GLSLShader silhouetteShader;
         // shader for contour generation
         vislib::graphics::gl::GLSLShader contourShader;
         ////////////
@@ -471,10 +454,6 @@ namespace protein {
         std::vector<unsigned int> cutPlanesTexWidth, cutPlanesTexHeight;
         // data of the cutting planes texture
         std::vector<vislib::Array<float>> cutPlanesTexData;
-
-        // silhouette color
-        vislib::math::Vector<float, 3> silhouetteColor;
-        int codedSilhouetteColor;
 
         // start value for fogging
         float fogStart;
