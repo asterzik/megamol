@@ -52,7 +52,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , minGradColorParam("color::minGradColor", "The color for the minimum value for gradient coloring")
         , midGradColorParam("color::midGradColor", "The color for the middle value for gradient coloring")
         , maxGradColorParam("color::maxGradColor", "The color for the maximum value for gradient coloring")
-        , debugParam("drawRS", "Draw the Reduced Surface: ")
         , drawSESParam("drawSES", "Draw the SES: ")
         , drawSASParam("drawSAS", "Draw the SAS: ")
         , fogstartParam("fogStart", "Fog Start: ")
@@ -145,11 +144,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->maxGradColorParam.SetParameter(new param::StringParam("#ae3b32"));
     this->MakeSlotAvailable(&this->maxGradColorParam);
 
-    // ----- draw RS param -----
-    this->drawRS = false;
-    param::BoolParam* bpm = new param::BoolParam(this->drawRS);
-    this->debugParam << bpm;
-
     // ----- draw SES param -----
     this->drawSES = true;
     param::BoolParam* sespm = new param::BoolParam(this->drawSES);
@@ -237,7 +231,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->MakeSlotAvailable(&this->rendermodeParam);
     this->MakeSlotAvailable(&this->postprocessingParam);
     this->MakeSlotAvailable(&this->fogstartParam);
-    this->MakeSlotAvailable(&this->debugParam);
     this->MakeSlotAvailable(&this->drawSESParam);
     this->MakeSlotAvailable(&this->drawSASParam);
     this->MakeSlotAvailable(&this->offscreenRenderingParam);
@@ -631,13 +624,6 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_ARB);
     glEnable(GL_VERTEX_PROGRAM_TWO_SIDE);
 
-    if (this->drawRS) {
-        this->RenderDebugStuff(mol);
-        // DEMO
-        glPopMatrix();
-        return true;
-    }
-
     // start rendering to frame buffer object
     if (this->postprocessing != NONE) {
         glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->colorFBO);
@@ -717,10 +703,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (this->fogstartParam.IsDirty()) {
         this->fogStart = this->fogstartParam.Param<param::FloatParam>()->Value();
         this->fogstartParam.ResetDirty();
-    }
-    if (this->debugParam.IsDirty()) {
-        this->drawRS = this->debugParam.Param<param::BoolParam>()->Value();
-        this->debugParam.ResetDirty();
     }
     if (this->drawSESParam.IsDirty()) {
         this->drawSES = this->drawSESParam.Param<param::BoolParam>()->Value();
@@ -1280,117 +1262,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
     // delete pointers
     delete[] clearColor;
 }
-
-
-/*
- * Render debug stuff
- */
-void MoleculeSESRenderer::RenderDebugStuff(const MolecularDataCall* mol) {
-    // --> USAGE: UNCOMMENT THE NEEDED PARTS
-
-    // temporary variables
-    unsigned int max1, max2;
-    max1 = max2 = 0;
-    vislib::math::Vector<float, 3> v1, v2, v3, n1;
-    v1.Set(0, 0, 0);
-    v2 = v3 = n1 = v1;
-
-    //////////////////////////////////////////////////////////////////////////
-    // Draw reduced surface
-    //////////////////////////////////////////////////////////////////////////
-    this->RenderAtomsGPU(mol, 0.2f);
-    vislib::math::Quaternion<float> quatC;
-    quatC.Set(0, 0, 0, 1);
-    vislib::math::Vector<float, 3> firstAtomPos, secondAtomPos;
-    vislib::math::Vector<float, 3> tmpVec, ortho, dir, position;
-    float angle;
-    // set viewport
-    auto resolution = cameraInfo.resolution_gate();
-    glm::vec4 viewportStuff;
-    viewportStuff[0] = 0.0f;
-    viewportStuff[1] = 0.0f;
-    viewportStuff[2] = static_cast<float>(resolution.width());
-    viewportStuff[3] = static_cast<float>(resolution.height());
-    if (viewportStuff[2] < 1.0f)
-        viewportStuff[2] = 1.0f;
-    if (viewportStuff[3] < 1.0f)
-        viewportStuff[3] = 1.0f;
-    viewportStuff[2] = 2.0f / viewportStuff[2];
-    viewportStuff[3] = 2.0f / viewportStuff[3];
-
-    glm::vec4 camdir = cameraInfo.view_vector();
-    glm::vec4 right = cameraInfo.right_vector();
-    glm::vec4 up = cameraInfo.up_vector();
-    // enable cylinder shader
-    this->cylinderShader.Enable();
-    // set shader variables
-    glUniform4fvARB(this->cylinderShader.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-    glUniform3fvARB(this->cylinderShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-    glUniform3fvARB(this->cylinderShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-    glUniform3fvARB(this->cylinderShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-    // get the attribute locations
-    GLint attribLocInParams = glGetAttribLocation(this->cylinderShader, "inParams");
-    GLint attribLocQuatC = glGetAttribLocation(this->cylinderShader, "quatC");
-    GLint attribLocColor1 = glGetAttribLocation(this->cylinderShader, "color1");
-    GLint attribLocColor2 = glGetAttribLocation(this->cylinderShader, "color2");
-    glBegin(GL_POINTS);
-    max1 = (unsigned int) this->reducedSurface.size();
-    for (unsigned int cntRS = 0; cntRS < max1; ++cntRS) {
-        max2 = this->reducedSurface[cntRS]->GetRSEdgeCount();
-        for (unsigned int j = 0; j < max2; ++j) {
-            firstAtomPos = this->reducedSurface[cntRS]->GetRSEdge(j)->GetVertex1()->GetPosition();
-            secondAtomPos = this->reducedSurface[cntRS]->GetRSEdge(j)->GetVertex2()->GetPosition();
-
-            // compute the quaternion for the rotation of the cylinder
-            dir = secondAtomPos - firstAtomPos;
-            tmpVec.Set(1.0f, 0.0f, 0.0f);
-            angle = -tmpVec.Angle(dir);
-            ortho = tmpVec.Cross(dir);
-            ortho.Normalise();
-            quatC.Set(angle, ortho);
-            // compute the absolute position 'position' of the cylinder (center point)
-            position = firstAtomPos + (dir / 2.0f);
-
-            // draw vertex and attributes
-            glVertexAttrib2f(attribLocInParams, 0.12f, (firstAtomPos - secondAtomPos).Length());
-            glVertexAttrib4fv(attribLocQuatC, quatC.PeekComponents());
-            glVertexAttrib3f(attribLocColor1, 1.0f, 0.5f, 0.0f);
-            glVertexAttrib3f(attribLocColor2, 1.0f, 0.5f, 0.0f);
-            glVertex4f(position.GetX(), position.GetY(), position.GetZ(), 1.0f);
-        }
-    }
-    glEnd(); // GL_POINTS
-    // disable cylinder shader
-    this->cylinderShader.Disable();
-
-    glEnable(GL_COLOR_MATERIAL);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_TRIANGLES);
-    glDisable(GL_CULL_FACE);
-    this->lightShader.Enable();
-    unsigned int i;
-    for (unsigned int cntRS = 0; cntRS < max1; ++cntRS) {
-        max2 = this->reducedSurface[cntRS]->GetRSFaceCount();
-        for (i = 0; i < max2; ++i) {
-            n1 = this->reducedSurface[cntRS]->GetRSFace(i)->GetFaceNormal();
-            v1 = this->reducedSurface[cntRS]->GetRSFace(i)->GetVertex1()->GetPosition();
-            v2 = this->reducedSurface[cntRS]->GetRSFace(i)->GetVertex2()->GetPosition();
-            v3 = this->reducedSurface[cntRS]->GetRSFace(i)->GetVertex3()->GetPosition();
-
-            glBegin(GL_TRIANGLES);
-            glNormal3fv(n1.PeekComponents());
-            glColor3f(1.0f, 0.8f, 0.0f);
-            glVertex3fv(v1.PeekComponents());
-            // glColor3f( 0.0f, 0.7f, 0.7f);
-            glVertex3fv(v2.PeekComponents());
-            // glColor3f( 0.7f, 0.0f, 0.7f);
-            glVertex3fv(v3.PeekComponents());
-            glEnd(); // GL_TRIANGLES
-        }
-    }
-    this->lightShader.Disable();
-    glDisable(GL_COLOR_MATERIAL);
-}
-
 
 /*
  * Compute the vertex and attribute arrays for the raycasting shaders
@@ -2150,66 +2021,6 @@ void MoleculeSESRenderer::CreateSingularityTexture(unsigned int idxRS) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-
-/*
- * Render all atoms
- */
-void MoleculeSESRenderer::RenderAtomsGPU(const MolecularDataCall* mol, const float scale) {
-    unsigned int cnt, cntRS, max1, max2;
-
-    auto resolution = cameraInfo.resolution_gate();
-
-    // set viewport
-    glm::vec4 viewportStuff;
-    viewportStuff[0] = 0.0f;
-    viewportStuff[1] = 0.0f;
-    viewportStuff[2] = static_cast<float>(resolution.width());
-    viewportStuff[3] = static_cast<float>(resolution.height());
-    if (viewportStuff[2] < 1.0f)
-        viewportStuff[2] = 1.0f;
-    if (viewportStuff[3] < 1.0f)
-        viewportStuff[3] = 1.0f;
-    viewportStuff[2] = 2.0f / viewportStuff[2];
-    viewportStuff[3] = 2.0f / viewportStuff[3];
-
-    glm::vec4 right = this->cameraInfo.right_vector();
-    glm::vec4 camdir = this->cameraInfo.view_vector();
-    glm::vec4 up = this->cameraInfo.up_vector();
-
-    // enable sphere shader
-    this->sphereShader.Enable();
-    // set shader variables
-    glUniform4fvARB(this->sphereShader.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-    glUniform3fvARB(this->sphereShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-    glUniform3fvARB(this->sphereShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-    glUniform3fvARB(this->sphereShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-
-    glBegin(GL_POINTS);
-
-    glColor3f(1.0f, 0.0f, 0.0f);
-    max1 = (unsigned int) this->reducedSurface.size();
-    for (cntRS = 0; cntRS < max1; ++cntRS) {
-        max2 = this->reducedSurface[cntRS]->GetRSVertexCount();
-        // loop over all protein atoms
-        for (cnt = 0; cnt < max2; ++cnt) {
-            if (this->reducedSurface[cntRS]->GetRSVertex(cnt)->IsBuried())
-                continue;
-            // glColor3ubv( protein->AtomTypes()[protein->ProteinAtomData()[this->reducedSurface[cntRS]->GetRSVertex(
-            // cnt)->GetIndex()].TypeIndex()].Colour());
-            glColor3f(1.0f, 0.0f, 0.0f);
-            glVertex4f(this->reducedSurface[cntRS]->GetRSVertex(cnt)->GetPosition().GetX(),
-                this->reducedSurface[cntRS]->GetRSVertex(cnt)->GetPosition().GetY(),
-                this->reducedSurface[cntRS]->GetRSVertex(cnt)->GetPosition().GetZ(),
-                this->reducedSurface[cntRS]->GetRSVertex(cnt)->GetRadius() * scale);
-        }
-    }
-
-    glEnd(); // GL_POINTS
-
-    // disable sphere shader
-    this->sphereShader.Disable();
 }
 
 

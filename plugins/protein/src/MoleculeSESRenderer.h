@@ -119,14 +119,6 @@ namespace protein {
         virtual void release(void);
 
         /**
-         * Render atoms as spheres using GLSL Raycasting shaders.
-         *
-         * @param protein The protein data interface.
-         * @param scale The scale factor for the atom radius.
-         */
-        void RenderAtomsGPU(const megamol::protein_calls::MolecularDataCall* mol, const float scale = 1.0f);
-
-        /**
          * Renders the probe atom at position 'm'.
          *
          * @param m The probe position.
@@ -185,13 +177,6 @@ namespace protein {
          * @param protein Pointer to the protein data interface.
          */
         void RenderSESGpuRaycasting(const megamol::protein_calls::MolecularDataCall* mol);
-
-        /**
-         * Render debug stuff --- THIS IS ONLY FOR DEBUGGING PURPOSES, REMOVE IN FINAL VERSION!!!
-         *
-         * @param protein Pointer to the protein data interface.
-         */
-        void RenderDebugStuff(const megamol::protein_calls::MolecularDataCall* mol);
 
         /**
          * Build pyramid from pull-push algorithm
@@ -289,7 +274,6 @@ namespace protein {
         /** parameter slot for max color of gradient color mode */
         megamol::core::param::ParamSlot maxGradColorParam;
         megamol::core::param::ParamSlot fogstartParam;
-        megamol::core::param::ParamSlot debugParam;
         megamol::core::param::ParamSlot drawSESParam;
         megamol::core::param::ParamSlot drawSASParam;
         megamol::core::param::ParamSlot molIdxListParam;
@@ -316,7 +300,6 @@ namespace protein {
         GLfloat SCDiffThreshold;
 
 
-        bool drawRS;
         bool drawSES;
         bool drawSAS;
         bool offscreenRendering;
