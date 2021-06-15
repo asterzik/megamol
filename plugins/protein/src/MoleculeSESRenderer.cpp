@@ -45,7 +45,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , molDataCallerSlot("getData", "Connects the protein SES rendering with protein data storage")
         , bsDataCallerSlot("getBindingSites", "Connects the molecule rendering with binding site data storage")
         , postprocessingParam("postProcessingMode", "Enable Postprocessing Mode: ")
-        , rendermodeParam("renderingMode", "Choose Render Mode: ")
         , coloringModeParam0("color::coloringMode0", "The first coloring mode.")
         , coloringModeParam1("color::coloringMode1", "The second coloring mode.")
         , cmWeightParam("color::colorWeighting", "The weighting of the two coloring modes.")
@@ -91,16 +90,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     param::EnumParam* ppm = new param::EnumParam(int(this->postprocessing));
     ppm->SetTypePair(NONE, "None");
     this->postprocessingParam << ppm;
-
-    // ----- choose current render mode -----
-    this->currentRendermode = GPU_RAYCASTING;
-    // this->currentRendermode = POLYGONAL;
-    // this->currentRendermode = POLYGONAL_GPU;
-    // this->currentRendermode = GPU_RAYCASTING_INTERIOR_CLIPPING;
-    // this->currentRendermode = GPU_SIMPLIFIED;
-    param::EnumParam* rm = new param::EnumParam(int(this->currentRendermode));
-    rm->SetTypePair(GPU_RAYCASTING, "GPU Ray Casting");
-    this->rendermodeParam << rm;
 
     // ----- set start value for fogging -----
     this->fogStart = 0.5f;
@@ -228,7 +217,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->preComputationDone = false;
 
 #pragma region // export parameters
-    this->MakeSlotAvailable(&this->rendermodeParam);
     this->MakeSlotAvailable(&this->postprocessingParam);
     this->MakeSlotAvailable(&this->fogstartParam);
     this->MakeSlotAvailable(&this->drawSESParam);
@@ -542,42 +530,40 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     // ==================== Precomputations ====================
 
-    if (this->currentRendermode == GPU_RAYCASTING) {
 
-        this->probeRadius = this->probeRadiusSlot.Param<param::FloatParam>()->Value();
+    this->probeRadius = this->probeRadiusSlot.Param<param::FloatParam>()->Value();
 
-        // init the reduced surfaces
-        if (this->reducedSurface.empty()) {
-            time_t t = clock();
-            // create the reduced surface
-            unsigned int chainIds;
-            if (!this->computeSesPerMolecule) {
-                this->reducedSurface.push_back(new ReducedSurface(mol, this->probeRadius));
-                this->reducedSurface.back()->ComputeReducedSurface();
+    // init the reduced surfaces
+    if (this->reducedSurface.empty()) {
+        time_t t = clock();
+        // create the reduced surface
+        unsigned int chainIds;
+        if (!this->computeSesPerMolecule) {
+            this->reducedSurface.push_back(new ReducedSurface(mol, this->probeRadius));
+            this->reducedSurface.back()->ComputeReducedSurface();
+        } else {
+            // if no molecule indices are given, compute the SES for all molecules
+            if (this->molIdxList.IsEmpty()) {
+                for (chainIds = 0; chainIds < mol->MoleculeCount(); ++chainIds) {
+                    this->reducedSurface.push_back(new ReducedSurface(chainIds, mol, this->probeRadius));
+                    this->reducedSurface.back()->ComputeReducedSurface();
+                }
             } else {
-                // if no molecule indices are given, compute the SES for all molecules
-                if (this->molIdxList.IsEmpty()) {
-                    for (chainIds = 0; chainIds < mol->MoleculeCount(); ++chainIds) {
-                        this->reducedSurface.push_back(new ReducedSurface(chainIds, mol, this->probeRadius));
-                        this->reducedSurface.back()->ComputeReducedSurface();
-                    }
-                } else {
-                    // else compute the SES for all selected molecules
-                    for (chainIds = 0; chainIds < this->molIdxList.Count(); ++chainIds) {
-                        this->reducedSurface.push_back(
-                            new ReducedSurface(atoi(this->molIdxList[chainIds]), mol, this->probeRadius));
-                        this->reducedSurface.back()->ComputeReducedSurface();
-                    }
+                // else compute the SES for all selected molecules
+                for (chainIds = 0; chainIds < this->molIdxList.Count(); ++chainIds) {
+                    this->reducedSurface.push_back(
+                        new ReducedSurface(atoi(this->molIdxList[chainIds]), mol, this->probeRadius));
+                    this->reducedSurface.back()->ComputeReducedSurface();
                 }
             }
-            megamol::core::utility::log::Log::DefaultLog.WriteMsg(megamol::core::utility::log::Log::LEVEL_INFO,
-                "%s: RS computed in: %f s\n", this->ClassName(), (double(clock() - t) / double(CLOCKS_PER_SEC)));
         }
-        // update the data / the RS
-        for (cntRS = 0; cntRS < this->reducedSurface.size(); ++cntRS) {
-            if (this->reducedSurface[cntRS]->UpdateData(1.0f, 5.0f)) {
-                this->ComputeRaycastingArrays(cntRS);
-            }
+        megamol::core::utility::log::Log::DefaultLog.WriteMsg(megamol::core::utility::log::Log::LEVEL_INFO,
+            "%s: RS computed in: %f s\n", this->ClassName(), (double(clock() - t) / double(CLOCKS_PER_SEC)));
+    }
+    // update the data / the RS
+    for (cntRS = 0; cntRS < this->reducedSurface.size(); ++cntRS) {
+        if (this->reducedSurface[cntRS]->UpdateData(1.0f, 5.0f)) {
+            this->ComputeRaycastingArrays(cntRS);
         }
     }
 
@@ -590,9 +576,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
             this->minGradColorParam.Param<param::StringParam>()->Value(),
             this->midGradColorParam.Param<param::StringParam>()->Value(),
             this->maxGradColorParam.Param<param::StringParam>()->Value(), true, bs);
-        // compute the data needed for the current render mode
-        if (this->currentRendermode == GPU_RAYCASTING)
-            this->ComputeRaycastingArrays();
+        this->ComputeRaycastingArrays();
         // set the precomputation of the data as done
         this->preComputationDone = true;
     }
@@ -630,10 +614,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    // render the SES
-    if (this->currentRendermode == GPU_RAYCASTING) {
-        this->RenderSESGpuRaycasting(mol);
-    }
+    this->RenderSESGpuRaycasting(mol);
 
     //////////////////////////////////
     // apply postprocessing effects //
@@ -675,11 +656,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->postprocessing =
             static_cast<PostprocessingMode>(this->postprocessingParam.Param<param::EnumParam>()->Value());
         this->postprocessingParam.ResetDirty();
-    }
-    if (this->rendermodeParam.IsDirty()) {
-        this->currentRendermode = static_cast<RenderMode>(this->rendermodeParam.Param<param::EnumParam>()->Value());
-        this->rendermodeParam.ResetDirty();
-        this->preComputationDone = false;
     }
     if (this->coloringModeParam0.IsDirty() || this->coloringModeParam1.IsDirty() || this->cmWeightParam.IsDirty()) {
         this->currentColoringMode0 =
@@ -2021,50 +1997,6 @@ void MoleculeSESRenderer::CreateSingularityTexture(unsigned int idxRS) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-
-/*
- * Renders the probe at postion 'm'
- */
-void MoleculeSESRenderer::RenderProbeGPU(const vislib::math::Vector<float, 3> m) {
-    // set viewport
-    auto& resolution = cameraInfo.resolution_gate();
-
-    // set viewport
-    glm::vec4 viewportStuff;
-    viewportStuff[0] = 0.0f;
-    viewportStuff[1] = 0.0f;
-    viewportStuff[2] = static_cast<float>(resolution.width());
-    viewportStuff[3] = static_cast<float>(resolution.height());
-    if (viewportStuff[2] < 1.0f)
-        viewportStuff[2] = 1.0f;
-    if (viewportStuff[3] < 1.0f)
-        viewportStuff[3] = 1.0f;
-    viewportStuff[2] = 2.0f / viewportStuff[2];
-    viewportStuff[3] = 2.0f / viewportStuff[3];
-
-    glm::vec4 right = this->cameraInfo.right_vector();
-    glm::vec4 camdir = this->cameraInfo.view_vector();
-    glm::vec4 up = this->cameraInfo.up_vector();
-
-    // enable sphere shader
-    this->sphereShader.Enable();
-    // set shader variables
-    glUniform4fvARB(this->sphereShader.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-    glUniform3fvARB(this->sphereShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-    glUniform3fvARB(this->sphereShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-    glUniform3fvARB(this->sphereShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-
-    this->probeRadius = this->probeRadiusSlot.Param<param::FloatParam>()->Value();
-
-    glBegin(GL_POINTS);
-    glColor3f(1.0f, 1.0f, 1.0f);
-    glVertex4f(m.GetX(), m.GetY(), m.GetZ(), probeRadius);
-    glEnd();
-
-    // disable sphere shader
-    this->sphereShader.Disable();
 }
 
 

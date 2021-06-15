@@ -45,14 +45,6 @@ namespace protein {
         /** postprocessing modi */
         enum PostprocessingMode { NONE = 0 };
 
-        /** render modi */
-        enum RenderMode {
-            GPU_RAYCASTING = 0,
-            // POLYGONAL = 1,
-            // POLYGONAL_GPU = 2,
-            GPU_SIMPLIFIED = 4
-        };
-
         /**
          * Answer the name of this module.
          *
@@ -260,7 +252,6 @@ namespace protein {
         core::view::Camera_2 MoleculeSESRenderercameraInfo;
 
         megamol::core::param::ParamSlot postprocessingParam;
-        megamol::core::param::ParamSlot rendermodeParam;
         /** parameter slot for coloring mode */
         megamol::core::param::ParamSlot coloringModeParam0;
         /** parameter slot for coloring mode */
@@ -348,8 +339,6 @@ namespace protein {
         /** 'true' if the data for the current render mode is computed, 'false' otherwise */
         bool preComputationDone;
 
-        /** current render mode */
-        RenderMode currentRendermode;
         /** The current coloring mode */
         Color::ColoringMode currentColoringMode0;
         Color::ColoringMode currentColoringMode1;
