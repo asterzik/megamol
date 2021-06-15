@@ -216,14 +216,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
-#pragma region // set the FBOs and textures for post processing
     this->colorFBO = 0;
-    this->blendFBO = 0;
-    this->horizontalFilterFBO = 0;
-    this->verticalFilterFBO = 0;
     this->texture0 = 0;
     this->depthTex0 = 0;
-#pragma endregion set the FBOs and textures for post processing
     this->contourFBO = 0;
     this->contourDepthRBO = 0;
 
@@ -256,9 +251,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     if (colorFBO) {
         glDeleteFramebuffersEXT(1, &colorFBO);
-        glDeleteFramebuffersEXT(1, &blendFBO);
-        glDeleteFramebuffersEXT(1, &horizontalFilterFBO);
-        glDeleteFramebuffersEXT(1, &verticalFilterFBO);
         glDeleteTextures(1, &texture0);
         glDeleteTextures(1, &depthTex0);
         glDeleteTextures(1, &texture1);
@@ -867,9 +859,6 @@ void MoleculeSESRenderer::PostprocessingContour() {
 void MoleculeSESRenderer::CreateFBO() {
     if (colorFBO) {
         glDeleteFramebuffersEXT(1, &colorFBO);
-        glDeleteFramebuffersEXT(1, &blendFBO);
-        glDeleteFramebuffersEXT(1, &horizontalFilterFBO);
-        glDeleteFramebuffersEXT(1, &verticalFilterFBO);
         glDeleteFramebuffers(1, &contourFBO);
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &texture0);
@@ -880,9 +869,6 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &positionTexture);
     }
     glGenFramebuffersEXT(1, &colorFBO);
-    glGenFramebuffersEXT(1, &blendFBO);
-    glGenFramebuffersEXT(1, &horizontalFilterFBO);
-    glGenFramebuffersEXT(1, &verticalFilterFBO);
     glGenFramebuffers(1, &contourFBO);
     glGenTextures(1, &texture0);
     glGenTextures(1, &depthTex0);
@@ -2216,30 +2202,6 @@ void MoleculeSESRenderer::RenderAtomsGPU(const MolecularDataCall* mol, const flo
 /*
  * Renders the probe at postion 'm'
  */
-/*
-void MoleculeSESRenderer::RenderProbe(const vislib::math::Vector<float, 3> m) {
-    GLUquadricObj* sphere = gluNewQuadric();
-    gluQuadricNormals(sphere, GL_SMOOTH);
-
-    this->probeRadius = this->probeRadiusSlot.Param<param::FloatParam>()->Value();
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-    glPushMatrix();
-    glTranslatef(m.GetX(), m.GetY(), m.GetZ());
-    glColor4f(1.0f, 1.0f, 1.0f, 0.6f);
-    gluSphere(sphere, probeRadius, 16, 8);
-    glPopMatrix();
-
-    glDisable(GL_BLEND);
-}
-*/
-
-
-/*
- * Renders the probe at postion 'm'
- */
 void MoleculeSESRenderer::RenderProbeGPU(const vislib::math::Vector<float, 3> m) {
     // set viewport
     auto& resolution = cameraInfo.resolution_gate();
@@ -2287,9 +2249,6 @@ void MoleculeSESRenderer::RenderProbeGPU(const vislib::math::Vector<float, 3> m)
 void MoleculeSESRenderer::deinitialise(void) {
     if (colorFBO) {
         glDeleteFramebuffersEXT(1, &colorFBO);
-        glDeleteFramebuffersEXT(1, &blendFBO);
-        glDeleteFramebuffersEXT(1, &horizontalFilterFBO);
-        glDeleteFramebuffersEXT(1, &verticalFilterFBO);
         glDeleteTextures(1, &texture0);
         glDeleteTextures(1, &depthTex0);
         glDeleteTextures(1, &texture1);

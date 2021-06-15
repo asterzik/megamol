@@ -401,9 +401,6 @@ namespace protein {
 
         // FBOs and textures for postprocessing
         GLuint colorFBO;
-        GLuint blendFBO;
-        GLuint horizontalFilterFBO;
-        GLuint verticalFilterFBO;
         GLuint texture0;
         GLuint depthTex0;
         GLuint texture1;
