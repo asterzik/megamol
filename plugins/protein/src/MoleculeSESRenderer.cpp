@@ -44,7 +44,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         : Renderer3DModuleGL()
         , molDataCallerSlot("getData", "Connects the protein SES rendering with protein data storage")
         , bsDataCallerSlot("getBindingSites", "Connects the molecule rendering with binding site data storage")
-        , postprocessingParam("postProcessingMode", "Enable Postprocessing Mode: ")
         , coloringModeParam0("color::coloringMode0", "The first coloring mode.")
         , coloringModeParam1("color::coloringMode1", "The second coloring mode.")
         , cmWeightParam("color::colorWeighting", "The weighting of the two coloring modes.")
@@ -83,13 +82,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 
     this->probeRadiusSlot.SetParameter(new param::FloatParam(1.4f, 0.1f));
     this->MakeSlotAvailable(&this->probeRadiusSlot);
-
-    // ----- en-/disable postprocessing -----
-    this->postprocessing = NONE;
-    param::EnumParam* ppm = new param::EnumParam(int(this->postprocessing));
-    ppm->SetTypePair(NONE, "None");
-    this->postprocessingParam << ppm;
-
 
     // coloring modes
     this->currentColoringMode0 = Color::CHAIN;
@@ -194,9 +186,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
-    this->colorFBO = 0;
-    this->texture0 = 0;
-    this->depthTex0 = 0;
     this->contourFBO = 0;
     this->contourDepthRBO = 0;
 
@@ -212,7 +201,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->preComputationDone = false;
 
 #pragma region // export parameters
-    this->MakeSlotAvailable(&this->postprocessingParam);
     this->MakeSlotAvailable(&this->drawSESParam);
     this->MakeSlotAvailable(&this->drawSASParam);
     this->MakeSlotAvailable(&this->offscreenRenderingParam);
@@ -224,12 +212,11 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
  * MoleculeSESRenderer::~MoleculeSESRenderer
  */
 MoleculeSESRenderer::~MoleculeSESRenderer(void) {
-    if (colorFBO) {
-        glDeleteFramebuffersEXT(1, &colorFBO);
-        glDeleteTextures(1, &texture0);
-        glDeleteTextures(1, &depthTex0);
-        glDeleteTextures(1, &texture1);
-        glDeleteTextures(1, &depthTex1);
+    if (contourFBO) {
+        glDeleteFramebuffers(1, &contourFBO);
+        glDeleteRenderbuffers(1, &contourDepthRBO);
+        glDeleteTextures(1, &normalTexture);
+        glDeleteTextures(1, &positionTexture);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
@@ -602,20 +589,26 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_ARB);
     glEnable(GL_VERTEX_PROGRAM_TWO_SIDE);
 
+    // get clear color (i.e. background color
+    float* clearColor = new float[4];
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColor);
+    clear_color = glm::vec4(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+    // delete pointers
+    delete[] clearColor;
+
+
     // start rendering to frame buffer object
-    if (this->postprocessing != NONE) {
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->colorFBO);
+    if (offscreenRendering) {
+        glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
+        glClearColor(0.0, 0.0, 0.0, 0.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
     this->RenderSESGpuRaycasting(mol);
 
-    //////////////////////////////////
-    // apply postprocessing effects //
-    //////////////////////////////////
-    if (this->postprocessing != NONE) {
+    if (offscreenRendering) {
         // stop rendering to frame buffer object
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 1);
     }
 
     glPopMatrix();
@@ -646,11 +639,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     // variables
     bool recomputeColors = false;
     // ==================== check parameters ====================
-    if (this->postprocessingParam.IsDirty()) {
-        this->postprocessing =
-            static_cast<PostprocessingMode>(this->postprocessingParam.Param<param::EnumParam>()->Value());
-        this->postprocessingParam.ResetDirty();
-    }
     if (this->coloringModeParam0.IsDirty() || this->coloringModeParam1.IsDirty() || this->cmWeightParam.IsDirty()) {
         this->currentColoringMode0 =
             static_cast<Color::ColoringMode>(this->coloringModeParam0.Param<param::EnumParam>()->Value());
@@ -779,6 +767,7 @@ void MoleculeSESRenderer::PostprocessingContour() {
      */
 
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
 
     this->contourShader.Enable();
@@ -801,9 +790,6 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     this->contourShader.Disable();
-    int default_fbo;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &default_fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
     // glDeleteVertexArrays(1, &quadVAO);
     // glDeleteBuffers(1, &quadVBO);
 }
@@ -812,51 +798,17 @@ void MoleculeSESRenderer::PostprocessingContour() {
  * Create the fbo and texture needed for offscreen rendering
  */
 void MoleculeSESRenderer::CreateFBO() {
-    if (colorFBO) {
-        glDeleteFramebuffersEXT(1, &colorFBO);
+    if (contourFBO) {
         glDeleteFramebuffers(1, &contourFBO);
         glDeleteRenderbuffers(1, &contourDepthRBO);
-        glDeleteTextures(1, &texture0);
-        glDeleteTextures(1, &depthTex0);
-        glDeleteTextures(1, &texture1);
-        glDeleteTextures(1, &depthTex1);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
     }
-    glGenFramebuffersEXT(1, &colorFBO);
     glGenFramebuffers(1, &contourFBO);
-    glGenTextures(1, &texture0);
-    glGenTextures(1, &depthTex0);
-    glGenTextures(1, &texture1);
-    glGenTextures(1, &depthTex1);
     glGenTextures(1, &normalTexture);
     glGenTextures(1, &positionTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
 
-    // color and depth FBO
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, this->colorFBO);
-    // init texture0 (color)
-    glBindTexture(GL_TEXTURE_2D, texture0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16_EXT, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, texture0, 0);
-    // init depth texture
-    glBindTexture(GL_TEXTURE_2D, depthTex0);
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, this->width, this->height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, this->depthTex0, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
     // contour FBO
     glBindFramebuffer(GL_FRAMEBUFFER, this->contourFBO);
 
@@ -893,6 +845,8 @@ void MoleculeSESRenderer::CreateFBO() {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void MoleculeSESRenderer::CreateQuadBuffers() {
@@ -958,11 +912,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
     float farplane = cameraInfo.far_clipping_plane();
 #pragma endregion // set camerastuff
 
-    // get clear color (i.e. background color
-    float* clearColor = new float[4];
-    glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColor);
-    vislib::math::Vector<float, 3> fogCol(clearColor[0], clearColor[1], clearColor[2]);
-
     unsigned int cntRS;
 
     for (cntRS = 0; cntRS < this->reducedSurface.size(); ++cntRS) {
@@ -978,13 +927,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         if (this->drawSES) {
 #pragma region // torus shader
             if (offscreenRendering) {
-
-                // Bind Framebuffer for offscreen rendering
-                glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
-                // Make sure the background color does not interfere with the data
-                glClearColor(0.0, 0.0, 0.0, 0.0);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
                 this->torusShaderOR.Enable();
 
 #pragma region // set shader variables and attributes
@@ -1212,8 +1154,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             this->PostprocessingContour();
         }
     }
-    // delete pointers
-    delete[] clearColor;
 }
 
 /*
@@ -1981,12 +1921,11 @@ void MoleculeSESRenderer::CreateSingularityTexture(unsigned int idxRS) {
  * MoleculeSESRenderer::deinitialise
  */
 void MoleculeSESRenderer::deinitialise(void) {
-    if (colorFBO) {
-        glDeleteFramebuffersEXT(1, &colorFBO);
-        glDeleteTextures(1, &texture0);
-        glDeleteTextures(1, &depthTex0);
-        glDeleteTextures(1, &texture1);
-        glDeleteTextures(1, &depthTex1);
+    if (contourFBO) {
+        glDeleteFramebuffers(1, &contourFBO);
+        glDeleteRenderbuffers(1, &contourDepthRBO);
+        glDeleteTextures(1, &normalTexture);
+        glDeleteTextures(1, &positionTexture);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)

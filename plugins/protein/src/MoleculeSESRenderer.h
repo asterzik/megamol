@@ -42,9 +42,6 @@ namespace protein {
      */
     class MoleculeSESRenderer : public megamol::core::view::Renderer3DModuleGL {
     public:
-        /** postprocessing modi */
-        enum PostprocessingMode { NONE = 0 };
-
         /**
          * Answer the name of this module.
          *
@@ -250,8 +247,6 @@ namespace protein {
         // camera information
         // vislib::SmartPtr<vislib::graphics::CameraParameters> MoleculeSESRenderercameraInfo;
         core::view::Camera_2 MoleculeSESRenderercameraInfo;
-
-        megamol::core::param::ParamSlot postprocessingParam;
         /** parameter slot for coloring mode */
         megamol::core::param::ParamSlot coloringModeParam0;
         /** parameter slot for coloring mode */
@@ -306,6 +301,9 @@ namespace protein {
         Pyramid pyramid; // Normal smoothing
         Pyramid depthPyramid;
 
+
+        glm::vec4 clear_color;
+
         // shader for the cylinders (raycasting view)
         vislib::graphics::gl::GLSLShader cylinderShader;
         // shader for the spheres (raycasting view)
@@ -341,8 +339,6 @@ namespace protein {
         /** The current coloring mode */
         Color::ColoringMode currentColoringMode0;
         Color::ColoringMode currentColoringMode1;
-        /** postprocessing mode */
-        PostprocessingMode postprocessing;
 
         /** vertex and attribute arrays for raycasting the tori */
         std::vector<vislib::Array<float>> torusVertexArray;
@@ -368,11 +364,6 @@ namespace protein {
         std::vector<vislib::Array<float>> sphereColors;
 
         // FBOs and textures for postprocessing
-        GLuint colorFBO;
-        GLuint texture0;
-        GLuint depthTex0;
-        GLuint texture1;
-        GLuint depthTex1;
         GLuint contourFBO;
         GLuint normalTexture;
         GLuint positionTexture;
