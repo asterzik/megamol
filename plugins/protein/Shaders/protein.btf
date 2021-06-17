@@ -11445,6 +11445,7 @@ void main()
             uniform int radius;
             uniform float neighbourThreshold; //percentage s in original  SC paper //  in original paper 0.2
             uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
+            uniform bool medianFilter;
 
             void main()
             {
@@ -11550,11 +11551,6 @@ void main()
                         }
                     }
                 }
-                //TODO: Ich habe keine Ahnung, warum der Hintergrund schwarz bleibt...
-                // -Zurück Ändern der Clear Color zu blau nach dem rendern der normal und view textures
-                // funktioniert nicht
-                // DirektEinfluss nehmen auf die Farbe scheine ich auch nicht zu können. Als Ausgabe für die Frag Color des Backgrounds bekomme ich schwarz, also col=0.
-                // Wenn ich versuche für col = 0 FragColor auf rot zu stellen, bleibt der Hintergrund aber immernoch rot
                 if(darker > neighbourThreshold * total){
                     discard;
                 }
@@ -11563,15 +11559,17 @@ void main()
                 }
 
                 // //Median filtering
-                // for(int n = total-1; n > 0; n = n - 1){
-                //     for(int i = 0; i < n; ++i){
-                //         float minimum = min(filterValues[i], filterValues[i+1]);
-                //         filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
-                //         filterValues[i] = minimum;
-                //     }
-                // }
-                // // assign col to the median
-                // col = filterValues[int(floor(total * 1.0 / 2.0))];
+                if(medianFilter){
+                    for(int n = total-1; n > 0; n = n - 1){
+                        for(int i = 0; i < n; ++i){
+                            float minimum = min(filterValues[i], filterValues[i+1]);
+                            filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
+                            filterValues[i] = minimum;
+                        }
+                    }
+                    // assign col to the median
+                    col = filterValues[int(floor(total * 1.0 / 2.0))];
+                }
 
                 col = 1.0 - col; //invert color because background is dark
 

@@ -56,17 +56,18 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , colorTableFileParam("color::colorTableFilename", "The filename of the color table.")
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
-        , pyramidOnParam("pyramidOnParam", "Determines whether the pull-push algorithm is used or not")
+        , pyramidOnParam("pyramidOn", "Determines whether the pull-push algorithm is used or not")
         , pyramidWeightsParam(
-              "pyramidWeightsParam", "The factor for the weights in the pull phase of the pull-push algorithm")
-        , pyramidLayersParam("pyramidLayersParam", "Number of layers in the pull-push pyramid")
-        , pyramidGammaParam("pyramidGammaParam",
+              "pyramidWeights", "The factor for the weights in the pull phase of the pull-push algorithm")
+        , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push pyramid")
+        , pyramidGammaParam("pyramidGamma",
               "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
-        , SCRadiusParam("SCRadiusParam", "Radius to consider around one pixel for SC")
-        , SCNeighbourThresholdParam("SCNeighbourThresholdParam",
+        , SCRadiusParam("SCRadius", "Radius to consider around one pixel for SC")
+        , SCNeighbourThresholdParam("SCNeighbourThreshold",
               "How many darker pixels are allowed to be in the surrounding to still be rendered")
         , SCDiffThresholdParam(
-              "SCDiffThresholdParam", "How much intensity difference needs to be there, for the pixel to be rendered")
+              "SCDiffThreshold", "How much intensity difference needs to be there, for the pixel to be rendered")
+        , SCMedianFilterParam("SCMedianFilter", "Use median filter for suggestive contours?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -182,6 +183,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCDiffThreshold = 0.2f; // threshold d in original SC paper // in original paper 0.25
     this->SCDiffThresholdParam.SetParameter(new param::FloatParam(this->SCDiffThreshold, 0.0, 1.0));
     this->MakeSlotAvailable(&this->SCDiffThresholdParam);
+
+    this->SCMedianFilter = false;
+    this->SCMedianFilterParam.SetParameter(new param::BoolParam(this->SCMedianFilter));
+    this->MakeSlotAvailable(&this->SCMedianFilterParam);
 
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -713,9 +718,15 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->SCNeighbourThreshold = this->SCNeighbourThresholdParam.Param<param::FloatParam>()->Value();
         this->SCNeighbourThresholdParam.ResetDirty();
     }
-    if (this->SCNeighbourThresholdParam.IsDirty()) {
-        this->SCNeighbourThreshold = this->SCNeighbourThresholdParam.Param<param::FloatParam>()->Value();
-        this->SCNeighbourThresholdParam.ResetDirty();
+    if (this->SCDiffThresholdParam.IsDirty()) {
+
+        this->SCDiffThreshold = this->SCDiffThresholdParam.Param<param::FloatParam>()->Value();
+        this->SCDiffThresholdParam.ResetDirty();
+    }
+    if (this->SCMedianFilterParam.IsDirty()) {
+
+        this->SCMedianFilter = this->SCMedianFilterParam.Param<param::BoolParam>()->Value();
+        this->SCMedianFilterParam.ResetDirty();
     }
     if (recomputeColors) {
         this->preComputationDone = false;
@@ -774,6 +785,7 @@ void MoleculeSESRenderer::PostprocessingContour() {
     glUniform1i(contourShader.ParameterLocation("radius"), this->SCRadius);
     glUniform1f(contourShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
     glUniform1f(contourShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+    glUniform1i(contourShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
     glActiveTexture(GL_TEXTURE1);
     if (this->pyramidOn) {
         glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));

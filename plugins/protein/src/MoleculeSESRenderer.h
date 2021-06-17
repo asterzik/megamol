@@ -283,6 +283,8 @@ namespace protein {
         GLfloat SCNeighbourThreshold;
         megamol::core::param::ParamSlot SCDiffThresholdParam;
         GLfloat SCDiffThreshold;
+        megamol::core::param::ParamSlot SCMedianFilterParam;
+        GLboolean SCMedianFilter;
 
 
         bool drawSES;
