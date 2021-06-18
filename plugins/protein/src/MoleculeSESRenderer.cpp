@@ -56,7 +56,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , colorTableFileParam("color::colorTableFilename", "The filename of the color table.")
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
-        , pyramidOnParam("pyramidOn", "Determines whether the pull-push algorithm is used or not")
+        , smoothNormalsParam("smoothNormals", "Determines whether the pull-push algorithm is used or not")
         , pyramidWeightsParam(
               "pyramidWeights", "The factor for the weights in the pull phase of the pull-push algorithm")
         , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push pyramid")
@@ -68,6 +68,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCDiffThresholdParam(
               "SCDiffThreshold", "How much intensity difference needs to be there, for the pixel to be rendered")
         , SCMedianFilterParam("SCMedianFilter", "Use median filter for suggestive contours?")
+        , SCPyramidParam("SCPyramid", "Use hierarchical suggestive contours?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -150,9 +151,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 #pragma endregion Set parameters
 
     // Parameters for pyramid
-    this->pyramidOn = True;
-    this->pyramidOnParam.SetParameter(new param::BoolParam(this->pyramidOn));
-    this->MakeSlotAvailable(&this->pyramidOnParam);
+    this->smoothNormals = True;
+    this->smoothNormalsParam.SetParameter(new param::BoolParam(this->smoothNormals));
+    this->MakeSlotAvailable(&this->smoothNormalsParam);
 
     this->pyramidWeight = 0.5f;
     this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
@@ -187,6 +188,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCMedianFilter = false;
     this->SCMedianFilterParam.SetParameter(new param::BoolParam(this->SCMedianFilter));
     this->MakeSlotAvailable(&this->SCMedianFilterParam);
+
+    this->SCPyramid = false;
+    this->SCPyramidParam.SetParameter(new param::BoolParam(this->SCPyramid));
+    this->MakeSlotAvailable(&this->SCPyramidParam);
 
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -439,6 +444,28 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     }
 
+    //////////////////////////////////////////////////////
+    // pass through Shader sampling from a texture at mipmap level 0
+    //////////////////////////////////////////////////////
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for pass-through Shader", this->ClassName());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragmentOffscreen", fragSrc)) {
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for pass-through shader", this->ClassName());
+        return false;
+    }
+    try {
+        if (!this->passThroughShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+    } catch (vislib::Exception e) {
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to create pass-through shader: %s\n", this->ClassName(), e.GetMsgA());
+        return false;
+    }
     return true;
 }
 
@@ -576,10 +603,13 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     }
 
     if (virtualViewportChanged) {
+        // TODO: All this stuff should only be created if necessary
         pyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
             "pullpush::pushNormal");
         depthPyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
+        SC_Pyramid.create(
+            "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC", "pullpush::pushSC");
         this->CreateQuadBuffers();
         this->CreateFBO();
     }
@@ -641,6 +671,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
  * update parameters
  */
 void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const BindingSiteCall* bs) {
+
     // variables
     bool recomputeColors = false;
     // ==================== check parameters ====================
@@ -694,9 +725,9 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->preComputationDone = false;
         this->probeRadiusSlot.ResetDirty();
     }
-    if (this->pyramidOnParam.IsDirty()) {
-        this->pyramidOn = this->pyramidOnParam.Param<param::BoolParam>()->Value();
-        this->pyramidOnParam.ResetDirty();
+    if (this->smoothNormalsParam.IsDirty()) {
+        this->smoothNormals = this->smoothNormalsParam.Param<param::BoolParam>()->Value();
+        this->smoothNormalsParam.ResetDirty();
     }
     if (this->pyramidWeightsParam.IsDirty()) {
         this->pyramidWeight = this->pyramidWeightsParam.Param<param::FloatParam>()->Value();
@@ -724,13 +755,49 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->SCDiffThresholdParam.ResetDirty();
     }
     if (this->SCMedianFilterParam.IsDirty()) {
-
         this->SCMedianFilter = this->SCMedianFilterParam.Param<param::BoolParam>()->Value();
         this->SCMedianFilterParam.ResetDirty();
+    }
+    if (this->SCPyramidParam.IsDirty()) {
+        this->SCPyramid = this->SCPyramidParam.Param<param::BoolParam>()->Value();
+        this->SCPyramidParam.ResetDirty();
     }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
+}
+
+void MoleculeSESRenderer::SmoothNormals() {
+    /*
+     * Find maximum depth using pull phase of pull-push algorithm
+     */
+    depthPyramid.pullShaderProgram.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(depthPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
+
+    depthPyramid.clear();
+    depthPyramid.pull();
+    /*
+     * Execute Pull-Push algorithm for smoothing
+     */
+    pyramid.pullShaderProgram.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
+    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
+    glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
+    pyramid.pushShaderProgram.Enable();
+    glUniform1f(pyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
+
+    pyramid.clear();
+    pyramid.pull_until(this->pyramidLayers);
+    pyramid.push_from(this->pyramidLayers);
 }
 /*
  * postprocessing: use contour generation
@@ -739,71 +806,68 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
     glDisable(GL_DEPTH_TEST);
 
-    if (this->pyramidOn) {
-        /*
-         * Find maximum depth using pull phase of pull-push algorithm
-         */
-        depthPyramid.pullShaderProgram.Enable();
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, positionTexture);
-        glUniform1i(depthPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
-
-        depthPyramid.clear();
-        depthPyramid.pull();
-        /*
-         * Execute Pull-Push algorithm for smoothing
-         */
-        pyramid.pullShaderProgram.Enable();
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, normalTexture);
-        glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, positionTexture);
-        glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
-        glUniform1i(pyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
-        glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
-        pyramid.pushShaderProgram.Enable();
-        glUniform1f(pyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
-
-        pyramid.clear();
-        pyramid.pull_until(this->pyramidLayers);
-        pyramid.push_from(this->pyramidLayers);
+    if (this->smoothNormals) {
+        this->SmoothNormals();
     }
-
-
     /*
      * Contour-Generation
      */
 
+
+    if (SCPyramid) {
+        this->SC_Pyramid.pullShaderProgram.Enable();
+        glActiveTexture(GL_TEXTURE1);
+        if (this->smoothNormals) {
+            glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));
+        } else {
+            glBindTexture(GL_TEXTURE_2D, this->normalTexture);
+        }
+        glUniform1i(SC_Pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, positionTexture);
+        glUniform1i(SC_Pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+
+        SC_Pyramid.pushShaderProgram.Enable();
+        glUniform1f(SC_Pyramid.pushShaderProgram.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+
+        SC_Pyramid.clear();
+        SC_Pyramid.pull_until(this->SCRadius);
+        SC_Pyramid.push_from(this->SCRadius);
+        SC_Pyramid.pullShaderProgram.Disable();
+        SC_Pyramid.pushShaderProgram.Disable();
+        this->passThroughShader.Enable();
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, SC_Pyramid.get("outData"));
+    } else {
+        this->contourShader.Enable();
+        glUniform1i(contourShader.ParameterLocation("radius"), this->SCRadius);
+        glUniform1f(contourShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
+        glUniform1f(contourShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+        glUniform1i(contourShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
+        glActiveTexture(GL_TEXTURE1);
+        if (this->smoothNormals) {
+            glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));
+        } else {
+            glBindTexture(GL_TEXTURE_2D, this->normalTexture);
+        }
+        glUniform1i(contourShader.ParameterLocation("normalTexture"), 1);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, positionTexture);
+        glUniform1i(contourShader.ParameterLocation("positionTexture"), 2);
+    }
+    glGetError();
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
-
-    this->contourShader.Enable();
-    glUniform1i(contourShader.ParameterLocation("radius"), this->SCRadius);
-    glUniform1f(contourShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
-    glUniform1f(contourShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
-    glUniform1i(contourShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
-    glActiveTexture(GL_TEXTURE1);
-    if (this->pyramidOn) {
-        glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));
-    } else {
-        glBindTexture(GL_TEXTURE_2D, normalTexture);
-    }
-    glUniform1i(contourShader.ParameterLocation("normalTexture"), 1);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
-    glUniform1i(contourShader.ParameterLocation("positionTexture"), 2);
-    glGetError();
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    this->contourShader.Disable();
-    // glDeleteVertexArrays(1, &quadVAO);
-    // glDeleteBuffers(1, &quadVBO);
+    if (SCPyramid) {
+        this->passThroughShader.Disable();
+    } else {
+        this->contourShader.Disable();
+    }
 }
 
 /*
@@ -832,7 +896,6 @@ void MoleculeSESRenderer::CreateFBO() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, normalTexture, 0);
-    contourShader.Enable();
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // texture for positions

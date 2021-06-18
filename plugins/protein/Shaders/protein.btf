@@ -11430,6 +11430,22 @@ void main()
             </snippet>
         </shader>
 
+      <shader name="fragmentOffscreen">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+            uniform sampler2D screenTexture;
+
+            void main()
+            { 
+                FragColor = textureLod(screenTexture, TexCoords, 0);
+            }
+            -->
+            </snippet>
+        </shader>
+
         <shader name="fragment">
           <snippet type="version">330</snippet>
           <snippet type="string">

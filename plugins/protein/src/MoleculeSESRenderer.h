@@ -178,6 +178,11 @@ namespace protein {
         void PostprocessingContour();
 
         /**
+         * Smooth normal texture using pull-push algorithm
+         */
+        void SmoothNormals();
+
+        /**
          * returns the color of the atom 'idx' for the current coloring mode
          *
          * @param idx The index of the atom.
@@ -270,8 +275,8 @@ namespace protein {
         /** Pyramid Parameters */
         megamol::core::param::ParamSlot pyramidWeightsParam;
         GLfloat pyramidWeight;
-        megamol::core::param::ParamSlot pyramidOnParam;
-        GLboolean pyramidOn;
+        megamol::core::param::ParamSlot smoothNormalsParam;
+        GLboolean smoothNormals;
         megamol::core::param::ParamSlot pyramidLayersParam;
         GLint pyramidLayers;
         megamol::core::param::ParamSlot pyramidGammaParam;
@@ -285,6 +290,8 @@ namespace protein {
         GLfloat SCDiffThreshold;
         megamol::core::param::ParamSlot SCMedianFilterParam;
         GLboolean SCMedianFilter;
+        megamol::core::param::ParamSlot SCPyramidParam;
+        GLboolean SCPyramid;
 
 
         bool drawSES;
@@ -300,8 +307,9 @@ namespace protein {
         std::vector<ReducedSurface*> reducedSurface;
 
         // The pull-push pyramids
-        Pyramid pyramid; // Normal smoothing
-        Pyramid depthPyramid;
+        Pyramid pyramid;      // Normal smoothing
+        Pyramid depthPyramid; // Calculation of maximum view-space depth for normal smoothing
+        Pyramid SC_Pyramid;   // Suggestive Contours using pull-push algorithm
 
 
         glm::vec4 clear_color;
@@ -321,6 +329,8 @@ namespace protein {
         vislib::graphics::gl::GLSLShader lightShader;
         // shader for contour generation
         vislib::graphics::gl::GLSLShader contourShader;
+        // pass through Shader sampling from a texture at mipmap level 0
+        vislib::graphics::gl::GLSLShader passThroughShader;
         ////////////
 
         // the bounding box of the protein
