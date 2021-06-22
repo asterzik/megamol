@@ -11462,26 +11462,32 @@ void main()
             uniform float neighbourThreshold; //percentage s in original  SC paper //  in original paper 0.2
             uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
             uniform bool medianFilter;
+            uniform bool circularNeighborhood;
 
             void main()
             {
-                // scaling of parameters according to original paper
-                //TODO: The parameter values don't make sense: This would be 0 for radius=1
-                // neighbourThreshold *= (1.0 - 1.0/radius); 
-                // intensityDiffThreshold *= radius; 
-
                 //total number of points according to radius [gauss circle problem]
-                int total;
-                if(radius == 1)
-                    total = 5;
-                if(radius == 2)
-                    total = 13;
-                if(radius == 3)
-                    total = 29;
-                if(radius == 4)
-                    total = 49;
-                if(radius == 5)
-                    total = 81;
+                // int total;
+                // if(radius == 1)
+                //     total = 5;
+                // else if(radius == 2)
+                //     total = 13;
+                // else if(radius == 3)
+                //     total = 29;
+                // else if(radius == 4)
+                //     total = 49;
+                // else if(radius == 5)
+                //     total = 81;
+                // else if(radius == 6)
+                //     total = 113;
+                // else if(radius == 7)
+                //     total = 149;
+                // else if(radius == 8)
+                //     total = 197;
+                // else if(radius == 9)
+                //     total = 253;
+                // else if(radius == 10)
+                //     total = 317;
 
                 vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
                 if(normal == vec3(0.0)){
@@ -11494,7 +11500,7 @@ void main()
                 int darker = 0; //How many values are darker than the current pixel?
                 float maxIntensity = col;
                 
-                float filterValues[81]; //Use biggest number as OpenGL does not allow variable sized arrays
+                float filterValues[100]; //Use biggest number as OpenGL does not allow variable sized arrays
                 filterValues[0] = col;    //collects all values for median filtering. 
                                             //Incoming values are grayscale therefore r component is sufficient
 
@@ -11503,6 +11509,7 @@ void main()
                 // Discard all points that are not part of the circle
                 // Collect data and save all intensities to filterValues
                 int idx = 1;
+                int total = 1;
                 vec3 cur_normal;
                 vec3 cur_position;
                 vec3 cur_lightdir;
@@ -11511,9 +11518,11 @@ void main()
                     for(int y = 0; y <= radius; y++){
                         if(x == 0 && y == 0)
                             continue;
-                        else if(x*x + y*y > radius*radius)
+                        else if(circularNeighborhood && x*x + y*y > radius * radius){
                             continue;
+                        }
                         else{
+                            ++total;
                             cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
                             cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
                             cur_lightdir = normalize(-cur_position);
@@ -11526,6 +11535,7 @@ void main()
                             idx++;
 
                             if(x != 0){
+                                ++total;
                                 cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
                                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
                                 cur_lightdir = normalize(-cur_position);
@@ -11538,6 +11548,7 @@ void main()
                                 idx++;
                                 
                                 if(y != 0){
+                                    ++total;
                                     cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
                                     cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
                                     cur_lightdir = normalize(-cur_position);
@@ -11552,6 +11563,7 @@ void main()
                             }
 
                             if(y!= 0){
+                                ++total;
                                 cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
                                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
                                 cur_lightdir = normalize(-cur_position);

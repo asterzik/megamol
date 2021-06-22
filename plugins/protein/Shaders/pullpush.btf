@@ -245,9 +245,8 @@ void pull(out vec4 pulledOutData)
     vec4 tr = (texelFetch(pyramid_outData, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level-1));
     vec4 br = (texelFetch(pyramid_outData, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level-1));
 
-    pulledOutData.x = 0.25 * (bl.x + br.x + tl.x + tr.x); //mean
-    pulledOutData.y = max(max(bl.y, br.y), max(tl.y, tr.y)); // maximum
-    pulledOutData.z = 0.5 * (min(max(bl.z, br.z), max(tl.z, tr.z)) + max(min(bl.z, br.z), min(tl.z, tr.z))); // median
+    float col = min(min(bl.y, br.y), min(tl.y, tr.y)); // minimum
+    pulledOutData = vec4(vec3(col), 1.0);
 }
 
 void main() {
@@ -255,9 +254,6 @@ void main() {
 
     if (level == 0) {
         vec3 fragNormal = (texelFetch(inputTex_fragNormal, ivec2(gl_FragCoord.xy), 0)).xyz;
-        if(fragNormal == vec3(0.0)){
-            discard;
-        }
         vec3 fragPosition = (texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0)).xyz;
         vec3 lightDir = normalize(-fragPosition);
         float col = dot(fragNormal, lightDir);
@@ -285,7 +281,7 @@ uniform float lf;
 uniform int level;
 uniform float intensityDiffThreshold;
 
-void addTexel(ivec2 offset, inout vec4 pushedOutData, inout float factor_sum, float factor)
+void addTexel(ivec2 offset, inout vec4 pushedOutData)
 {
     ivec2 c = offset + ivec2(gl_FragCoord.xy / 2);
     int max_coord = int(0.5/lf - 1);
@@ -297,8 +293,8 @@ void addTexel(ivec2 offset, inout vec4 pushedOutData, inout float factor_sum, fl
     if (any(isnan(n)) || any(isinf(n))) {
         return;
     }
-    pushedOutData.xyz += normalize(n.xyz) * factor;
-    factor_sum += factor;
+    float col = min(pushedOutData.x,  n.x);
+    pushedOutData.xyz = vec3(col);
 }
 
 void push(out vec4 pushedOutData)
@@ -306,38 +302,32 @@ void push(out vec4 pushedOutData)
     float f_sum = 0;
 
 
-    addTexel(ivec2(0, 0),  pushedOutData, f_sum, 9);
+    pushedOutData = texelFetch(pyramid_outData, ivec2(gl_FragCoord.xy/2), level + 1);
     if (int(gl_FragCoord.x) % 2 == 0) {
         if (int(gl_FragCoord.y) % 2 == 0) {
-            addTexel(ivec2(-1, 0), pushedOutData, f_sum, 3);
-            addTexel(ivec2(0, -1), pushedOutData, f_sum, 3);
-            addTexel(ivec2(-1, -1), pushedOutData, f_sum, 1);
+            addTexel(ivec2(-1, 0), pushedOutData);
+            addTexel(ivec2(0, -1), pushedOutData);
+            addTexel(ivec2(-1, -1), pushedOutData);
         } else {
-            addTexel(ivec2(-1, 0), pushedOutData, f_sum, 3);
-            addTexel(ivec2(0, +1), pushedOutData, f_sum, 3);
-            addTexel(ivec2(-1, +1), pushedOutData, f_sum, 1);
+            addTexel(ivec2(-1, 0), pushedOutData);
+            addTexel(ivec2(0, +1), pushedOutData);
+            addTexel(ivec2(-1, +1), pushedOutData);
         }
     } else {
         if (int(gl_FragCoord.y) % 2 == 0) {
-            addTexel(ivec2(+1, 0), pushedOutData, f_sum, 3);
-            addTexel(ivec2(0, -1), pushedOutData, f_sum, 3);
-            addTexel(ivec2(+1, -1), pushedOutData, f_sum, 1);
+            addTexel(ivec2(+1, 0), pushedOutData);
+            addTexel(ivec2(0, -1), pushedOutData);
+            addTexel(ivec2(+1, -1), pushedOutData);
         } else {
-            addTexel(ivec2(+1, 0), pushedOutData, f_sum, 3);
-            addTexel(ivec2(0, +1), pushedOutData, f_sum, 3);
-            addTexel(ivec2(+1, +1), pushedOutData, f_sum, 1);
+            addTexel(ivec2(+1, 0), pushedOutData);
+            addTexel(ivec2(0, +1), pushedOutData);
+            addTexel(ivec2(+1, +1), pushedOutData);
         }
     }
 
     if (any(isnan(pushedOutData.xyz)) || any(isinf(pushedOutData.xyz)) ) {
-        discard;
-        // return;
+        return;
     }
-
-    if (pushedOutData.xyz != vec3(0) && f_sum > 0) {
-        pushedOutData.xyz /= f_sum;
-    }
-
 }
 
 void main() {
@@ -345,16 +335,13 @@ void main() {
     push(outData);
     if(level == 0){
         vec4 originalData = texelFetch(pyramid_outData, ivec2(gl_FragCoord.xy), level);
-        if(outData.x - originalData.x <= intensityDiffThreshold){
-            originalData.xyz = vec3(1);
+        if(originalData.x  * intensityDiffThreshold <= outData.x){
+            outData.xyz = vec3(0.8863, 0.8824, 0.6196);
         }
-        if(outData.y < originalData.y && outData.z < originalData.z){
-            originalData.xyz = vec3(1);
+        else{
+            outData.xyz = vec3(0.0118, 0.0118, 0.2745);
+    
         }
-        // if(outData.y < outData.z){
-        //     outData = vec4(0);
-        // }
-        outData.xyz = 1 - originalData.xyz;
         outData.w = 1.0;
     }
 }

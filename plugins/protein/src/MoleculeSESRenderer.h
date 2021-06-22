@@ -292,6 +292,8 @@ namespace protein {
         GLboolean SCMedianFilter;
         megamol::core::param::ParamSlot SCPyramidParam;
         GLboolean SCPyramid;
+        megamol::core::param::ParamSlot SCCircularNeighborhoodParam;
+        GLboolean SCCircularNeighborhood;
 
 
         bool drawSES;

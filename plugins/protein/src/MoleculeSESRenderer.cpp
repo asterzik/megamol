@@ -69,6 +69,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
               "SCDiffThreshold", "How much intensity difference needs to be there, for the pixel to be rendered")
         , SCMedianFilterParam("SCMedianFilter", "Use median filter for suggestive contours?")
         , SCPyramidParam("SCPyramid", "Use hierarchical suggestive contours?")
+        , SCCircularNeighborhoodParam(
+              "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -174,7 +176,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     // // Suggestive Contours parameters
 
     this->SCRadius = 3;
-    this->SCRadiusParam.SetParameter(new param::IntParam(this->SCRadius, 1, 5));
+    this->SCRadiusParam.SetParameter(new param::IntParam(this->SCRadius, 1, 10));
     this->MakeSlotAvailable(&this->SCRadiusParam);
 
     this->SCNeighbourThreshold = 0.2f; // percentage s in original  SC paper //  in original paper 0.2
@@ -192,6 +194,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCPyramid = false;
     this->SCPyramidParam.SetParameter(new param::BoolParam(this->SCPyramid));
     this->MakeSlotAvailable(&this->SCPyramidParam);
+
+    this->SCCircularNeighborhood = true;
+    this->SCCircularNeighborhoodParam.SetParameter(new param::BoolParam(this->SCCircularNeighborhood));
+    this->MakeSlotAvailable(&this->SCCircularNeighborhoodParam);
 
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -762,6 +768,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->SCPyramid = this->SCPyramidParam.Param<param::BoolParam>()->Value();
         this->SCPyramidParam.ResetDirty();
     }
+    if (this->SCCircularNeighborhoodParam.IsDirty()) {
+        this->SCCircularNeighborhood = this->SCCircularNeighborhoodParam.Param<param::BoolParam>()->Value();
+        this->SCCircularNeighborhoodParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -844,6 +854,7 @@ void MoleculeSESRenderer::PostprocessingContour() {
         glUniform1f(contourShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
         glUniform1f(contourShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
         glUniform1i(contourShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
+        glUniform1i(contourShader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
         glActiveTexture(GL_TEXTURE1);
         if (this->smoothNormals) {
             glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));
