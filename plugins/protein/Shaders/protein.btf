@@ -11606,7 +11606,115 @@ void main()
           -->
         </snippet>
       </shader>
+
+        <shader name="curvature">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+
+
+out vec4 fragCurvature;
+
+uniform sampler2D tex_fragPosition;
+uniform sampler2D tex_fragNormal;
+
+
+void main() {
+    vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+    vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+
+    vec3 n = normalize(passNormal_view.xyz);
+
+    // vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+    // vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+    // vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+    // vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+
+    // Compute curvature
+    // TODO: Calculate curvature with additional fragment-position info, to make it less view dependent
+    // vec3 dx = dFdx(n) / length(pixelPositionLeft - pixelPositionRight);
+    // vec3 dy = dFdy(n) / length(pixelPositionTop - pixelPositionBottom);
+    vec3 dx = dFdx(n);
+    vec3 dy = dFdy(n);
+    vec3 xneg = n - dx;
+    vec3 xpos = n + dx;
+    vec3 yneg = n - dy;
+    vec3 ypos = n + dy;
+    //158 is the maximum z component TODO: Use the calculated value: Do not hardcode
+    float depth = abs(passPosition_view.z / 158);// length(passPosition_view.xyz);
+    float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) * 4.0 / depth;
+
+    fragCurvature.xyz = vec3(curvature);
+}
+            -->
+            </snippet>
+        </shader>
+        <shader name="SCcurvature">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragCurvature;
+            uniform sampler2D tex_fragNormal;
+
+            vec4 showZerocrossing(float curvature, float curvatureDxy) {
+                if(abs(curvature) <= 0.01 * curvatureDxy) {
+                    return vec4(0);
+                }
+                return vec4(1);
+            }
+
+            void main() {
+                vec3 pixelPosition = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0).xyz;
+                vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
+                vec4 curvature = texelFetch(tex_fragCurvature, ivec2(gl_FragCoord.xy), 0);
+
+                // if (curvature.xyz == vec3(1, 0, 0)) { // "Maske"
+                //     fragCurvature=vec4(1);
+                // }
+
+                float f = 1.0;//0.01;
+                float scaledCurvature = curvature.x * f;
+
+                // TODO: use pixel 3D locations to calculate the derivative. Also smooth the result -> pull-push
+                vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+
+                float curvatureDx = dFdx(scaledCurvature); // / length(pixelPositionLeft - pixelPositionRight);
+                float curvatureDy = dFdy(scaledCurvature); // / length(pixelPositionTop - pixelPositionBottom);
+                vec2 curvatureDirection = (vec2(curvatureDx, curvatureDy));
+
+                // create local coordinate system at the pixel position
+                vec3 h = normalize(vec3(-1));
+                vec3 U = cross(pixelNormal, h);
+                vec3 V = cross(h, U);
+
+                // project the view vector into the local system
+                vec3 v = normalize(-pixelPosition);
+                vec2 vProjected = vec2(dot(U,v), dot (V,v));
+
+                float isSuggestiveContour = sign(dot(vProjected, curvatureDirection));
+
+                if (scaledCurvature >= 0) {
+                    fragCurvature = vec4(1) - vec4(scaledCurvature, 0, 0, 0);
+                } else {
+                    fragCurvature = vec4(1) - vec4(0, -scaledCurvature, 0, 0);
+                }
+
+                if(isSuggestiveContour > 0) {
+                    fragCurvature *= showZerocrossing(scaledCurvature, length(curvatureDirection));
+                }
+
+            }
+          -->
+        </snippet>
+      </shader>
     </namespace>
+
     
     <namespace name="halo">
       <shader name="GenerateVertex">

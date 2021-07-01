@@ -78,6 +78,70 @@ void main() {
 
     pull(fragNormal);
 }
+-->
+            </snippet>
+        </shader>
+
+        <shader name="pullCurvature">
+            <snippet type="version">430</snippet>
+            <snippet name="::protein::commondefines"/>
+            <snippet type="string">
+<!--
+
+out vec4 fragCurvature;
+
+uniform float lf;
+uniform int level;
+
+uniform sampler2D inputTex_fragCurvature;
+uniform sampler2D inputTex_fragBarycenter;
+uniform sampler2D inputTex_fragPosition;
+uniform sampler2D pyramid_fragCurvature;
+
+void pull(out vec4 pulledfragCurvature)
+{
+    // read all finer pixels' values
+    vec4 fn_bl = (texelFetch(pyramid_fragCurvature, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level-1));
+    vec4 fn_tl = (texelFetch(pyramid_fragCurvature, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level-1));
+    vec4 fn_tr = (texelFetch(pyramid_fragCurvature, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level-1));
+    vec4 fn_br = (texelFetch(pyramid_fragCurvature, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level-1));
+
+    pulledfragCurvature.xyz = fn_bl.xyz * fn_bl.w + fn_tl.xyz * fn_tl.w + fn_tr.xyz * fn_tr.w + fn_br.xyz * fn_br.w;
+    pulledfragCurvature.w = fn_bl.w + fn_tl.w + fn_tr.w + fn_br.w;
+
+    if (isnan(pulledfragCurvature.y) || isinf(pulledfragCurvature.y) ) {
+        pulledfragCurvature = vec4(0);
+        return;
+    }
+
+    if ( pulledfragCurvature.y != 0) {
+        pulledfragCurvature.y /= pulledfragCurvature.w;
+        pulledfragCurvature.w = min(1, pulledfragCurvature.w);
+    } else {
+        pulledfragCurvature.w = 0;
+    }
+}
+
+void main() {
+    fragCurvature = vec4(0);
+
+    if (level == 0) {
+        fragCurvature = texelFetch(inputTex_fragCurvature, ivec2(gl_FragCoord.xy), 0);
+        float fragBarycenter = texelFetch(inputTex_fragBarycenter, ivec2(gl_FragCoord.xy), 0).x;
+        float fragZ = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).z);
+
+        float distanceWeight = fragZ*fragZ;
+
+        if ( fragCurvature.y != 0) { // auf y schauen, da aktuell noch keine Maske verwendet wird
+            fragCurvature.w = 0.001 * distanceWeight;// * distanceWeight; // weight for this pixel
+        } else {
+            fragCurvature.w = 0; // no weight for this void pixel
+        }
+        return;
+    }
+
+    pull(fragCurvature);
+}
 
 -->
             </snippet>
@@ -180,6 +244,104 @@ void push(out vec4 pushedFragNormal)
 void main() {
     fragNormal = vec4(0);
     push(fragNormal);
+}
+-->
+            </snippet>
+        </shader>
+
+        <shader name="pushCurvature">
+            <snippet type="version">430</snippet>
+            <snippet name="::protein::commondefines"/>
+            <snippet type="string">
+<!--
+
+out vec4 fragCurvature;
+
+uniform sampler2D pyramid_fragCurvature;
+
+uniform float lf;
+uniform int level;
+uniform int level_max;
+
+void addTexel(ivec2 offset, inout vec4 pushedfragCurvature, inout float factor_sum, float factor)
+{
+    ivec2 c = offset + ivec2(gl_FragCoord.xy / 2);
+    int max_coord = int(0.5/lf - 1);
+    if (c.x < 0 || c.y < 0 || c.x > max_coord || c.y > max_coord)
+    return;
+
+    vec4 n = (texelFetch(pyramid_fragCurvature, c, level + 1));
+
+    if (any(isnan(n)) || any(isinf(n))) {
+        return;
+    }
+
+    if( n.y != 0) {
+        pushedfragCurvature.y += n.y * factor * n.w;
+        pushedfragCurvature.w += n.w * factor * n.w;
+        factor_sum += factor * n.w;
+    }
+}
+
+void push(out vec4 pushedfragCurvature)
+{
+    pushedfragCurvature = vec4(0);
+    float f_sum = 0;
+
+    vec4 originalfragCurvature = texelFetch(pyramid_fragCurvature, ivec2(gl_FragCoord.xy), level);
+
+    if (originalfragCurvature.w == 1.0){
+        pushedfragCurvature = originalfragCurvature;
+        return;
+    }
+
+    addTexel(ivec2(0, 0),  pushedfragCurvature, f_sum, 9);
+    if (int(gl_FragCoord.x) % 2 == 0) {
+        if (int(gl_FragCoord.y) % 2 == 0) {
+            addTexel(ivec2(-1, 0), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(0, -1), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(-1, -1), pushedfragCurvature, f_sum, 1);
+        } else {
+            addTexel(ivec2(-1, 0), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(0, +1), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(-1, +1), pushedfragCurvature, f_sum, 1);
+        }
+    } else {
+        if (int(gl_FragCoord.y) % 2 == 0) {
+            addTexel(ivec2(+1, 0), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(0, -1), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(+1, -1), pushedfragCurvature, f_sum, 1);
+        } else {
+            addTexel(ivec2(+1, 0), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(0, +1), pushedfragCurvature, f_sum, 3);
+            addTexel(ivec2(+1, +1), pushedfragCurvature, f_sum, 1);
+        }
+    }
+
+    if (isnan(pushedfragCurvature.y) || isinf(pushedfragCurvature.y) ) {
+        pushedfragCurvature = vec4(0);
+        return;
+    }
+
+    if (pushedfragCurvature.y != 0 && f_sum != 0) {
+        pushedfragCurvature.w /= f_sum;
+        pushedfragCurvature.y /= f_sum;
+    } else {
+        pushedfragCurvature.w = 0;
+    }
+
+    float alpha = originalfragCurvature.w;
+        alpha = 1 - pow(1 - alpha, 1); // Eq. (7)
+    pushedfragCurvature.w = min(1, pushedfragCurvature.w * (1 - alpha) + alpha);
+    pushedfragCurvature.y = originalfragCurvature.y * alpha + pushedfragCurvature.y * (1 - alpha);
+}
+
+void main() {
+    fragCurvature = vec4(0);
+    push(fragCurvature);
+
+    // auf y schauen, da noch keine Maske verwendet wird.
+    fragCurvature.xyz = vec3(fragCurvature.y);
 }
 
 -->

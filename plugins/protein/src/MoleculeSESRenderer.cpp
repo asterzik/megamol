@@ -59,7 +59,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , smoothNormalsParam("smoothNormals", "Determines whether the pull-push algorithm is used or not")
         , pyramidWeightsParam(
               "pyramidWeights", "The factor for the weights in the pull phase of the pull-push algorithm")
-        , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push pyramid")
+        , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push normalPyramid")
         , pyramidGammaParam("pyramidGamma",
               "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
         , SCRadiusParam("SCRadius", "Radius to consider around one pixel for SC")
@@ -71,6 +71,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCPyramidParam("SCPyramid", "Use hierarchical suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
+        , curvatureParam("curavature", "Use curvature information for the generation of suggestive contours?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -152,7 +153,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 
 #pragma endregion Set parameters
 
-    // Parameters for pyramid
+    // Parameters for normalPyramid
     this->smoothNormals = True;
     this->smoothNormalsParam.SetParameter(new param::BoolParam(this->smoothNormals));
     this->MakeSlotAvailable(&this->smoothNormalsParam);
@@ -161,7 +162,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
     this->MakeSlotAvailable(&this->pyramidWeightsParam);
 
-    // pyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
+    // normalPyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
     //     "pullpush::pushNormal");
     const int mipmapNumber = (int) glm::log2(glm::max<float>(this->width, this->height)) + 1;
     this->pyramidLayers = 3;
@@ -199,11 +200,16 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCCircularNeighborhoodParam.SetParameter(new param::BoolParam(this->SCCircularNeighborhood));
     this->MakeSlotAvailable(&this->SCCircularNeighborhoodParam);
 
+    this->curvature = false;
+    this->curvatureParam.SetParameter(new param::BoolParam(this->curvature));
+    this->MakeSlotAvailable(&this->curvatureParam);
+
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
     this->contourFBO = 0;
     this->contourDepthRBO = 0;
+    this->curvatureFBO = 0;
 
     // width and height of the screen
     this->width = 0;
@@ -441,12 +447,58 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     }
     try {
-        if (!this->contourShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+        if (!this->SCfromShadingShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
             throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
         }
     } catch (vislib::Exception e) {
         Log::DefaultLog.WriteMsg(
             Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n", this->ClassName(), e.GetMsgA());
+        return false;
+    }
+    //////////////////////////////////////////////////////
+    // load the shader files for SC from curvature drawing     //
+    //////////////////////////////////////////////////////
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::SCcurvature", fragSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load fragment shader source for contour drawing shader", this->ClassName());
+        return false;
+    }
+    try {
+        if (!this->SCfromCurvatureShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+    } catch (vislib::Exception e) {
+        Log::DefaultLog.WriteMsg(
+            Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n", this->ClassName(), e.GetMsgA());
+        return false;
+    }
+
+
+    //////////////////////////////////////////////////////
+    // load the shader files for curvature calculation  //
+    //////////////////////////////////////////////////////
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load vertex shader source for curvature calculation shader", this->ClassName());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::curvature", fragSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load fragment shader source for curvature calculation shader", this->ClassName());
+        return false;
+    }
+    try {
+        if (!this->curvatureShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+    } catch (vislib::Exception e) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create curvature calculation shader: %s\n",
+            this->ClassName(), e.GetMsgA());
         return false;
     }
 
@@ -610,12 +662,14 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     if (virtualViewportChanged) {
         // TODO: All this stuff should only be created if necessary
-        pyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
+        normalPyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
             "pullpush::pushNormal");
         depthPyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
-        SC_Pyramid.create(
+        SCpyramid.create(
             "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC", "pullpush::pushSC");
+        curvaturePyramid.create("fragCurvature", this->width, this->height, this->GetCoreInstance(),
+            "pullpush::pullCurvature", "pullpush::pushCurvature");
         this->CreateQuadBuffers();
         this->CreateFBO();
     }
@@ -775,6 +829,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (recomputeColors) {
         this->preComputationDone = false;
     }
+    if (this->curvatureParam.IsDirty()) {
+        this->curvature = this->curvatureParam.Param<param::BoolParam>()->Value();
+        this->curvatureParam.ResetDirty();
+    }
 }
 
 void MoleculeSESRenderer::SmoothNormals() {
@@ -791,28 +849,28 @@ void MoleculeSESRenderer::SmoothNormals() {
     /*
      * Execute Pull-Push algorithm for smoothing
      */
-    pyramid.pullShaderProgram.Enable();
+    normalPyramid.pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, normalTexture);
-    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
+    glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, positionTexture);
-    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+    glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
-    glUniform1i(pyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
-    glUniform1f(pyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
-    pyramid.pushShaderProgram.Enable();
-    glUniform1f(pyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
+    glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
+    glUniform1f(normalPyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
+    normalPyramid.pushShaderProgram.Enable();
+    glUniform1f(normalPyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
 
-    pyramid.clear();
-    pyramid.pull_until(this->pyramidLayers);
-    pyramid.push_from(this->pyramidLayers);
+    normalPyramid.clear();
+    normalPyramid.pull_until(this->pyramidLayers);
+    normalPyramid.push_from(this->pyramidLayers);
 }
 /*
  * postprocessing: use contour generation
  */
-void MoleculeSESRenderer::PostprocessingContour() {
+void MoleculeSESRenderer::SCFromShading() {
 
     glDisable(GL_DEPTH_TEST);
 
@@ -825,46 +883,46 @@ void MoleculeSESRenderer::PostprocessingContour() {
 
 
     if (SCPyramid) {
-        this->SC_Pyramid.pullShaderProgram.Enable();
+        this->SCpyramid.pullShaderProgram.Enable();
         glActiveTexture(GL_TEXTURE1);
         if (this->smoothNormals) {
-            glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));
+            glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
         } else {
             glBindTexture(GL_TEXTURE_2D, this->normalTexture);
         }
-        glUniform1i(SC_Pyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
+        glUniform1i(SCpyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, positionTexture);
-        glUniform1i(SC_Pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+        glUniform1i(SCpyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
 
-        SC_Pyramid.pushShaderProgram.Enable();
-        glUniform1f(SC_Pyramid.pushShaderProgram.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+        SCpyramid.pushShaderProgram.Enable();
+        glUniform1f(SCpyramid.pushShaderProgram.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
 
-        SC_Pyramid.clear();
-        SC_Pyramid.pull_until(this->SCRadius);
-        SC_Pyramid.push_from(this->SCRadius);
-        SC_Pyramid.pullShaderProgram.Disable();
-        SC_Pyramid.pushShaderProgram.Disable();
+        SCpyramid.clear();
+        SCpyramid.pull_until(this->SCRadius);
+        SCpyramid.push_from(this->SCRadius);
+        SCpyramid.pullShaderProgram.Disable();
+        SCpyramid.pushShaderProgram.Disable();
         this->passThroughShader.Enable();
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, SC_Pyramid.get("outData"));
+        glBindTexture(GL_TEXTURE_2D, SCpyramid.get("outData"));
     } else {
-        this->contourShader.Enable();
-        glUniform1i(contourShader.ParameterLocation("radius"), this->SCRadius);
-        glUniform1f(contourShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
-        glUniform1f(contourShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
-        glUniform1i(contourShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
-        glUniform1i(contourShader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
+        this->SCfromShadingShader.Enable();
+        glUniform1i(SCfromShadingShader.ParameterLocation("radius"), this->SCRadius);
+        glUniform1f(SCfromShadingShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
+        glUniform1f(SCfromShadingShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+        glUniform1i(SCfromShadingShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
+        glUniform1i(SCfromShadingShader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
         glActiveTexture(GL_TEXTURE1);
         if (this->smoothNormals) {
-            glBindTexture(GL_TEXTURE_2D, pyramid.get("fragNormal"));
+            glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
         } else {
             glBindTexture(GL_TEXTURE_2D, this->normalTexture);
         }
-        glUniform1i(contourShader.ParameterLocation("normalTexture"), 1);
+        glUniform1i(SCfromShadingShader.ParameterLocation("normalTexture"), 1);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, positionTexture);
-        glUniform1i(contourShader.ParameterLocation("positionTexture"), 2);
+        glUniform1i(SCfromShadingShader.ParameterLocation("positionTexture"), 2);
     }
     glGetError();
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
@@ -877,8 +935,50 @@ void MoleculeSESRenderer::PostprocessingContour() {
     if (SCPyramid) {
         this->passThroughShader.Disable();
     } else {
-        this->contourShader.Disable();
+        this->SCfromShadingShader.Disable();
     }
+}
+void MoleculeSESRenderer::calculateCurvature() {
+
+    glDisable(GL_DEPTH_TEST);
+
+    if (this->smoothNormals) {
+        this->SmoothNormals();
+    }
+
+    this->curvatureShader.Enable();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(curvatureShader.ParameterLocation("tex_fragPosition"), 0);
+    glActiveTexture(GL_TEXTURE1);
+    if (this->smoothNormals) {
+        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
+    } else {
+        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
+    }
+    glUniform1i(curvatureShader.ParameterLocation("tex_fragNormal"), 1);
+    glGetError();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, curvatureFBO);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    this->SCfromCurvatureShader.Enable();
+    glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragPosition"), 0);
+    glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragNormal"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, this->curvatureTexture);
+    glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragCurvature"), 2);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
 }
 
 /*
@@ -891,8 +991,14 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
     }
+    if (curvatureFBO) {
+        glDeleteFramebuffers(1, &curvatureFBO);
+        glDeleteTextures(1, &curvatureTexture);
+    }
     glGenFramebuffers(1, &contourFBO);
+    glGenFramebuffers(1, &curvatureFBO);
     glGenTextures(1, &normalTexture);
+    glGenTextures(1, &curvatureTexture);
     glGenTextures(1, &positionTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
 
@@ -925,11 +1031,26 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
 
-    GLuint attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+    GLuint attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
     glDrawBuffers(2, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, this->curvatureFBO);
+
+    // texture for curvature
+    glBindTexture(GL_TEXTURE_2D, this->curvatureTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, curvatureTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete curvatureFBO", this->ClassName());
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1237,7 +1358,11 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         }
 #pragma endregion // sphere shader
         if (offscreenRendering) {
-            this->PostprocessingContour();
+            if (this->curvature) {
+                this->calculateCurvature();
+            } else {
+                this->SCFromShading();
+            }
         }
     }
 }
@@ -2012,6 +2137,10 @@ void MoleculeSESRenderer::deinitialise(void) {
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
+    }
+    if (curvatureFBO) {
+        glDeleteFramebuffers(1, &curvatureFBO);
+        glDeleteTextures(1, &curvatureTexture);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)

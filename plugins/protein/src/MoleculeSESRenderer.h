@@ -168,14 +168,14 @@ namespace protein {
         void RenderSESGpuRaycasting(const megamol::protein_calls::MolecularDataCall* mol);
 
         /**
-         * Build pyramid from pull-push algorithm
+         * Postprocessing: Calculate Suggestive Contours using minima of diffuse shading
          */
-        void BuildPyramid();
+        void SCFromShading();
 
         /**
-         * Postprocessing: use contour shader
+         * Postprocessing: Calculate Suggestive Contours from curvature information
          */
-        void PostprocessingContour();
+        void calculateCurvature();
 
         /**
          * Smooth normal texture using pull-push algorithm
@@ -294,6 +294,8 @@ namespace protein {
         GLboolean SCPyramid;
         megamol::core::param::ParamSlot SCCircularNeighborhoodParam;
         GLboolean SCCircularNeighborhood;
+        megamol::core::param::ParamSlot curvatureParam;
+        GLboolean curvature;
 
 
         bool drawSES;
@@ -309,9 +311,10 @@ namespace protein {
         std::vector<ReducedSurface*> reducedSurface;
 
         // The pull-push pyramids
-        Pyramid pyramid;      // Normal smoothing
-        Pyramid depthPyramid; // Calculation of maximum view-space depth for normal smoothing
-        Pyramid SC_Pyramid;   // Suggestive Contours using pull-push algorithm
+        Pyramid normalPyramid;    // Normal smoothing
+        Pyramid depthPyramid;     // Calculation of maximum view-space depth for normal smoothing
+        Pyramid SCpyramid;        // Suggestive Contours using pull-push algorithm
+        Pyramid curvaturePyramid; // curvature smoothing
 
 
         glm::vec4 clear_color;
@@ -330,7 +333,10 @@ namespace protein {
         // shader for per pixel lighting (polygonal view)
         vislib::graphics::gl::GLSLShader lightShader;
         // shader for contour generation
-        vislib::graphics::gl::GLSLShader contourShader;
+        vislib::graphics::gl::GLSLShader SCfromShadingShader;
+        vislib::graphics::gl::GLSLShader SCfromCurvatureShader;
+        // shader for curvature calculation
+        vislib::graphics::gl::GLSLShader curvatureShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
         ////////////
@@ -379,7 +385,9 @@ namespace protein {
 
         // FBOs and textures for postprocessing
         GLuint contourFBO;
+        GLuint curvatureFBO;
         GLuint normalTexture;
+        GLuint curvatureTexture;
         GLuint positionTexture;
         GLuint contourDepthRBO;
 
