@@ -17,7 +17,7 @@ bool Pyramid::create(std::string name, int width, int height, megamol::core::Cor
     textureName = name;
 
     // Common Full Screen Vertex Shader
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for pyramid");
         return false;
     }

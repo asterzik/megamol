@@ -211,6 +211,8 @@ namespace protein {
         void UpdateParameters(
             const megamol::protein_calls::MolecularDataCall* mol, const protein_calls::BindingSiteCall* bs = 0);
 
+        bool loadShader(vislib::graphics::gl::GLSLShader& Shader, std::string vertex, std::string fragment);
+
         /**
          * The get extents callback. The module should set the members of
          * 'call' to tell the caller the extents of its data (bounding boxes
@@ -321,8 +323,6 @@ namespace protein {
 
         glm::vec4 clear_color;
 
-        // shader for the cylinders (raycasting view)
-        vislib::graphics::gl::GLSLShader cylinderShader;
         // shader for the spheres (raycasting view)
         vislib::graphics::gl::GLSLShader sphereShader;
         vislib::graphics::gl::GLSLShader sphereShaderOR;

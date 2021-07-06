@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include <math.h>
+#include <sstream>
 #include "Color.h"
 #include "MoleculeSESRenderer.h"
 #include "mmcore/CoreInstance.h"
@@ -249,7 +250,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
         glDeleteTextures(1, &singularityTexture[i]);
     // release
-    this->cylinderShader.Release();
     this->sphereShader.Release();
     this->sphericalTriangleShader.Release();
     this->torusShader.Release();
@@ -263,7 +263,47 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
  */
 void MoleculeSESRenderer::release(void) {}
 
+bool MoleculeSESRenderer::loadShader(
+    vislib::graphics::gl::GLSLShader& Shader, std::string vertex, std::string fragment) {
+    using namespace vislib::graphics::gl;
 
+    ShaderSource compSrc;
+    ShaderSource vertSrc;
+    ShaderSource geomSrc;
+    ShaderSource fragSrc;
+
+    CoreInstance* ci = this->GetCoreInstance();
+
+    std::string msg;
+    if (!ci->ShaderSourceFactory().MakeShaderSource(vertex.c_str(), vertSrc)) {
+        std::ostringstream stream;
+        stream << this->ClassName() << ": Unable to load vertex shader source: " << vertex;
+        msg = stream.str();
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, msg.c_str());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource(fragment.c_str(), fragSrc)) {
+        std::ostringstream fragStream;
+        fragStream << this->ClassName() << ": Unable to load fragment shader source: " << fragment;
+        msg = fragStream.str();
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, msg.c_str());
+        return false;
+    }
+
+    try {
+        if (!Shader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+    } catch (vislib::Exception e) {
+        std::ostringstream exStream;
+        exStream << this->ClassName() << ": Unable to create shader programm from " << vertex << " and " << fragment
+                 << ": " << e.GetMsgA();
+        msg = exStream.str();
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, msg.c_str());
+        return false;
+    }
+    return true;
+}
 /*
  * MoleculeSESRenderer::create
  */
@@ -287,271 +327,36 @@ bool MoleculeSESRenderer::create(void) {
 
 
 #pragma region // Initialise all the MoleculeSES shaders
-    using namespace vislib::graphics::gl;
-
-    ShaderSource compSrc;
-    ShaderSource vertSrc;
-    ShaderSource geomSrc;
-    ShaderSource fragSrc;
-
-    CoreInstance* ci = this->GetCoreInstance();
-    if (!ci)
-        return false;
 
     ////////////////////////////////////////////////////
-    // load the shader source for the sphere renderer //
+    // load the shaders                              //
     ////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::sphereVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for sphere shader", this->ClassName());
+    if (!this->loadShader(this->sphereShader, "protein::ses::sphereVertex", "protein::ses::sphereFragment"))
         return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::sphereFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for sphere shader", this->ClassName());
+    if (!this->loadShader(this->sphereShaderOR, "protein::ses::sphereVertex", "protein::ses::sphereFragmentOR"))
         return false;
-    }
+    if (!this->loadShader(this->torusShader, "protein::ses::torusVertex", "protein::ses::torusFragment"))
+        return false;
+    if (!this->loadShader(this->torusShaderOR, "protein::ses::torusVertex", "protein::ses::torusFragmentOR"))
+        return false;
+    if (!this->loadShader(this->sphericalTriangleShader, "protein::ses::sphericaltriangleVertex",
+            "protein::ses::sphericaltriangleFragment"))
+        return false;
+    if (!this->loadShader(this->sphericalTriangleShaderOR, "protein::ses::sphericaltriangleVertex",
+            "protein::ses::sphericaltriangleFragmentOR"))
+        return false;
 
-    try {
-        if (!this->sphereShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create sphere shader: %s\n", this->ClassName(), e.GetMsgA());
+    if (!this->loadShader(this->SCfromShadingShader, "contours::vertex", "contours::fragment"))
         return false;
-    }
-    // Sphere shader for offscreen rendering
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::sphereFragmentOR", fragSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for sphere shader", this->ClassName());
+    if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::SCcurvature"))
         return false;
-    }
-    try {
-        if (!this->sphereShaderOR.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create offscreen rendering sphere shader: %s\n",
-            this->ClassName(), e.GetMsgA());
+    if (!this->loadShader(this->curvatureShader, "contours::vertex", "contours::curvature"))
         return false;
-    }
+    if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::normalCurvature"))
+        return false;
+    if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
+        return false;
 
-    ///////////////////////////////////////////////////
-    // load the shader source for the torus renderer //
-    ///////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::torusVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for torus shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::torusFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for torus shader", this->ClassName());
-        return false;
-    }
-
-    try {
-        if (!this->torusShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create torus shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-    // Tirus shader for offscreen rendering
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::torusFragmentOR", fragSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for torus shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->torusShaderOR.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create offscreenrendering torus shader: %s\n",
-            this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    ////////////////////////////////////////////////////////////////
-    // load the shader source for the spherical triangle renderer //
-    ////////////////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::sphericaltriangleVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for spherical triangle shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::sphericaltriangleFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for spherical triangle shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->sphericalTriangleShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create spherical triangle shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    // Spherical triangle shader for offscreenrendering
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::ses::sphericaltriangleFragmentOR", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for spherical triangle shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->sphericalTriangleShaderOR.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create spherical triangle shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-    //////////////////////////////////////////////////////
-    // load the shader source for the cylinder renderer //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::cylinderVertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%: Unable to load vertex shader source for cylinder shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::std::cylinderFragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for cylinder shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->cylinderShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create cylinder shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-#pragma endregion // Initialise all the shaders
-    //////////////////////////////////////////////////////
-    // load the shader files for contour drawing     //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::fragment", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for contour drawing shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->SCfromShadingShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-    //////////////////////////////////////////////////////
-    // load the shader files for SC from curvature drawing     //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::SCcurvature", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for contour drawing shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->SCfromCurvatureShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create contour shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-
-    //////////////////////////////////////////////////////
-    // load the shader files for curvature calculation  //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for curvature calculation shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::curvature", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for curvature calculation shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->curvatureShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create curvature calculation shader: %s\n",
-            this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    //////////////////////////////////////////////////////
-    // load the shader files for normal curvature calculation  //
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load vertex shader source for curvature calculation shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::normalCurvature", fragSrc)) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
-            "%s: Unable to load fragment shader source for curvature calculation shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->normalCurvatureShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create normal curvature calculation shader: %s\n",
-            this->ClassName(), e.GetMsgA());
-        return false;
-    }
-
-    //////////////////////////////////////////////////////
-    // pass through Shader sampling from a texture
-    //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for pass-through Shader", this->ClassName());
-        return false;
-    }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::fragmentOffscreen", fragSrc)) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for pass-through shader", this->ClassName());
-        return false;
-    }
-    try {
-        if (!this->passThroughShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
-            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
-        }
-    } catch (vislib::Exception e) {
-        Log::DefaultLog.WriteMsg(
-            Log::LEVEL_ERROR, "%s: Unable to create pass-through shader: %s\n", this->ClassName(), e.GetMsgA());
-        return false;
-    }
     return true;
 }
 
@@ -2185,7 +1990,6 @@ void MoleculeSESRenderer::deinitialise(void) {
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
         glDeleteTextures(1, &singularityTexture[i]);
     // release shaders
-    this->cylinderShader.Release();
     this->sphereShader.Release();
     this->sphericalTriangleShader.Release();
     this->torusShader.Release();

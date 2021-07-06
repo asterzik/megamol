@@ -19,7 +19,7 @@
             </snippet>
         </shader>
 
-      <shader name="fragmentOffscreen">
+      <shader name="passThrough">
         <snippet type="version">330</snippet>
         <snippet type="string">
         <!--

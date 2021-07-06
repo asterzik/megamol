@@ -11387,32 +11387,8 @@ void main()
       -->
       </snippet>
     </shader>
-
-    <shader name="puxelsReducedSurfaceRenderFragment">
-      <snippet type="version">430</snippet>
-      <snippet name="puxels::puxeluniform"/>
-      <snippet name="puxels::header"/>
-      <snippet name="puxels::data"/>
-      <snippet name="puxels::store"/>
-      <snippet type="string">
-        <!--
-
-smooth in vec3 normal;
-smooth in vec4 color;
-
-void main()
-{
-  puxels_store(makePuxel(packUnorm4x8(color), normal, gl_FragDepth));
-}
-      -->
-      </snippet>
-    </shader>
-
-
-  </namespace>
-
-
     
+  </namespace>
     <namespace name="halo">
       <shader name="GenerateVertex">
         <snippet type="version">110</snippet>
