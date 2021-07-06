@@ -296,6 +296,8 @@ namespace protein {
         GLboolean SCCircularNeighborhood;
         megamol::core::param::ParamSlot curvatureParam;
         GLboolean curvature;
+        megamol::core::param::ParamSlot SCcurvatureParam;
+        GLboolean SCcurvature;
 
 
         bool drawSES;

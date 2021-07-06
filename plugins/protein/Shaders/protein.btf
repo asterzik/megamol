@@ -11440,7 +11440,7 @@ void main()
 
             void main()
             { 
-                FragColor = textureLod(screenTexture, TexCoords, 0);
+                FragColor = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
             }
             -->
             </snippet>
@@ -11625,26 +11625,25 @@ void main() {
 
     vec3 n = normalize(passNormal_view.xyz);
 
-    // vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-    // vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-    // vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-    // vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+    vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+    vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+    vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+    vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
 
     // Compute curvature
     // TODO: Calculate curvature with additional fragment-position info, to make it less view dependent
-    // vec3 dx = dFdx(n) / length(pixelPositionLeft - pixelPositionRight);
-    // vec3 dy = dFdy(n) / length(pixelPositionTop - pixelPositionBottom);
-    vec3 dx = dFdx(n);
-    vec3 dy = dFdy(n);
-    vec3 xneg = n - dx;
+    vec3 dx = dFdx(n) / length(pixelPositionLeft - pixelPositionRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
+    vec3 dy = dFdy(n) / length(pixelPositionTop - pixelPositionBottom);
+    // vec3 dx = dFdx(n);
+    // vec3 dy = dFdy(n);
+    vec3 xneg = n - dx;//Das hier sind dann quasi die neuen ein bisschen verschobenen Normalen aber äquivalente Abstände für alle fragment shader läufe
     vec3 xpos = n + dx;
     vec3 yneg = n - dy;
     vec3 ypos = n + dy;
-    //158 is the maximum z component TODO: Use the calculated value: Do not hardcode
-    float depth = abs(passPosition_view.z / 158);// length(passPosition_view.xyz);
-    float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) * 4.0 / depth;
+    // float depth = abs(passPosition_view.z/158);// length(passPosition_view.xyz); 
+    float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x);// * 4.0;// / depth;
 
-    fragCurvature.xyz = vec3(curvature);
+    fragCurvature = vec4(vec3(curvature), 1.0);
 }
             -->
             </snippet>

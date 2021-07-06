@@ -71,7 +71,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCPyramidParam("SCPyramid", "Use hierarchical suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
-        , curvatureParam("curavature", "Use curvature information for the generation of suggestive contours?")
+        , curvatureParam("curavature", "Displays the curvature of the model")
+        , SCcurvatureParam("SCcuravature", "Use curvature information for the generation of suggestive contours?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -203,6 +204,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->curvature = false;
     this->curvatureParam.SetParameter(new param::BoolParam(this->curvature));
     this->MakeSlotAvailable(&this->curvatureParam);
+
+    this->SCcurvature = false;
+    this->SCcurvatureParam.SetParameter(new param::BoolParam(this->SCcurvature));
+    this->MakeSlotAvailable(&this->SCcurvatureParam);
 
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -703,7 +708,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     if (offscreenRendering) {
         // stop rendering to frame buffer object
-        glBindFramebuffer(GL_FRAMEBUFFER, 1);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     glPopMatrix();
@@ -832,6 +837,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (this->curvatureParam.IsDirty()) {
         this->curvature = this->curvatureParam.Param<param::BoolParam>()->Value();
         this->curvatureParam.ResetDirty();
+    }
+    if (this->SCcurvatureParam.IsDirty()) {
+        this->SCcurvature = this->SCcurvatureParam.Param<param::BoolParam>()->Value();
+        this->SCcurvatureParam.ResetDirty();
     }
 }
 
@@ -964,20 +973,27 @@ void MoleculeSESRenderer::calculateCurvature() {
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    this->SCfromCurvatureShader.Enable();
-    glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragPosition"), 0);
-    glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragNormal"), 1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, this->curvatureTexture);
-    glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragCurvature"), 2);
-
+    // TODO: Somehow eventhough everything is written correctly to fbo 1, it does not end up on the screen
+    // for SCcurvature this is working even though basically everything is the same :'(
+    if (curvature) {
+        this->passThroughShader.Enable();
+        glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 2);
+    }
+    if (SCcurvature) {
+        this->SCfromCurvatureShader.Enable();
+        glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragPosition"), 0);
+        glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragNormal"), 1);
+        glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragCurvature"), 2);
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(0);
 }
 
@@ -1358,7 +1374,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         }
 #pragma endregion // sphere shader
         if (offscreenRendering) {
-            if (this->curvature) {
+            if (this->curvature || this->SCcurvature) {
                 this->calculateCurvature();
             } else {
                 this->SCFromShading();
