@@ -339,6 +339,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader SCfromCurvatureShader;
         // shader for curvature calculation
         vislib::graphics::gl::GLSLShader curvatureShader;
+        vislib::graphics::gl::GLSLShader normalCurvatureShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
         ////////////

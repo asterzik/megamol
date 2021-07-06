@@ -71,7 +71,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCPyramidParam("SCPyramid", "Use hierarchical suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
-        , curvatureParam("curavature", "Displays the curvature of the model")
+        , curvatureParam("curvature", "Displays the curvature of the model")
         , SCcurvatureParam("SCcuravature", "Use curvature information for the generation of suggestive contours?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
@@ -441,12 +441,12 @@ bool MoleculeSESRenderer::create(void) {
     //////////////////////////////////////////////////////
     // load the shader files for contour drawing     //
     //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
         Log::DefaultLog.WriteMsg(
             Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
         return false;
     }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragment", fragSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::fragment", fragSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
             "%s: Unable to load fragment shader source for contour drawing shader", this->ClassName());
         return false;
@@ -463,12 +463,12 @@ bool MoleculeSESRenderer::create(void) {
     //////////////////////////////////////////////////////
     // load the shader files for SC from curvature drawing     //
     //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
         Log::DefaultLog.WriteMsg(
             Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for contour drawing shader", this->ClassName());
         return false;
     }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::SCcurvature", fragSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::SCcurvature", fragSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
             "%s: Unable to load fragment shader source for contour drawing shader", this->ClassName());
         return false;
@@ -487,12 +487,12 @@ bool MoleculeSESRenderer::create(void) {
     //////////////////////////////////////////////////////
     // load the shader files for curvature calculation  //
     //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
             "%s: Unable to load vertex shader source for curvature calculation shader", this->ClassName());
         return false;
     }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::curvature", fragSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::curvature", fragSrc)) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
             "%s: Unable to load fragment shader source for curvature calculation shader", this->ClassName());
         return false;
@@ -508,14 +508,37 @@ bool MoleculeSESRenderer::create(void) {
     }
 
     //////////////////////////////////////////////////////
-    // pass through Shader sampling from a texture at mipmap level 0
+    // load the shader files for normal curvature calculation  //
     //////////////////////////////////////////////////////
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::vertex", vertSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load vertex shader source for curvature calculation shader", this->ClassName());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::normalCurvature", fragSrc)) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR,
+            "%s: Unable to load fragment shader source for curvature calculation shader", this->ClassName());
+        return false;
+    }
+    try {
+        if (!this->normalCurvatureShader.Create(vertSrc.Code(), vertSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+    } catch (vislib::Exception e) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%s: Unable to create normal curvature calculation shader: %s\n",
+            this->ClassName(), e.GetMsgA());
+        return false;
+    }
+
+    //////////////////////////////////////////////////////
+    // pass through Shader sampling from a texture
+    //////////////////////////////////////////////////////
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::vertex", vertSrc)) {
         Log::DefaultLog.WriteMsg(
             Log::LEVEL_ERROR, "%s: Unable to load vertex shader source for pass-through Shader", this->ClassName());
         return false;
     }
-    if (!ci->ShaderSourceFactory().MakeShaderSource("protein::contour::fragmentOffscreen", fragSrc)) {
+    if (!ci->ShaderSourceFactory().MakeShaderSource("contours::fragmentOffscreen", fragSrc)) {
         Log::DefaultLog.WriteMsg(
             Log::LEVEL_ERROR, "%s: Unable to load fragment shader source for pass-through shader", this->ClassName());
         return false;
