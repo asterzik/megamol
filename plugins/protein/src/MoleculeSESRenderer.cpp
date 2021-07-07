@@ -38,9 +38,6 @@ using namespace megamol::core;
 using namespace megamol::protein;
 using namespace megamol::protein_calls;
 using namespace megamol::core::utility::log;
-/*
- * MoleculeSESRenderer::MoleculeSESRenderer
- */
 MoleculeSESRenderer::MoleculeSESRenderer(void)
         : Renderer3DModuleGL()
         , molDataCallerSlot("getData", "Connects the protein SES rendering with protein data storage")
@@ -235,10 +232,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 #pragma endregion // export parameters
 }
 
-
-/*
- * MoleculeSESRenderer::~MoleculeSESRenderer
- */
 MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     if (contourFBO) {
         glDeleteFramebuffers(1, &contourFBO);
@@ -257,10 +250,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     this->Release();
 }
 
-
-/*
- * protein::MoleculeSESRenderer::release
- */
 void MoleculeSESRenderer::release(void) {}
 
 bool MoleculeSESRenderer::loadShader(
@@ -304,9 +293,7 @@ bool MoleculeSESRenderer::loadShader(
     }
     return true;
 }
-/*
- * MoleculeSESRenderer::create
- */
+
 bool MoleculeSESRenderer::create(void) {
     if (!ogl_IsVersionGEQ(2, 0) || !areExtsAvailable("GL_EXT_framebuffer_object GL_ARB_texture_float"))
         return false;
@@ -325,12 +312,7 @@ bool MoleculeSESRenderer::create(void) {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
 
-
-#pragma region // Initialise all the MoleculeSES shaders
-
-    ////////////////////////////////////////////////////
-    // load the shaders                              //
-    ////////////////////////////////////////////////////
+    // original MoleculeSESRenderer shaders
     if (!this->loadShader(this->sphereShader, "protein::ses::sphereVertex", "protein::ses::sphereFragment"))
         return false;
     if (!this->loadShader(this->sphereShaderOR, "protein::ses::sphereVertex", "protein::ses::sphereFragmentOR"))
@@ -346,6 +328,7 @@ bool MoleculeSESRenderer::create(void) {
             "protein::ses::sphericaltriangleFragmentOR"))
         return false;
 
+    // shaders for contour drawing
     if (!this->loadShader(this->SCfromShadingShader, "contours::vertex", "contours::shading::fragment"))
         return false;
     if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::curvature::fragment"))
@@ -360,9 +343,6 @@ bool MoleculeSESRenderer::create(void) {
     return true;
 }
 
-/*
- * MoleculeSESRenderer::GetExtents
- */
 bool MoleculeSESRenderer::GetExtents(view::CallRender3DGL& call) {
 
     MolecularDataCall* mol = this->molDataCallerSlot.CallAs<MolecularDataCall>();
@@ -376,10 +356,6 @@ bool MoleculeSESRenderer::GetExtents(view::CallRender3DGL& call) {
     return true;
 }
 
-
-/*
- * MoleculeSESRenderer::Render
- */
 bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
 #pragma region // Set up camera variables
@@ -559,10 +535,6 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     return true;
 }
 
-
-/*
- * update parameters
- */
 void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const BindingSiteCall* bs) {
 
     // variables
@@ -704,9 +676,6 @@ void MoleculeSESRenderer::SmoothNormals() {
     normalPyramid.pull_until(this->pyramidLayers);
     normalPyramid.push_from(this->pyramidLayers);
 }
-/*
- * postprocessing: use contour generation
- */
 void MoleculeSESRenderer::SCFromShading() {
 
     glDisable(GL_DEPTH_TEST);
@@ -825,9 +794,6 @@ void MoleculeSESRenderer::calculateCurvature() {
     glBindVertexArray(0);
 }
 
-/*
- * Create the fbo and texture needed for offscreen rendering
- */
 void MoleculeSESRenderer::CreateFBO() {
     if (contourFBO) {
         glDeleteFramebuffers(1, &contourFBO);
@@ -925,10 +891,6 @@ void MoleculeSESRenderer::CreateQuadBuffers() {
     std::cout << "quadBuffer" << std::endl;
 }
 
-
-/*
- * Render the molecular surface using GPU raycasting
- */
 void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
 
     auto resolution = cameraInfo.resolution_gate();
@@ -1776,10 +1738,6 @@ vislib::math::Vector<float, 3> MoleculeSESRenderer::DecodeColor(int codedColor) 
     return color;
 }
 
-
-/*
- * Creates the texture for singularity handling.
- */
 void MoleculeSESRenderer::CreateSingularityTextures() {
     // time_t t = clock();
     unsigned int cnt1, cnt2, cntRS;
@@ -1878,9 +1836,6 @@ void MoleculeSESRenderer::CreateSingularityTextures() {
 }
 
 
-/*
- * Creates the texture for singularity handling.
- */
 void MoleculeSESRenderer::CreateSingularityTexture(unsigned int idxRS) {
     // do nothing if the index is out of bounds
     if (idxRS > this->reducedSurface.size())
@@ -1971,10 +1926,6 @@ void MoleculeSESRenderer::CreateSingularityTexture(unsigned int idxRS) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-
-/*
- * MoleculeSESRenderer::deinitialise
- */
 void MoleculeSESRenderer::deinitialise(void) {
     if (contourFBO) {
         glDeleteFramebuffers(1, &contourFBO);
