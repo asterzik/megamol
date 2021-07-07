@@ -13,6 +13,7 @@
 #include <iostream>
 #include <math.h>
 #include <sstream>
+#include "../include/protein/magic_enum.hpp"
 #include "Color.h"
 #include "MoleculeSESRenderer.h"
 #include "mmcore/CoreInstance.h"
@@ -48,6 +49,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , minGradColorParam("color::minGradColor", "The color for the minimum value for gradient coloring")
         , midGradColorParam("color::midGradColor", "The color for the middle value for gradient coloring")
         , maxGradColorParam("color::maxGradColor", "The color for the maximum value for gradient coloring")
+        , curvatureModeParam("curvatureMode", "curvature mode.")
         , drawSESParam("drawSES", "Draw the SES: ")
         , drawSASParam("drawSAS", "Draw the SAS: ")
         , molIdxListParam("molIdxList", "The list of molecule indices for RS computation:")
@@ -107,6 +109,16 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->coloringModeParam1 << cm1;
     this->MakeSlotAvailable(&this->coloringModeParam0);
     this->MakeSlotAvailable(&this->coloringModeParam1);
+
+    // curvature modes
+    this->currentCurvatureMode = EvansCurvature;
+    param::EnumParam* cmp = new param::EnumParam(int(this->currentCurvatureMode));
+    constexpr auto& curvature_entries = magic_enum::enum_entries<curvatureMode>();
+    for (int i = 0; i < magic_enum::enum_count<curvatureMode>(); ++i) {
+        cmp->SetTypePair((int) curvature_entries[i].first, std::string(curvature_entries[i].second).c_str());
+    }
+    this->curvatureModeParam << cmp;
+    this->MakeSlotAvailable(&this->curvatureModeParam);
 
     // Color weighting parameter
     this->cmWeightParam.SetParameter(new param::FloatParam(0.5f, 0.0f, 1.0f));
@@ -559,6 +571,11 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->coloringModeParam1.ResetDirty();
         this->cmWeightParam.ResetDirty();
     }
+    if (this->curvatureModeParam.IsDirty()) {
+        this->currentCurvatureMode =
+            static_cast<curvatureMode>(this->curvatureModeParam.Param<param::EnumParam>()->Value());
+        this->curvatureModeParam.ResetDirty();
+    }
     if (this->drawSESParam.IsDirty()) {
         this->drawSES = this->drawSESParam.Param<param::BoolParam>()->Value();
         this->drawSESParam.ResetDirty();
@@ -744,7 +761,7 @@ void MoleculeSESRenderer::SCFromShading() {
         this->SCfromShadingShader.Disable();
     }
 }
-void MoleculeSESRenderer::calculateCurvature() {
+void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& Shader) {
 
     glDisable(GL_DEPTH_TEST);
 
@@ -752,17 +769,17 @@ void MoleculeSESRenderer::calculateCurvature() {
         this->SmoothNormals();
     }
 
-    this->curvatureShader.Enable();
+    Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, positionTexture);
-    glUniform1i(curvatureShader.ParameterLocation("tex_fragPosition"), 0);
+    glUniform1i(Shader.ParameterLocation("tex_fragPosition"), 0);
     glActiveTexture(GL_TEXTURE1);
     if (this->smoothNormals) {
         glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
     } else {
         glBindTexture(GL_TEXTURE_2D, this->normalTexture);
     }
-    glUniform1i(curvatureShader.ParameterLocation("tex_fragNormal"), 1);
+    glUniform1i(Shader.ParameterLocation("tex_fragNormal"), 1);
     glGetError();
 
     glBindFramebuffer(GL_FRAMEBUFFER, curvatureFBO);
@@ -1165,7 +1182,10 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
 #pragma endregion // sphere shader
         if (offscreenRendering) {
             if (this->curvature || this->SCcurvature) {
-                this->calculateCurvature();
+                if (currentCurvatureMode == EvansCurvature)
+                    this->calculateCurvature(this->curvatureShader);
+                else if (currentCurvatureMode == NormalCurvature)
+                    this->calculateCurvature(this->normalCurvatureShader);
             } else {
                 this->SCFromShading();
             }

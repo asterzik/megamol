@@ -175,7 +175,7 @@ namespace protein {
         /**
          * Postprocessing: Calculate Suggestive Contours from curvature information
          */
-        void calculateCurvature();
+        void calculateCurvature(vislib::graphics::gl::GLSLShader& Shader);
 
         /**
          * Smooth normal texture using pull-push algorithm
@@ -258,6 +258,7 @@ namespace protein {
         megamol::core::param::ParamSlot coloringModeParam0;
         /** parameter slot for coloring mode */
         megamol::core::param::ParamSlot coloringModeParam1;
+        megamol::core::param::ParamSlot curvatureModeParam;
         /** parameter slot for coloring mode weighting*/
         megamol::core::param::ParamSlot cmWeightParam;
         /** parameter slot for min color of gradient color mode */
@@ -362,6 +363,9 @@ namespace protein {
         /** The current coloring mode */
         Color::ColoringMode currentColoringMode0;
         Color::ColoringMode currentColoringMode1;
+
+        enum curvatureMode { EvansCurvature, NormalCurvature };
+        curvatureMode currentCurvatureMode;
 
         /** vertex and attribute arrays for raycasting the tori */
         std::vector<vislib::Array<float>> torusVertexArray;
