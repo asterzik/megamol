@@ -35,6 +35,7 @@
             </snippet>
         </shader>
 
+        <namespace name="shading">
         <shader name="fragment">
           <snippet type="version">330</snippet>
           <snippet type="string">
@@ -195,8 +196,10 @@
           -->
         </snippet>
       </shader>
+      </namespace>
 
-        <shader name="curvature">
+        <namespace name="curvature">
+        <shader name="evans">
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
@@ -234,7 +237,7 @@
             </snippet>
         </shader>
 
-        <shader name="normalCurvature">
+        <shader name="normal">
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
@@ -272,7 +275,7 @@
             </snippet>
         </shader>
         
-        <shader name="SCcurvature">
+        <shader name="fragment">
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
@@ -336,4 +339,5 @@
           -->
         </snippet>
       </shader>
+      </namespace>
 </btf>

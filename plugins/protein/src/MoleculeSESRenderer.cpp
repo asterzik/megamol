@@ -346,13 +346,13 @@ bool MoleculeSESRenderer::create(void) {
             "protein::ses::sphericaltriangleFragmentOR"))
         return false;
 
-    if (!this->loadShader(this->SCfromShadingShader, "contours::vertex", "contours::fragment"))
+    if (!this->loadShader(this->SCfromShadingShader, "contours::vertex", "contours::shading::fragment"))
         return false;
-    if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::SCcurvature"))
+    if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::curvature::fragment"))
         return false;
-    if (!this->loadShader(this->curvatureShader, "contours::vertex", "contours::curvature"))
+    if (!this->loadShader(this->curvatureShader, "contours::vertex", "contours::curvature::evans"))
         return false;
-    if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::normalCurvature"))
+    if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::curvature::normal"))
         return false;
     if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
         return false;
