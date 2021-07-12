@@ -349,6 +349,8 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::curvature::normal"))
         return false;
+    if (!this->loadShader(this->meanCurvatureShader, "contours::vertex", "contours::curvature::mean"))
+        return false;
     if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
         return false;
 
@@ -1186,6 +1188,8 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                     this->calculateCurvature(this->curvatureShader);
                 else if (currentCurvatureMode == NormalCurvature)
                     this->calculateCurvature(this->normalCurvatureShader);
+                else if (currentCurvatureMode == MeanCurvature)
+                    this->calculateCurvature(this->meanCurvatureShader);
             } else {
                 this->SCFromShading();
             }

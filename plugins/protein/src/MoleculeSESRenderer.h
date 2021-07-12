@@ -341,6 +341,7 @@ namespace protein {
         // shader for curvature calculation
         vislib::graphics::gl::GLSLShader curvatureShader;
         vislib::graphics::gl::GLSLShader normalCurvatureShader;
+        vislib::graphics::gl::GLSLShader meanCurvatureShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
         ////////////
@@ -364,7 +365,7 @@ namespace protein {
         Color::ColoringMode currentColoringMode0;
         Color::ColoringMode currentColoringMode1;
 
-        enum curvatureMode { EvansCurvature, NormalCurvature };
+        enum curvatureMode { EvansCurvature, NormalCurvature, MeanCurvature };
         curvatureMode currentCurvatureMode;
 
         /** vertex and attribute arrays for raycasting the tori */

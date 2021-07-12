@@ -237,7 +237,7 @@
             </snippet>
         </shader>
 
-        <shader name="normal">
+        <shader name="mean">
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
@@ -255,19 +255,53 @@
 
                 vec3 n = normalize(passNormal_view.xyz);
 
-                vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
 
-                // Compute curvature
-                vec3 dx = dFdx(n) / length(pixelPositionLeft - pixelPositionRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
-                vec3 dy = dFdy(n) / length(pixelPositionTop - pixelPositionBottom);
-                vec3 xneg = n - dx;//Das hier sind dann quasi die neuen ein bisschen verschobenen Normalen aber äquivalente Abstände für alle fragment shader läufe
-                vec3 xpos = n + dx;
-                vec3 yneg = n - dy;
-                vec3 ypos = n + dy;
-                float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x);
+                vec3 dx = dFdx(n) / length(pLeft - pRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
+                vec3 dy = dFdy(n) / length(pTop - pBottom);
+                
+                float curvature = (-(dx.x + dy.y)/n.z + (n.x * dx.z + n.y * dy.z) / (n.z * n.z)) / -2;
+
+                fragCurvature = vec4(vec3(curvature), 1.0);
+            }
+            -->
+            </snippet>
+        </shader>
+
+        <shader name="normal">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+
+
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+
+            void main() {
+                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+
+                vec3 p = passPosition_view.xyz;
+                vec3 n = normalize(passNormal_view.xyz);
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+
+                // Compute curvature for all "edges" in the 4-neighborhood
+                float curvatureLeft = 2 * dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
+                float curvatureTop = 2 * dot(n, p - pTop) / (length(pTop - p) * length(pTop - p));
+                float curvatureRight = 2 * dot(n, p - pRight) / (length(pRight - p) * length(pRight - p));
+                float curvatureBottom = 2 * dot(n, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+
+                float curvature = (curvatureLeft + curvatureTop + curvatureRight + curvatureBottom) / 4;
 
                 fragCurvature = vec4(vec3(curvature), 1.0);
             }
