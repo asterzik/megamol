@@ -363,12 +363,13 @@ uniform sampler2D pyramid_fragMaxDepth;
 
 void pull(out vec4 pulledFragMaxDepth) {
     // read all finer pixels' values
-    float md_bl = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level - 1)).x;
-    float md_tl = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level - 1)).x;
-    float md_tr = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level - 1)).x;
-    float md_br = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level - 1)).x;
-    float maximum = max(max(md_bl, md_tl), max(md_tr, md_br));
-    pulledFragMaxDepth = vec4(maximum);
+    vec2 md_bl = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level - 1)).xy;
+    vec2 md_tl = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level - 1)).xy;
+    vec2 md_tr = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level - 1)).xy;
+    vec2 md_br = (texelFetch(pyramid_fragMaxDepth, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level - 1)).xy;
+    float maximum = max(max(md_bl.x, md_tl.x), max(md_tr.x, md_br.x));
+    float minimum = min(min(md_bl.y, md_tl.y), min(md_tr.y, md_br.y));
+    pulledFragMaxDepth = vec4(maximum, minimum, 0.0, 0.0);
 }
 
 void main() {
@@ -424,6 +425,82 @@ void main() {
     else{
     pull(outData);
     }
+}
+-->
+            </snippet>
+        </shader>
+        <shader name="pullMaxX">
+            <snippet type="version">430</snippet>
+            <snippet name="::protein::commondefines"/>
+            <snippet type="string">
+<!--
+out vec4 fragMaxX;
+
+uniform int level;
+
+uniform sampler2D inputTex_fragPosition;
+uniform sampler2D pyramid_fragMaxX;
+
+
+void pull(out vec4 pulledFragMaxX) {
+    // read all finer pixels' values
+    vec2 md_bl = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level - 1)).xy;
+    vec2 md_tl = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level - 1)).xy;
+    vec2 md_tr = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level - 1)).xy;
+    vec2 md_br = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level - 1)).xy;
+    float maximum = max(max(md_bl.x, md_tl.x), max(md_tr.x, md_br.x));
+    float minimum = min(min(md_bl.y, md_tl.y), min(md_tr.y, md_br.y));
+    pulledFragMaxX = vec4(maximum, minimum, 0.0, 0.0);
+}
+
+void main() {
+    fragMaxX = vec4(0.0f);
+
+    if (level == 0) {
+        float width = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).x);
+        fragMaxX = vec4(width);
+        return;
+    }
+
+    pull(fragMaxX);
+}
+-->
+            </snippet>
+        </shader>
+        <shader name="pullMaxY">
+            <snippet type="version">430</snippet>
+            <snippet name="::protein::commondefines"/>
+            <snippet type="string">
+<!--
+out vec4 fragMaxY;
+
+uniform int level;
+
+uniform sampler2D inputTex_fragPosition;
+uniform sampler2D pyramid_fragMaxY;
+
+
+void pull(out vec4 pulledFragMaxY) {
+    // read all finer pixels' values
+    vec2 md_bl = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(0), level - 1)).xy;
+    vec2 md_tl = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level - 1)).xy;
+    vec2 md_tr = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level - 1)).xy;
+    vec2 md_br = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level - 1)).xy;
+    float maximum = max(max(md_bl.x, md_tl.x), max(md_tr.x, md_br.x));
+    float minimum = min(min(md_bl.y, md_tl.y), min(md_tr.y, md_br.y));
+    pulledFragMaxY = vec4(maximum, minimum, 0.0, 0.0);
+}
+
+void main() {
+    fragMaxY = vec4(0.0f);
+
+    if (level == 0) {
+        float height = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).y);
+        fragMaxY = vec4(height);
+        return;
+    }
+
+    pull(fragMaxY);
 }
 
 -->

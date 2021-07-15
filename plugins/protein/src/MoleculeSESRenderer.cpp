@@ -49,8 +49,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , minGradColorParam("color::minGradColor", "The color for the minimum value for gradient coloring")
         , midGradColorParam("color::midGradColor", "The color for the middle value for gradient coloring")
         , maxGradColorParam("color::maxGradColor", "The color for the maximum value for gradient coloring")
-        , curvatureModeParam("curvatureMode", "curvature mode.")
         , displayedPropertyParam("displayedProperty", "Choose the property to be displayed")
+        , curvatureModeParam("curvatureMode", "curvature mode.")
         , drawSESParam("drawSES", "Draw the SES: ")
         , drawSASParam("drawSAS", "Draw the SAS: ")
         , molIdxListParam("molIdxList", "The list of molecule indices for RS computation:")
@@ -72,7 +72,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCPyramidParam("SCPyramid", "Use hierarchical suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
-        , curvatureParam("curvature", "Displays the curvature of the model")
         , SCcurvatureParam("SCcuravature", "Use curvature information for the generation of suggestive contours?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
@@ -111,6 +110,17 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->MakeSlotAvailable(&this->coloringModeParam0);
     this->MakeSlotAvailable(&this->coloringModeParam1);
 
+    // displayedProperty
+    this->currentDisplayedProperty = Contour;
+    param::EnumParam* dmp = new param::EnumParam(int(this->currentDisplayedProperty));
+    constexpr auto& property_entries = magic_enum::enum_entries<displayedProperty>();
+    for (int i = 0; i < magic_enum::enum_count<displayedProperty>(); ++i) {
+        dmp->SetTypePair((int) property_entries[i].first, std::string(property_entries[i].second).c_str());
+    }
+    this->displayedPropertyParam << dmp;
+    this->MakeSlotAvailable(&this->displayedPropertyParam);
+
+
     // curvature modes
     this->currentCurvatureMode = EvansCurvature;
     param::EnumParam* cmp = new param::EnumParam(int(this->currentCurvatureMode));
@@ -121,15 +131,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->curvatureModeParam << cmp;
     this->MakeSlotAvailable(&this->curvatureModeParam);
 
-    // displayedProperty
-    this->currentDisplayedProperty = Contour;
-    param::EnumParam* dmp = new param::EnumParam(int(this->currentDisplayedProperty));
-    constexpr auto& property_entries = magic_enum::enum_entries<displayedProperty>();
-    for (int i = 0; i < magic_enum::enum_count<displayedProperty>(); ++i) {
-        dmp->SetTypePair((int) property_entries[i].first, std::string(property_entries[i].second).c_str());
-    }
-    this->displayedPropertyParam << dmp;
-    this->MakeSlotAvailable(&this->displayedPropertyParam);
 
     // Color weighting parameter
     this->cmWeightParam.SetParameter(new param::FloatParam(0.5f, 0.0f, 1.0f));
@@ -221,10 +222,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCCircularNeighborhood = true;
     this->SCCircularNeighborhoodParam.SetParameter(new param::BoolParam(this->SCCircularNeighborhood));
     this->MakeSlotAvailable(&this->SCCircularNeighborhoodParam);
-
-    this->curvature = false;
-    this->curvatureParam.SetParameter(new param::BoolParam(this->curvature));
-    this->MakeSlotAvailable(&this->curvatureParam);
 
     this->SCcurvature = false;
     this->SCcurvatureParam.SetParameter(new param::BoolParam(this->SCcurvature));
@@ -364,7 +361,8 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
         return false;
-
+    if (!this->loadShader(this->normalizePositionsShader, "contours::vertex", "contours::normalizePositions"))
+        return false;
     return true;
 }
 
@@ -500,6 +498,8 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
             "pullpush::pushNormal");
         depthPyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
+        heightPyramid.create("fragMaxY", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxY");
+        widthPyramid.create("fragMaxX", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxX");
         SCpyramid.create(
             "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC", "pullpush::pushSC");
         curvaturePyramid.create("fragCurvature", this->width, this->height, this->GetCoreInstance(),
@@ -669,19 +669,14 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (recomputeColors) {
         this->preComputationDone = false;
     }
-    if (this->curvatureParam.IsDirty()) {
-        this->curvature = this->curvatureParam.Param<param::BoolParam>()->Value();
-        this->curvatureParam.ResetDirty();
-    }
     if (this->SCcurvatureParam.IsDirty()) {
         this->SCcurvature = this->SCcurvatureParam.Param<param::BoolParam>()->Value();
         this->SCcurvatureParam.ResetDirty();
     }
 }
-
-void MoleculeSESRenderer::SmoothNormals() {
+void MoleculeSESRenderer::calculateTextureBBX() {
     /*
-     * Find maximum depth using pull phase of pull-push algorithm
+     * Find max/min depth using pull phase of pull-push algorithm
      */
     depthPyramid.pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE1);
@@ -691,8 +686,31 @@ void MoleculeSESRenderer::SmoothNormals() {
     depthPyramid.clear();
     depthPyramid.pull();
     /*
+     * Find max/min height using pull phase of pull-push algorithm
+     */
+    heightPyramid.pullShaderProgram.Enable();
+    glUniform1i(heightPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
+
+    heightPyramid.clear();
+    heightPyramid.pull();
+
+    /*
+     * Find max/min width using pull phase of pull-push algorithm
+     */
+    widthPyramid.pullShaderProgram.Enable();
+    glUniform1i(widthPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
+
+    widthPyramid.clear();
+    widthPyramid.pull();
+
+    this->bbx_levelMax = widthPyramid.getMipmapNumber();
+}
+
+void MoleculeSESRenderer::SmoothNormals() {
+    /*
      * Execute Pull-Push algorithm for smoothing
      */
+    this->calculateTextureBBX();
     normalPyramid.pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, normalTexture);
@@ -712,7 +730,6 @@ void MoleculeSESRenderer::SmoothNormals() {
     normalPyramid.push_from(this->pyramidLayers);
 }
 void MoleculeSESRenderer::SCFromShading() {
-
     glDisable(GL_DEPTH_TEST);
 
     if (this->smoothNormals) {
@@ -779,6 +796,81 @@ void MoleculeSESRenderer::SCFromShading() {
         this->SCfromShadingShader.Disable();
     }
 }
+void MoleculeSESRenderer::displayPositions() {
+
+    glDisable(GL_DEPTH_TEST);
+
+    passThroughShader.Enable();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, this->positionTexture);
+    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
+    glGetError();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(0);
+}
+void MoleculeSESRenderer::displayNormalizedPositions() {
+
+    this->calculateTextureBBX();
+    glDisable(GL_DEPTH_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    normalizePositionsShader.Enable();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, this->positionTexture);
+    glUniform1i(normalizePositionsShader.ParameterLocation("positionTexture"), 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, this->widthPyramid.get("fragMaxX"));
+    glUniform1i(normalizePositionsShader.ParameterLocation("widthTexture"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, this->heightPyramid.get("fragMaxY"));
+    glUniform1i(normalizePositionsShader.ParameterLocation("heightTexture"), 2);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, this->depthPyramid.get("fragMaxDepth"));
+    glUniform1i(normalizePositionsShader.ParameterLocation("depthTexture"), 3);
+    glUniform1i(normalizePositionsShader.ParameterLocation("level_max"), this->bbx_levelMax);
+    glGetError();
+
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(0);
+}
+void MoleculeSESRenderer::displayNormals() {
+
+    glDisable(GL_DEPTH_TEST);
+
+    if (this->smoothNormals) {
+        this->SmoothNormals();
+    }
+
+    passThroughShader.Enable();
+    glActiveTexture(GL_TEXTURE0);
+    if (this->smoothNormals) {
+        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
+    } else {
+        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
+    }
+    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
+    glGetError();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(0);
+}
 void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& Shader) {
 
     glDisable(GL_DEPTH_TEST);
@@ -807,18 +899,8 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, this->curvatureTexture);
-    // TODO: Somehow eventhough everything is written correctly to fbo 1, it does not end up on the screen
-    // for SCcurvature this is working even though basically everything is the same :'(
-    if (curvature) {
-        this->passThroughShader.Enable();
-        glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 2);
-    }
-    if (SCcurvature) {
-        this->SCfromCurvatureShader.Enable();
-        glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragPosition"), 0);
-        glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragNormal"), 1);
-        glUniform1i(SCfromCurvatureShader.ParameterLocation("tex_fragCurvature"), 2);
-    }
+    this->passThroughShader.Enable();
+    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 2);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1199,7 +1281,13 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         }
 #pragma endregion // sphere shader
         if (offscreenRendering) {
-            if (this->curvature || this->SCcurvature) {
+            if (this->currentDisplayedProperty == Position) {
+                this->displayPositions();
+            } else if (this->currentDisplayedProperty == NormalizedPosition) {
+                this->displayNormalizedPositions();
+            } else if (this->currentDisplayedProperty == Normal) {
+                this->displayNormals();
+            } else if (this->currentDisplayedProperty == Curvature) {
                 if (currentCurvatureMode == EvansCurvature)
                     this->calculateCurvature(this->curvatureShader);
                 else if (currentCurvatureMode == NormalCurvature)

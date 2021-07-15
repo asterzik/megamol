@@ -34,6 +34,33 @@
             -->
             </snippet>
         </shader>
+      <shader name="normalizePositions">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+            uniform sampler2D positionTexture;
+            uniform sampler2D depthTexture;
+            uniform sampler2D heightTexture;
+            uniform sampler2D widthTexture;
+            uniform int level_max;
+
+            void main()
+            { 
+                vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
+                vec2 depth = texelFetch(depthTexture, ivec2(0,0), level_max - 1).xy;
+                vec2 height = texelFetch(heightTexture, ivec2(0,0), level_max - 1).xy;
+                vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
+                vec3 mins = vec3(width.y, height.y, depth.y);
+                vec3 maxs = vec3(width.x, height.x, depth.x);
+                vec3 color= (position.xyz - mins) / (maxs-mins);
+                FragColor = vec4(color, 1.0);
+            }
+
+            -->
+            </snippet>
+        </shader>
 
         <namespace name="shading">
         <shader name="fragment">

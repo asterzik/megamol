@@ -172,10 +172,15 @@ namespace protein {
          */
         void SCFromShading();
 
+        void displayPositions();
+        void displayNormalizedPositions();
+        void displayNormals();
+
         /**
          * Postprocessing: Calculate Suggestive Contours from curvature information
          */
         void calculateCurvature(vislib::graphics::gl::GLSLShader& Shader);
+        void calculateTextureBBX();
 
         /**
          * Smooth normal texture using pull-push algorithm
@@ -298,8 +303,6 @@ namespace protein {
         GLboolean SCPyramid;
         megamol::core::param::ParamSlot SCCircularNeighborhoodParam;
         GLboolean SCCircularNeighborhood;
-        megamol::core::param::ParamSlot curvatureParam;
-        GLboolean curvature;
         megamol::core::param::ParamSlot SCcurvatureParam;
         GLboolean SCcurvature;
 
@@ -318,10 +321,15 @@ namespace protein {
 
         // The pull-push pyramids
         Pyramid normalPyramid;    // Normal smoothing
-        Pyramid depthPyramid;     // Calculation of maximum view-space depth for normal smoothing
         Pyramid SCpyramid;        // Suggestive Contours using pull-push algorithm
         Pyramid curvaturePyramid; // curvature smoothing
 
+        // BBX pyramids
+        Pyramid depthPyramid;  // Calculation of maximum view-space depth
+        Pyramid heightPyramid; // Calculation of maximum view-space height
+        Pyramid widthPyramid;  // Calculation of maximum view-space width
+
+        int bbx_levelMax; // How many layers do the bbx pyramids have?
 
         glm::vec4 clear_color;
 
@@ -345,6 +353,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader meanCurvatureShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
+        vislib::graphics::gl::GLSLShader normalizePositionsShader;
         ////////////
 
         // the bounding box of the protein
@@ -368,7 +377,7 @@ namespace protein {
 
         enum curvatureMode { EvansCurvature, NormalCurvature, MeanCurvature };
         curvatureMode currentCurvatureMode;
-        enum displayedProperty { Position, Normal, Curvature, Contour };
+        enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;
 
         /** vertex and attribute arrays for raycasting the tori */
