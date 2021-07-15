@@ -50,6 +50,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , midGradColorParam("color::midGradColor", "The color for the middle value for gradient coloring")
         , maxGradColorParam("color::maxGradColor", "The color for the maximum value for gradient coloring")
         , curvatureModeParam("curvatureMode", "curvature mode.")
+        , displayedPropertyParam("displayedProperty", "Choose the property to be displayed")
         , drawSESParam("drawSES", "Draw the SES: ")
         , drawSASParam("drawSAS", "Draw the SAS: ")
         , molIdxListParam("molIdxList", "The list of molecule indices for RS computation:")
@@ -119,6 +120,16 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     }
     this->curvatureModeParam << cmp;
     this->MakeSlotAvailable(&this->curvatureModeParam);
+
+    // displayedProperty
+    this->currentDisplayedProperty = Contour;
+    param::EnumParam* dmp = new param::EnumParam(int(this->currentDisplayedProperty));
+    constexpr auto& property_entries = magic_enum::enum_entries<displayedProperty>();
+    for (int i = 0; i < magic_enum::enum_count<displayedProperty>(); ++i) {
+        dmp->SetTypePair((int) property_entries[i].first, std::string(property_entries[i].second).c_str());
+    }
+    this->displayedPropertyParam << dmp;
+    this->MakeSlotAvailable(&this->displayedPropertyParam);
 
     // Color weighting parameter
     this->cmWeightParam.SetParameter(new param::FloatParam(0.5f, 0.0f, 1.0f));
@@ -577,6 +588,11 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->currentCurvatureMode =
             static_cast<curvatureMode>(this->curvatureModeParam.Param<param::EnumParam>()->Value());
         this->curvatureModeParam.ResetDirty();
+    }
+    if (this->displayedPropertyParam.IsDirty()) {
+        this->currentDisplayedProperty =
+            static_cast<displayedProperty>(this->displayedPropertyParam.Param<param::EnumParam>()->Value());
+        this->displayedPropertyParam.ResetDirty();
     }
     if (this->drawSESParam.IsDirty()) {
         this->drawSES = this->drawSESParam.Param<param::BoolParam>()->Value();

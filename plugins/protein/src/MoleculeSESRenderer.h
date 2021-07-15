@@ -259,6 +259,7 @@ namespace protein {
         /** parameter slot for coloring mode */
         megamol::core::param::ParamSlot coloringModeParam1;
         megamol::core::param::ParamSlot curvatureModeParam;
+        megamol::core::param::ParamSlot displayedPropertyParam;
         /** parameter slot for coloring mode weighting*/
         megamol::core::param::ParamSlot cmWeightParam;
         /** parameter slot for min color of gradient color mode */
@@ -367,6 +368,8 @@ namespace protein {
 
         enum curvatureMode { EvansCurvature, NormalCurvature, MeanCurvature };
         curvatureMode currentCurvatureMode;
+        enum displayedProperty { Position, Normal, Curvature, Contour };
+        displayedProperty currentDisplayedProperty;
 
         /** vertex and attribute arrays for raycasting the tori */
         std::vector<vislib::Array<float>> torusVertexArray;
