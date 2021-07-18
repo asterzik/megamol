@@ -29,7 +29,10 @@
 
             void main()
             { 
-                FragColor = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
+                vec4 color = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
+                if(color == vec4(0.0))
+                    discard;
+                FragColor = color;
             }
             -->
             </snippet>
@@ -49,11 +52,18 @@
             void main()
             { 
                 vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
+                if(position == vec4(0.0))
+                    discard;
                 vec2 depth = texelFetch(depthTexture, ivec2(0,0), level_max - 1).xy;
                 vec2 height = texelFetch(heightTexture, ivec2(0,0), level_max - 1).xy;
                 vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
-                vec3 mins = vec3(width.y, height.y, depth.y);
-                vec3 maxs = vec3(width.x, height.x, depth.x);
+                //TODO: Do this with the real mins and max (fix pyramids)
+
+                // vec3 mins = vec3(width.y, height.y, depth.y);
+                // vec3 maxs = vec3(width.x, height.x, depth.x);
+
+                vec3 mins = vec3(-30.0, -30.0, -158.0);
+                vec3 maxs = vec3(30.0, 30.0, -120.0);
                 vec3 color= (position.xyz - mins) / (maxs-mins);
                 FragColor = vec4(color, 1.0);
             }
@@ -241,6 +251,8 @@
             void main() {
                 vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
                 vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
 
                 vec3 n = normalize(passNormal_view.xyz);
 
@@ -279,6 +291,8 @@
             void main() {
                 vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
                 vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
 
                 vec3 n = normalize(passNormal_view.xyz);
 
@@ -313,6 +327,8 @@
             void main() {
                 vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
                 vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
 
                 vec3 p = passPosition_view.xyz;
                 vec3 n = normalize(passNormal_view.xyz);

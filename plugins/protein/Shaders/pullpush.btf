@@ -376,7 +376,7 @@ void main() {
     fragMaxDepth = vec4(0.0f);
 
     if (level == 0) {
-        float depth = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).z);
+        float depth = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).z;
         fragMaxDepth = vec4(depth);
         return;
     }
@@ -457,7 +457,7 @@ void main() {
     fragMaxX = vec4(0.0f);
 
     if (level == 0) {
-        float width = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).x);
+        float width = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).x;
         fragMaxX = vec4(width);
         return;
     }
@@ -495,7 +495,7 @@ void main() {
     fragMaxY = vec4(0.0f);
 
     if (level == 0) {
-        float height = abs(texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).y);
+        float height = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).y;
         fragMaxY = vec4(height);
         return;
     }
