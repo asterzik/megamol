@@ -171,6 +171,7 @@ namespace protein {
          * Postprocessing: Calculate Suggestive Contours using minima of diffuse shading
          */
         void SCFromShading();
+        void Contours();
 
         void displayPositions();
         void displayNormalizedPositions();
@@ -344,6 +345,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader lightShader;
         // shader for contour generation
         vislib::graphics::gl::GLSLShader SCfromShadingShader;
+        vislib::graphics::gl::GLSLShader ShadingCurvatureShader;
         vislib::graphics::gl::GLSLShader SCfromCurvatureShader;
         // shader for curvature calculation
         vislib::graphics::gl::GLSLShader curvatureShader;
@@ -376,6 +378,9 @@ namespace protein {
 
         enum curvatureMode { EvansCurvature, NormalCurvature, NathanReedCurvature, MeanCurvature };
         curvatureMode currentCurvatureMode;
+        std::map<curvatureMode, vislib::graphics::gl::GLSLShader*> curvatureShaderMap = {
+            {EvansCurvature, &this->curvatureShader}, {NormalCurvature, &this->normalCurvatureShader},
+            {NathanReedCurvature, &this->nathanReedCurvatureShader}, {MeanCurvature, &this->meanCurvatureShader}};
         enum contourMode { Shading, ShadingAndCurvature };
         contourMode currentContourMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };

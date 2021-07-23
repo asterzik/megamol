@@ -84,7 +84,6 @@
 
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
-            uniform sampler2D diffuseTexture;
 
             //parameter
             uniform int radius;
@@ -227,6 +226,39 @@
                     // assign col to the median
                     col = filterValues[int(floor(total * 1.0 / 2.0))];
                 }
+
+                col = 1.0 - col; //invert color because background is dark
+
+                FragColor = vec4(col, col, col, 1.0);
+            }
+          -->
+        </snippet>
+      </shader>
+        <shader name="andCurvature">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D normalTexture;
+            uniform sampler2D positionTexture;
+            uniform sampler2D curvatureTexture;
+
+            void main()
+            {
+                vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                if(normal == vec3(0.0)){
+                    discard;
+                }
+                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
+                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                float dotp = dot(normal, lightdir);
+                float col = dotp * dotp / abs(curvature);
+                
+                if(col > 0.2)
+                    discard;
 
                 col = 1.0 - col; //invert color because background is dark
 

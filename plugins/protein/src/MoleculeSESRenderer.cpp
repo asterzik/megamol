@@ -352,6 +352,8 @@ bool MoleculeSESRenderer::create(void) {
     // shaders for contour drawing
     if (!this->loadShader(this->SCfromShadingShader, "contours::vertex", "contours::shading::fragment"))
         return false;
+    if (!this->loadShader(this->ShadingCurvatureShader, "contours::vertex", "contours::shading::andCurvature"))
+        return false;
     if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::curvature::fragment"))
         return false;
     if (!this->loadShader(this->curvatureShader, "contours::vertex", "contours::curvature::evans"))
@@ -709,6 +711,7 @@ void MoleculeSESRenderer::SmoothNormals() {
     /*
      * Execute Pull-Push algorithm for smoothing
      */
+    glDisable(GL_DEPTH_TEST);
     this->calculateTextureBBX();
     normalPyramid.pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE1);
@@ -727,13 +730,15 @@ void MoleculeSESRenderer::SmoothNormals() {
     normalPyramid.clear();
     normalPyramid.pull_until(this->pyramidLayers);
     normalPyramid.push_from(this->pyramidLayers);
+    glEnable(GL_DEPTH_TEST);
 }
 void MoleculeSESRenderer::SCFromShading() {
-    glDisable(GL_DEPTH_TEST);
+
 
     if (this->smoothNormals) {
         this->SmoothNormals();
     }
+    glDisable(GL_DEPTH_TEST);
     this->SCfromShadingShader.Enable();
     glUniform1i(SCfromShadingShader.ParameterLocation("radius"), this->SCRadius);
     glUniform1f(SCfromShadingShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
@@ -759,6 +764,34 @@ void MoleculeSESRenderer::SCFromShading() {
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     this->SCfromShadingShader.Disable();
+}
+// TODO: Improve the naming stuff here, this is horrible!
+void MoleculeSESRenderer::Contours() {
+
+    calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
+    glDisable(GL_DEPTH_TEST);
+    this->ShadingCurvatureShader.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    if (this->smoothNormals) {
+        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
+    } else {
+        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
+    }
+    glUniform1i(ShadingCurvatureShader.ParameterLocation("normalTexture"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(ShadingCurvatureShader.ParameterLocation("positionTexture"), 2);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+    glUniform1i(ShadingCurvatureShader.ParameterLocation("curvatureTexture"), 3);
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
+    this->ShadingCurvatureShader.Disable();
 }
 void MoleculeSESRenderer::displayPositions() {
 
@@ -1271,16 +1304,12 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             } else if (this->currentDisplayedProperty == Normal) {
                 this->displayNormals();
             } else if (this->currentDisplayedProperty == Curvature) {
-                if (currentCurvatureMode == EvansCurvature)
-                    this->renderCurvature(this->curvatureShader);
-                else if (currentCurvatureMode == NormalCurvature)
-                    this->renderCurvature(this->normalCurvatureShader);
-                else if (currentCurvatureMode == NathanReedCurvature)
-                    this->renderCurvature(this->nathanReedCurvatureShader);
-                else if (currentCurvatureMode == MeanCurvature)
-                    this->renderCurvature(this->meanCurvatureShader);
+                renderCurvature(*curvatureShaderMap[currentCurvatureMode]);
             } else {
-                this->SCFromShading();
+                if (this->currentContourMode == Shading)
+                    this->SCFromShading();
+                else if (this->currentContourMode == ShadingAndCurvature)
+                    this->Contours();
             }
         }
     }
