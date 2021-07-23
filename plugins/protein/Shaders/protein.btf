@@ -9158,9 +9158,11 @@ void main(void) {
     // gl_FragData[1] = gl_ModelViewMatrix*vec4(pos - objPos.xyz, 1.0);
     // gl_FragData[0] = vec4(normal, 1.0);
     // gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
-    vec4 viewSpacePos = gl_ModelViewMatrix * vec4(sphereintersection + objPos.xyz, 1.0);
+    vec4 objSpacePos = vec4(sphereintersection + objPos.xyz, 1.0);
+    vec4 viewSpacePos = gl_ModelViewMatrix * objSpacePos;
     gl_FragData[1] = viewSpacePos;
     gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0); // get eye space normal
+    gl_FragData[2] = gl_ModelViewProjectionMatrix * objSpacePos;
 }
 -->
       </snippet>
@@ -9785,9 +9787,11 @@ void main(void) {
     // gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
     // gl_FragData[1] = vec4(normalize(camPos.xyz -intersection), 1.0);
     // Hier haben sie oben obj.Pos schon dazu gerechnet
-    vec4 viewSpacePos = gl_ModelViewMatrix * vec4(intersection, 1.0);
+    vec4 objSpacePos = vec4(intersection, 1.0);
+    vec4 viewSpacePos = gl_ModelViewMatrix * objSpacePos;
     gl_FragData[1] = viewSpacePos;
     gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0);
+    gl_FragData[2] = gl_ModelViewProjectionMatrix * objSpacePos;
 }
 -->
       </snippet>
@@ -11358,9 +11362,11 @@ void main(void) {
 #endif // AXISHINTS
     // gl_FragData[0] = vec4(normal, 1.0);//vec4(diff, diff, diff, 1.0);
     // gl_FragData[1] = vec4(normalize(camPos.xyz - sphereintersection), 1.0);
-    vec4 viewSpacePos = gl_ModelViewMatrix * vec4(sphereintersection + objPos.xyz, 1.0);
+    vec4 objSpacePos = vec4(sphereintersection + objPos.xyz, 1.0);
+    vec4 viewSpacePos = gl_ModelViewMatrix * objSpacePos;
     gl_FragData[1] = viewSpacePos;
     gl_FragData[0] = vec4(normalize(gl_NormalMatrix*normal), 1.0);
+    gl_FragData[2] = gl_ModelViewProjectionMatrix * objSpacePos;
 
 
 

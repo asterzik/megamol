@@ -180,6 +180,7 @@ namespace protein {
          * Postprocessing: Calculate Suggestive Contours from curvature information
          */
         void calculateCurvature(vislib::graphics::gl::GLSLShader& Shader);
+        void renderCurvature(vislib::graphics::gl::GLSLShader& Shader);
         void calculateTextureBBX();
 
         /**
@@ -264,6 +265,7 @@ namespace protein {
         /** parameter slot for coloring mode */
         megamol::core::param::ParamSlot coloringModeParam1;
         megamol::core::param::ParamSlot curvatureModeParam;
+        megamol::core::param::ParamSlot contourModeParam;
         megamol::core::param::ParamSlot displayedPropertyParam;
         /** parameter slot for coloring mode weighting*/
         megamol::core::param::ParamSlot cmWeightParam;
@@ -350,6 +352,7 @@ namespace protein {
         // shader for curvature calculation
         vislib::graphics::gl::GLSLShader curvatureShader;
         vislib::graphics::gl::GLSLShader normalCurvatureShader;
+        vislib::graphics::gl::GLSLShader nathanReedCurvatureShader;
         vislib::graphics::gl::GLSLShader meanCurvatureShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
@@ -375,8 +378,10 @@ namespace protein {
         Color::ColoringMode currentColoringMode0;
         Color::ColoringMode currentColoringMode1;
 
-        enum curvatureMode { EvansCurvature, NormalCurvature, MeanCurvature };
+        enum curvatureMode { EvansCurvature, NormalCurvature, NathanReedCurvature, MeanCurvature };
         curvatureMode currentCurvatureMode;
+        enum contourMode { Shading, ShadingAndCurvature };
+        contourMode currentContourMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;
 
@@ -409,6 +414,7 @@ namespace protein {
         GLuint normalTexture;
         GLuint curvatureTexture;
         GLuint positionTexture;
+        GLuint objPositionTexture;
         GLuint contourDepthRBO;
 
         // VAO and VBO for screen filling quad

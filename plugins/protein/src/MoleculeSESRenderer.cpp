@@ -51,6 +51,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , maxGradColorParam("color::maxGradColor", "The color for the maximum value for gradient coloring")
         , displayedPropertyParam("displayedProperty", "Choose the property to be displayed")
         , curvatureModeParam("curvatureMode", "curvature mode.")
+        , contourModeParam("contourMode", "Specify which contour generation method to use")
         , drawSESParam("drawSES", "Draw the SES: ")
         , drawSASParam("drawSAS", "Draw the SAS: ")
         , molIdxListParam("molIdxList", "The list of molecule indices for RS computation:")
@@ -131,6 +132,15 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->curvatureModeParam << cmp;
     this->MakeSlotAvailable(&this->curvatureModeParam);
 
+    // contour modes
+    this->currentContourMode = Shading;
+    param::EnumParam* cContourp = new param::EnumParam(int(this->currentContourMode));
+    constexpr auto& contour_entries = magic_enum::enum_entries<contourMode>();
+    for (int i = 0; i < magic_enum::enum_count<contourMode>(); ++i) {
+        cContourp->SetTypePair((int) contour_entries[i].first, std::string(contour_entries[i].second).c_str());
+    }
+    this->contourModeParam << cContourp;
+    this->MakeSlotAvailable(&this->contourModeParam);
 
     // Color weighting parameter
     this->cmWeightParam.SetParameter(new param::FloatParam(0.5f, 0.0f, 1.0f));
@@ -258,6 +268,7 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
+        glDeleteTextures(1, &objPositionTexture);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
@@ -356,6 +367,8 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(this->curvatureShader, "contours::vertex", "contours::curvature::evans"))
         return false;
     if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::curvature::normal"))
+        return false;
+    if (!this->loadShader(this->nathanReedCurvatureShader, "contours::vertex", "contours::curvature::nathanReed"))
         return false;
     if (!this->loadShader(this->meanCurvatureShader, "contours::vertex", "contours::curvature::mean"))
         return false;
@@ -588,6 +601,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->currentCurvatureMode =
             static_cast<curvatureMode>(this->curvatureModeParam.Param<param::EnumParam>()->Value());
         this->curvatureModeParam.ResetDirty();
+    }
+    if (this->contourModeParam.IsDirty()) {
+        this->currentContourMode = static_cast<contourMode>(this->contourModeParam.Param<param::EnumParam>()->Value());
+        this->contourModeParam.ResetDirty();
     }
     if (this->displayedPropertyParam.IsDirty()) {
         this->currentDisplayedProperty =
@@ -897,17 +914,25 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    glActiveTexture(GL_TEXTURE2);
+    glEnable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(0);
+}
+void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shader) {
+
+    this->calculateCurvature(Shader);
+
+    glDisable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, this->curvatureTexture);
     this->passThroughShader.Enable();
-    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 2);
+    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
-    glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(0);
 }
 
@@ -917,6 +942,7 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
+        glDeleteTextures(1, &objPositionTexture);
     }
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
@@ -927,6 +953,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenTextures(1, &normalTexture);
     glGenTextures(1, &curvatureTexture);
     glGenTextures(1, &positionTexture);
+    glGenTextures(1, &objPositionTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
 
     // contour FBO
@@ -952,14 +979,23 @@ void MoleculeSESRenderer::CreateFBO() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, positionTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    // texture for object positions
+    glBindTexture(GL_TEXTURE_2D, this->objPositionTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, objPositionTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
     // Depth RBO
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
 
-    GLuint attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-    glDrawBuffers(2, attachments);
+    GLuint attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+    glDrawBuffers(3, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
@@ -1289,11 +1325,13 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 this->displayNormals();
             } else if (this->currentDisplayedProperty == Curvature) {
                 if (currentCurvatureMode == EvansCurvature)
-                    this->calculateCurvature(this->curvatureShader);
+                    this->renderCurvature(this->curvatureShader);
                 else if (currentCurvatureMode == NormalCurvature)
-                    this->calculateCurvature(this->normalCurvatureShader);
+                    this->renderCurvature(this->normalCurvatureShader);
+                else if (currentCurvatureMode == NathanReedCurvature)
+                    this->renderCurvature(this->nathanReedCurvatureShader);
                 else if (currentCurvatureMode == MeanCurvature)
-                    this->calculateCurvature(this->meanCurvatureShader);
+                    this->renderCurvature(this->meanCurvatureShader);
             } else {
                 this->SCFromShading();
             }
@@ -2060,6 +2098,7 @@ void MoleculeSESRenderer::deinitialise(void) {
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
+        glDeleteTextures(1, &objPositionTexture);
     }
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
