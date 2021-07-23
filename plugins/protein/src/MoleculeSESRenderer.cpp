@@ -70,10 +70,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCDiffThresholdParam(
               "SCDiffThreshold", "How much intensity difference needs to be there, for the pixel to be rendered")
         , SCMedianFilterParam("SCMedianFilter", "Use median filter for suggestive contours?")
-        , SCPyramidParam("SCPyramid", "Use hierarchical suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
-        , SCcurvatureParam("SCcuravature", "Use curvature information for the generation of suggestive contours?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -225,17 +223,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCMedianFilterParam.SetParameter(new param::BoolParam(this->SCMedianFilter));
     this->MakeSlotAvailable(&this->SCMedianFilterParam);
 
-    this->SCPyramid = false;
-    this->SCPyramidParam.SetParameter(new param::BoolParam(this->SCPyramid));
-    this->MakeSlotAvailable(&this->SCPyramidParam);
-
     this->SCCircularNeighborhood = true;
     this->SCCircularNeighborhoodParam.SetParameter(new param::BoolParam(this->SCCircularNeighborhood));
     this->MakeSlotAvailable(&this->SCCircularNeighborhoodParam);
-
-    this->SCcurvature = false;
-    this->SCcurvatureParam.SetParameter(new param::BoolParam(this->SCcurvature));
-    this->MakeSlotAvailable(&this->SCcurvatureParam);
 
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -675,20 +665,12 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->SCMedianFilter = this->SCMedianFilterParam.Param<param::BoolParam>()->Value();
         this->SCMedianFilterParam.ResetDirty();
     }
-    if (this->SCPyramidParam.IsDirty()) {
-        this->SCPyramid = this->SCPyramidParam.Param<param::BoolParam>()->Value();
-        this->SCPyramidParam.ResetDirty();
-    }
     if (this->SCCircularNeighborhoodParam.IsDirty()) {
         this->SCCircularNeighborhood = this->SCCircularNeighborhoodParam.Param<param::BoolParam>()->Value();
         this->SCCircularNeighborhoodParam.ResetDirty();
     }
     if (recomputeColors) {
         this->preComputationDone = false;
-    }
-    if (this->SCcurvatureParam.IsDirty()) {
-        this->SCcurvature = this->SCcurvatureParam.Param<param::BoolParam>()->Value();
-        this->SCcurvatureParam.ResetDirty();
     }
 }
 void MoleculeSESRenderer::calculateTextureBBX() {
@@ -752,53 +734,22 @@ void MoleculeSESRenderer::SCFromShading() {
     if (this->smoothNormals) {
         this->SmoothNormals();
     }
-    /*
-     * Contour-Generation
-     */
-
-
-    if (SCPyramid) {
-        this->SCpyramid.pullShaderProgram.Enable();
-        glActiveTexture(GL_TEXTURE1);
-        if (this->smoothNormals) {
-            glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
-        } else {
-            glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-        }
-        glUniform1i(SCpyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, positionTexture);
-        glUniform1i(SCpyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
-
-        SCpyramid.pushShaderProgram.Enable();
-        glUniform1f(SCpyramid.pushShaderProgram.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
-
-        SCpyramid.clear();
-        SCpyramid.pull_until(this->SCRadius);
-        SCpyramid.push_from(this->SCRadius);
-        SCpyramid.pullShaderProgram.Disable();
-        SCpyramid.pushShaderProgram.Disable();
-        this->passThroughShader.Enable();
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, SCpyramid.get("outData"));
+    this->SCfromShadingShader.Enable();
+    glUniform1i(SCfromShadingShader.ParameterLocation("radius"), this->SCRadius);
+    glUniform1f(SCfromShadingShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
+    glUniform1f(SCfromShadingShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+    glUniform1i(SCfromShadingShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
+    glUniform1i(SCfromShadingShader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
+    glActiveTexture(GL_TEXTURE1);
+    if (this->smoothNormals) {
+        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
     } else {
-        this->SCfromShadingShader.Enable();
-        glUniform1i(SCfromShadingShader.ParameterLocation("radius"), this->SCRadius);
-        glUniform1f(SCfromShadingShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
-        glUniform1f(SCfromShadingShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
-        glUniform1i(SCfromShadingShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
-        glUniform1i(SCfromShadingShader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
-        glActiveTexture(GL_TEXTURE1);
-        if (this->smoothNormals) {
-            glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
-        } else {
-            glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-        }
-        glUniform1i(SCfromShadingShader.ParameterLocation("normalTexture"), 1);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, positionTexture);
-        glUniform1i(SCfromShadingShader.ParameterLocation("positionTexture"), 2);
+        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
     }
+    glUniform1i(SCfromShadingShader.ParameterLocation("normalTexture"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(SCfromShadingShader.ParameterLocation("positionTexture"), 2);
     glGetError();
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -807,11 +758,7 @@ void MoleculeSESRenderer::SCFromShading() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    if (SCPyramid) {
-        this->passThroughShader.Disable();
-    } else {
-        this->SCfromShadingShader.Disable();
-    }
+    this->SCfromShadingShader.Disable();
 }
 void MoleculeSESRenderer::displayPositions() {
 

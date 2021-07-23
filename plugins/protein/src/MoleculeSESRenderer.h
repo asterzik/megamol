@@ -301,12 +301,8 @@ namespace protein {
         GLfloat SCDiffThreshold;
         megamol::core::param::ParamSlot SCMedianFilterParam;
         GLboolean SCMedianFilter;
-        megamol::core::param::ParamSlot SCPyramidParam;
-        GLboolean SCPyramid;
         megamol::core::param::ParamSlot SCCircularNeighborhoodParam;
         GLboolean SCCircularNeighborhood;
-        megamol::core::param::ParamSlot SCcurvatureParam;
-        GLboolean SCcurvature;
 
 
         bool drawSES;
