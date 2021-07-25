@@ -350,9 +350,11 @@ bool MoleculeSESRenderer::create(void) {
         return false;
 
     // shaders for contour drawing
-    if (!this->loadShader(this->SCfromShadingShader, "contours::vertex", "contours::shading::fragment"))
+    if (!this->loadShader(this->SC_Shader, "contours::vertex", "contours::contours::SC"))
         return false;
-    if (!this->loadShader(this->ShadingCurvatureShader, "contours::vertex", "contours::shading::andCurvature"))
+    if (!this->loadShader(this->C_Shader, "contours::vertex", "contours::contours::C"))
+        return false;
+    if (!this->loadShader(this->C_Curvature_Shader, "contours::vertex", "contours::contours::C_Curvature"))
         return false;
     if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::curvature::fragment"))
         return false;
@@ -739,22 +741,22 @@ void MoleculeSESRenderer::SuggestiveContours() {
         this->SmoothNormals();
     }
     glDisable(GL_DEPTH_TEST);
-    this->SCfromShadingShader.Enable();
-    glUniform1i(SCfromShadingShader.ParameterLocation("radius"), this->SCRadius);
-    glUniform1f(SCfromShadingShader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
-    glUniform1f(SCfromShadingShader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
-    glUniform1i(SCfromShadingShader.ParameterLocation("medianFilter"), this->SCMedianFilter);
-    glUniform1i(SCfromShadingShader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
+    this->SC_Shader.Enable();
+    glUniform1i(SC_Shader.ParameterLocation("radius"), this->SCRadius);
+    glUniform1f(SC_Shader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
+    glUniform1f(SC_Shader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+    glUniform1i(SC_Shader.ParameterLocation("medianFilter"), this->SCMedianFilter);
+    glUniform1i(SC_Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
     glActiveTexture(GL_TEXTURE1);
     if (this->smoothNormals) {
         glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
     } else {
         glBindTexture(GL_TEXTURE_2D, this->normalTexture);
     }
-    glUniform1i(SCfromShadingShader.ParameterLocation("normalTexture"), 1);
+    glUniform1i(SC_Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, positionTexture);
-    glUniform1i(SCfromShadingShader.ParameterLocation("positionTexture"), 2);
+    glUniform1i(SC_Shader.ParameterLocation("positionTexture"), 2);
     glGetError();
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -763,7 +765,7 @@ void MoleculeSESRenderer::SuggestiveContours() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    this->SCfromShadingShader.Disable();
+    this->SC_Shader.Disable();
 }
 // TODO: Improve the naming stuff here, this is horrible!
 void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {

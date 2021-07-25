@@ -344,8 +344,9 @@ namespace protein {
         // shader for per pixel lighting (polygonal view)
         vislib::graphics::gl::GLSLShader lightShader;
         // shader for contour generation
-        vislib::graphics::gl::GLSLShader SCfromShadingShader;
-        vislib::graphics::gl::GLSLShader ShadingCurvatureShader;
+        vislib::graphics::gl::GLSLShader SC_Shader;
+        vislib::graphics::gl::GLSLShader C_Curvature_Shader;
+        vislib::graphics::gl::GLSLShader C_Shader;
         vislib::graphics::gl::GLSLShader SCfromCurvatureShader;
         // shader for curvature calculation
         vislib::graphics::gl::GLSLShader curvatureShader;
@@ -382,9 +383,8 @@ namespace protein {
             {EvansCurvature, &this->curvatureShader}, {NormalCurvature, &this->normalCurvatureShader},
             {NathanReedCurvature, &this->nathanReedCurvatureShader}, {MeanCurvature, &this->meanCurvatureShader}};
         enum contourMode { Suggestive, Shading, ShadingAndCurvature };
-        std::map<contourMode, vislib::graphics::gl::GLSLShader*> contourShaderMap = {
-            {Suggestive, &this->SCfromShadingShader}, {Shading, &this->ShadingCurvatureShader},
-            {ShadingAndCurvature, &this->ShadingCurvatureShader}};
+        std::map<contourMode, vislib::graphics::gl::GLSLShader*> contourShaderMap = {{Suggestive, &this->SC_Shader},
+            {Shading, &this->C_Shader}, {ShadingAndCurvature, &this->C_Curvature_Shader}};
         contourMode currentContourMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;

@@ -74,8 +74,8 @@
             </snippet>
         </shader>
 
-        <namespace name="shading">
-        <shader name="fragment">
+        <namespace name="contours">
+        <shader name="SC">
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
@@ -234,7 +234,38 @@
           -->
         </snippet>
       </shader>
-        <shader name="andCurvature">
+        <shader name="C">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+
+            uniform sampler2D normalTexture;
+            uniform sampler2D positionTexture;
+
+            void main()
+            {
+                vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                if(normal == vec3(0.0)){
+                    discard;
+                }
+                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                float dotp = dot(normal, lightdir);
+                float col = dotp;
+                
+                if(col > 0.2)
+                    discard;
+
+                col = 1.0 - col; //invert color because background is dark
+
+                FragColor = vec4(col, col, col, 1.0);
+            }
+          -->
+        </snippet>
+      </shader>
+        <shader name="C_Curvature">
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
