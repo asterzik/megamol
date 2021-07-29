@@ -59,6 +59,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
         , smoothNormalsParam("smoothNormals", "Determines whether the pull-push algorithm is used or not")
+        , smoothPositionsParam("smoothPositions", "Determines whether the pull-push algorithm is used or not")
         , pyramidWeightsParam(
               "pyramidWeights", "The factor for the weights in the pull phase of the pull-push algorithm")
         , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push normalPyramid")
@@ -204,6 +205,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->pyramidGamma = 1.0f;
     this->pyramidGammaParam.SetParameter(new param::FloatParam(this->pyramidGamma, 1.0));
     this->MakeSlotAvailable(&this->pyramidGammaParam);
+
+    this->smoothPositions = True;
+    this->smoothPositionsParam.SetParameter(new param::BoolParam(this->smoothPositions));
+    this->MakeSlotAvailable(&this->smoothPositionsParam);
 
     // // Suggestive Contours parameters
 
@@ -503,6 +508,8 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         // TODO: All this stuff should only be created if necessary
         normalPyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
             "pullpush::pushNormal");
+        positionPyramid.create("fragPosition", this->width, this->height, this->GetCoreInstance(),
+            "pullpush::pullPosition", "pullpush::pushPosition");
         depthPyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
         heightPyramid.create("fragMaxY", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxY");
@@ -640,6 +647,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->smoothNormals = this->smoothNormalsParam.Param<param::BoolParam>()->Value();
         this->smoothNormalsParam.ResetDirty();
     }
+    if (this->smoothPositionsParam.IsDirty()) {
+        this->smoothPositions = this->smoothPositionsParam.Param<param::BoolParam>()->Value();
+        this->smoothPositionsParam.ResetDirty();
+    }
     if (this->pyramidWeightsParam.IsDirty()) {
         this->pyramidWeight = this->pyramidWeightsParam.Param<param::FloatParam>()->Value();
         this->pyramidWeightsParam.ResetDirty();
@@ -717,13 +728,13 @@ void MoleculeSESRenderer::SmoothNormals() {
     this->calculateTextureBBX();
     normalPyramid.pullShaderProgram.Enable();
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    glBindTexture(GL_TEXTURE_2D, this->normalTexture);
     glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glBindTexture(GL_TEXTURE_2D, this->positionTexture);
     glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
+    glBindTexture(GL_TEXTURE_2D, *depthPyramid.get("fragMaxDepth"));
     glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
     glUniform1f(normalPyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
     normalPyramid.pushShaderProgram.Enable();
@@ -734,6 +745,29 @@ void MoleculeSESRenderer::SmoothNormals() {
     normalPyramid.push_from(this->pyramidLayers);
     glEnable(GL_DEPTH_TEST);
 }
+void MoleculeSESRenderer::SmoothPositions() {
+    /*
+     * Execute Pull-Push algorithm for smoothing
+     */
+    glDisable(GL_DEPTH_TEST);
+    this->calculateTextureBBX();
+    positionPyramid.pullShaderProgram.Enable();
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glUniform1i(positionPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, *depthPyramid.get("fragMaxDepth"));
+    glUniform1i(positionPyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
+    glUniform1f(positionPyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
+    positionPyramid.pushShaderProgram.Enable();
+    glUniform1f(positionPyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
+
+    positionPyramid.clear();
+    positionPyramid.pull_until(this->pyramidLayers);
+    positionPyramid.push_from(this->pyramidLayers);
+    glEnable(GL_DEPTH_TEST);
+}
+
 void MoleculeSESRenderer::SuggestiveContours() {
 
 
@@ -748,14 +782,10 @@ void MoleculeSESRenderer::SuggestiveContours() {
     glUniform1i(SC_Shader.ParameterLocation("medianFilter"), this->SCMedianFilter);
     glUniform1i(SC_Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
     glActiveTexture(GL_TEXTURE1);
-    if (this->smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
-    } else {
-        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    }
+    glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(SC_Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(SC_Shader.ParameterLocation("positionTexture"), 2);
     glGetError();
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
@@ -775,14 +805,10 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     // auto shader = *contourShaderMap[this->currentContourMode];
     Shader.Enable();
     glActiveTexture(GL_TEXTURE1);
-    if (this->smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
-    } else {
-        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    }
+    glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, curvatureTexture);
@@ -802,7 +828,7 @@ void MoleculeSESRenderer::displayPositions() {
 
     passThroughShader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, this->positionTexture);
+    glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glGetError();
 
@@ -824,16 +850,16 @@ void MoleculeSESRenderer::displayNormalizedPositions() {
     glClear(GL_COLOR_BUFFER_BIT);
     normalizePositionsShader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, this->positionTexture);
+    glBindTexture(GL_TEXTURE_2D, *cur_positionTexture);
     glUniform1i(normalizePositionsShader.ParameterLocation("positionTexture"), 0);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, this->widthPyramid.get("fragMaxX"));
+    glBindTexture(GL_TEXTURE_2D, *widthPyramid.get("fragMaxX"));
     glUniform1i(normalizePositionsShader.ParameterLocation("widthTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, this->heightPyramid.get("fragMaxY"));
+    glBindTexture(GL_TEXTURE_2D, *heightPyramid.get("fragMaxY"));
     glUniform1i(normalizePositionsShader.ParameterLocation("heightTexture"), 2);
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, this->depthPyramid.get("fragMaxDepth"));
+    glBindTexture(GL_TEXTURE_2D, *depthPyramid.get("fragMaxDepth"));
     glUniform1i(normalizePositionsShader.ParameterLocation("depthTexture"), 3);
     glUniform1i(normalizePositionsShader.ParameterLocation("level_max"), this->bbx_levelMax);
     glGetError();
@@ -848,17 +874,9 @@ void MoleculeSESRenderer::displayNormals() {
 
     glDisable(GL_DEPTH_TEST);
 
-    if (this->smoothNormals) {
-        this->SmoothNormals();
-    }
-
     passThroughShader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    if (this->smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
-    } else {
-        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    }
+    glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glGetError();
 
@@ -875,20 +893,12 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
 
     glDisable(GL_DEPTH_TEST);
 
-    if (this->smoothNormals) {
-        this->SmoothNormals();
-    }
-
     Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(Shader.ParameterLocation("tex_fragPosition"), 0);
     glActiveTexture(GL_TEXTURE1);
-    if (this->smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
-    } else {
-        glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    }
+    glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(Shader.ParameterLocation("tex_fragNormal"), 1);
     glGetError();
 
@@ -1299,7 +1309,20 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             this->sphereShader.Disable();
         }
 #pragma endregion // sphere shader
+        // Offscreen Rendering
         if (offscreenRendering) {
+            if (this->smoothNormals) {
+                this->SmoothNormals();
+                this->cur_normalTexture = normalPyramid.get("fragNormal");
+            } else
+                this->cur_normalTexture = &normalTexture;
+
+            if (this->smoothPositions) {
+                this->SmoothPositions();
+                this->cur_positionTexture = positionPyramid.get("fragPosition");
+            } else
+                this->cur_positionTexture = &positionTexture;
+
             if (this->currentDisplayedProperty == Position) {
                 this->displayPositions();
             } else if (this->currentDisplayedProperty == NormalizedPosition) {

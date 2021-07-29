@@ -188,6 +188,7 @@ namespace protein {
          * Smooth normal texture using pull-push algorithm
          */
         void SmoothNormals();
+        void SmoothPositions();
 
         /**
          * returns the color of the atom 'idx' for the current coloring mode
@@ -289,6 +290,8 @@ namespace protein {
         GLfloat pyramidWeight;
         megamol::core::param::ParamSlot smoothNormalsParam;
         GLboolean smoothNormals;
+        megamol::core::param::ParamSlot smoothPositionsParam;
+        GLboolean smoothPositions;
         megamol::core::param::ParamSlot pyramidLayersParam;
         GLint pyramidLayers;
         megamol::core::param::ParamSlot pyramidGammaParam;
@@ -320,6 +323,7 @@ namespace protein {
 
         // The pull-push pyramids
         Pyramid normalPyramid;    // Normal smoothing
+        Pyramid positionPyramid;  // Position smoothing
         Pyramid SCpyramid;        // Suggestive Contours using pull-push algorithm
         Pyramid curvaturePyramid; // curvature smoothing
 
@@ -416,6 +420,8 @@ namespace protein {
         GLuint contourFBO;
         GLuint curvatureFBO;
         GLuint normalTexture;
+        GLuint* cur_normalTexture;
+        GLuint* cur_positionTexture;
         GLuint curvatureTexture;
         GLuint positionTexture;
         GLuint objPositionTexture;

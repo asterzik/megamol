@@ -264,8 +264,8 @@ Pyramid* Pyramid::clear(int level) {
     return this;
 }
 
-GLuint Pyramid::get(std::string name) {
-    return textureMap[name];
+GLuint* Pyramid::get(std::string name) {
+    return &textureMap[name];
 }
 
 int Pyramid::getMipmapNumber() {

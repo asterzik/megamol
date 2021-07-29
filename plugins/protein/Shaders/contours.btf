@@ -411,7 +411,7 @@
 
                 float curvature = (curvatureLeft + curvatureTop + curvatureRight + curvatureBottom) / 4;
 
-                fragCurvature = vec4(vec3(curvature), 1.0);
+                fragCurvature = vec4(vec3(pLeft.z - p.z)*100, 1.0);
             }
             -->
             </snippet>
