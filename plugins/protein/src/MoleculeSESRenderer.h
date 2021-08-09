@@ -360,6 +360,7 @@ namespace protein {
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
         vislib::graphics::gl::GLSLShader normalizePositionsShader;
+        vislib::graphics::gl::GLSLShader blurShader;
         ////////////
 
         // the bounding box of the protein
@@ -419,9 +420,11 @@ namespace protein {
         // FBOs and textures for postprocessing
         GLuint contourFBO;
         GLuint curvatureFBO;
+        GLuint positionFBO;
+        GLuint smoothPositionTexture;
         GLuint normalTexture;
-        GLuint* cur_normalTexture;
-        GLuint* cur_positionTexture;
+        // GLuint* cur_normalTexture;
+        // GLuint* cur_positionTexture;
         GLuint curvatureTexture;
         GLuint positionTexture;
         GLuint objPositionTexture;

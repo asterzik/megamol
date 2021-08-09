@@ -26,7 +26,7 @@ public:
     Pyramid* texture(std::string name, GLuint textureID, GLuint samplerHandle, GLuint target);
 
 
-    GLuint* get(std::string name);
+    GLuint get(std::string name);
     int getMipmapNumber();
 
     vislib::graphics::gl::GLSLShader pushShaderProgram;

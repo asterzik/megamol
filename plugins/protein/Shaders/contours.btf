@@ -381,8 +381,6 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
-
-
             out vec4 fragCurvature;
 
             uniform sampler2D tex_fragPosition;
@@ -398,21 +396,53 @@
                 vec3 p = passPosition_view.xyz;
                 vec3 n = normalize(passNormal_view.xyz);
 
+                //TODO: Bottom und Top vertauscht?
+
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
                 vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
                 vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
 
-                // Compute curvature for all "edges" in the 4-neighborhood
-                float curvatureLeft = 2 * dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
-                float curvatureTop = 2 * dot(n, p - pTop) / (length(pTop - p) * length(pTop - p));
-                float curvatureRight = 2 * dot(n, p - pRight) / (length(pRight - p) * length(pRight - p));
-                float curvatureBottom = 2 * dot(n, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+                float curvatureLeft = dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
+                float curvatureTop = dot(n , p - pTop) / (length(pTop - p) * length(pTop - p));
+                float curvatureRight = dot(n, p - pRight) / (length(pRight - p) * length(pRight - p));
+                float curvatureBottom = dot(n, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
 
                 float curvature = (curvatureLeft + curvatureTop + curvatureRight + curvatureBottom) / 4;
-
-                fragCurvature = vec4(vec3(pLeft.z - p.z)*100, 1.0);
+                fragCurvature = vec4(vec3(curvature), 1.0);
             }
+
+
+            // out vec4 fragCurvature;
+
+            // uniform sampler2D tex_fragPosition;
+            // uniform sampler2D tex_fragNormal;
+
+
+            // void main() {
+            //     vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+            //     vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+            //     if(passPosition_view == vec4(0.0))
+            //         discard;
+
+            //     vec3 p = passPosition_view.xyz;
+            //     vec3 n = normalize(passNormal_view.xyz);
+
+            //     vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+            //     vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+            //     vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+            //     vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+
+            //     // Compute curvature for all "edges" in the 4-neighborhood
+            //     float curvatureLeft = 2 * dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
+            //     float curvatureTop = 2 * dot(n, p - pTop) / (length(pTop - p) * length(pTop - p));
+            //     float curvatureRight = 2 * dot(n, p - pRight) / (length(pRight - p) * length(pRight - p));
+            //     float curvatureBottom = 2 * dot(n, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+
+            //     float curvature = (curvatureLeft - curvatureRight) / 4;
+
+            //     fragCurvature = vec4(vec3(curvature), 1.0);
+            // }
             -->
             </snippet>
         </shader>
@@ -450,14 +480,10 @@
                 vec3 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
 
                 // Compute curvature for all "edges" in the 4-neighborhood
-                // float curvatureLeft = dot(n - nLeft, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
-                // float curvatureTop = dot(n- nTop, p - pTop) / (length(pTop - p) * length(pTop - p));
-                // float curvatureRight = dot(n -nRight, p - pRight) / (length(pRight - p) * length(pRight - p));
-                // float curvatureBottom = dot(n -nBottom, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
                 float curvatureLeft = dot(n - nLeft, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
-                float curvatureTop = dot(n - nTop, p - pTop) / (length(pTop - p) * length(pTop - p));
-                float curvatureRight = dot(n - nRight, p - pRight) / (length(pRight - p) * length(pRight - p));
-                float curvatureBottom = dot(n - nBottom, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+                float curvatureTop = dot(n- nTop, p - pTop) / (length(pTop - p) * length(pTop - p));
+                float curvatureRight = dot(n -nRight, p - pRight) / (length(pRight - p) * length(pRight - p));
+                float curvatureBottom = dot(n -nBottom, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
 
                 float curvature = (curvatureLeft + curvatureTop + curvatureRight + curvatureBottom) / 4;
 
@@ -531,5 +557,31 @@
           -->
         </snippet>
       </shader>
+        
+      </namespace>
+        <namespace name="postprocessing">
+        <shader name="blur">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+        out vec4 FragColor;
+        uniform sampler2D screenTexture;
+
+        void main()
+        {
+            vec3 col = 4.0 / 16 * texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0).xyz;
+            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,-1)), 0).xyz;
+            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,-1)), 0).xyz;
+            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,1)), 0).xyz;
+            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,1)), 0).xyz;
+            FragColor = vec4(col, 1.0);
+        }
+            -->
+            </snippet>
+        </shader>
       </namespace>
 </btf>
