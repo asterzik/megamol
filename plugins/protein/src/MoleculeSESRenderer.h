@@ -420,8 +420,8 @@ namespace protein {
         // FBOs and textures for postprocessing
         GLuint contourFBO;
         GLuint curvatureFBO;
-        GLuint positionFBO;
-        GLuint smoothPositionTexture;
+        GLuint positionFBO[2];
+        GLuint smoothPositionTexture[2];
         GLuint normalTexture;
         // GLuint* cur_normalTexture;
         // GLuint* cur_positionTexture;
@@ -429,6 +429,9 @@ namespace protein {
         GLuint positionTexture;
         GLuint objPositionTexture;
         GLuint contourDepthRBO;
+
+        // boolean for pingpong blurring
+        bool horizontal;
 
         // VAO and VBO for screen filling quad
         unsigned int quadVAO, quadVBO;

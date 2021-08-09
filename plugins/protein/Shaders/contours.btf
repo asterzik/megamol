@@ -66,8 +66,8 @@
                 // vec3 maxs = vec3(30.0, 30.0, -120.0);
                 vec3 mins = vec3(-3.0, -2.0, -16.0);
                 vec3 maxs = vec3(3.0, 2.5, -14.0);
-                vec3 color= (position.xyz - mins) / (maxs-mins);
-                FragColor = vec4(color, 1.0);
+                // vec3 color= (position.xyz - mins) / (maxs-mins);
+                FragColor = vec4(abs(depth.x), abs(depth.y), 0.0, 1.0);
             }
 
             -->
@@ -564,21 +564,52 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
+        // out vec4 FragColor;
+        // uniform sampler2D screenTexture;
+
+        // void main()
+        // {
+        //     vec3 col = 4.0 / 16 * texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0).xyz;
+        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,-1)), 0).xyz;
+        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,-1)), 0).xyz;
+        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,1)), 0).xyz;
+        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,1)), 0).xyz;
+        //     FragColor = vec4(col, 1.0);
+        // }
+
         out vec4 FragColor;
         uniform sampler2D screenTexture;
 
+        uniform bool horizontal;
+        uniform float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+
         void main()
+        {             
+        vec4 resultv4 = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0) * weight[0]; // current fragment's contribution
+        if(resultv4 == vec4(0))
+            discard;
+        vec3 result = resultv4.rgb;
+        if(horizontal)
         {
-            vec3 col = 4.0 / 16 * texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0).xyz;
-            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
-            col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,-1)), 0).xyz;
-            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,-1)), 0).xyz;
-            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,1)), 0).xyz;
-            col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,1)), 0).xyz;
-            FragColor = vec4(col, 1.0);
+            for(int i = 1; i < 5; ++i)
+            {
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(i,0)), 0).rgb * weight[i]; // current fragment's contribution
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-i,0)), 0).rgb * weight[i]; // current fragment's contribution
+            }
+        }
+        else
+        {
+            for(int i = 1; i < 5; ++i)
+            {
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,i)), 0).rgb * weight[i]; // current fragment's contribution
+                result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-i)), 0).rgb * weight[i]; // current fragment's contribution
+            }
+        }
+        FragColor = vec4(result, 1.0);
         }
             -->
             </snippet>
