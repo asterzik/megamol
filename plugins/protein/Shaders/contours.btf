@@ -67,7 +67,8 @@
                 vec3 mins = vec3(-3.0, -2.0, -16.0);
                 vec3 maxs = vec3(3.0, 2.5, -14.0);
                 // vec3 color= (position.xyz - mins) / (maxs-mins);
-                FragColor = vec4(abs(depth.x), abs(depth.y), 0.0, 1.0);
+                float intensity = (abs(position.z) - 46.156) / (82.250 - 46.156);
+                FragColor = vec4(vec3(intensity), 1.0);
             }
 
             -->

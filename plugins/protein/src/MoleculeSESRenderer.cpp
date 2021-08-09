@@ -881,6 +881,7 @@ void MoleculeSESRenderer::displayPositions() {
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glGetError();
 
+
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -923,6 +924,7 @@ void MoleculeSESRenderer::displayNormalizedPositions() {
     glEnable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(0);
+    normalizePositionsShader.Disable();
 }
 void MoleculeSESRenderer::displayNormals() {
 
