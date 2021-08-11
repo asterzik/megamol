@@ -52,6 +52,7 @@
             void main()
             { 
                 vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
+                vec4 position_l = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-1,0), 0);
                 if(position == vec4(0.0))
                     discard;
                 vec2 depth = texelFetch(depthTexture, ivec2(0,0), level_max - 1).xy;

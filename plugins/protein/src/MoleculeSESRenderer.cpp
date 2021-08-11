@@ -766,6 +766,8 @@ void MoleculeSESRenderer::SmoothPositions() {
         glUniform1i(blurShader.ParameterLocation("horizontal"), horizontal);
         glBindTexture(GL_TEXTURE_2D, first_iteration ? positionTexture : smoothPositionTexture[!horizontal]);
         glBindVertexArray(quadVAO);
+        glClear(GL_COLOR_BUFFER_BIT);
+
         glDrawArrays(GL_TRIANGLES, 0, 6);
         horizontal = !horizontal;
         if (first_iteration)
@@ -1030,7 +1032,7 @@ void MoleculeSESRenderer::CreateFBO() {
 
     // texture for normals
     glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1040,7 +1042,7 @@ void MoleculeSESRenderer::CreateFBO() {
 
     // texture for positions
     glBindTexture(GL_TEXTURE_2D, this->positionTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1089,7 +1091,7 @@ void MoleculeSESRenderer::CreateFBO() {
     for (unsigned int i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, positionFBO[i]);
         glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
