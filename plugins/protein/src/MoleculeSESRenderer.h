@@ -357,6 +357,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader normalCurvatureShader;
         vislib::graphics::gl::GLSLShader nathanReedCurvatureShader;
         vislib::graphics::gl::GLSLShader meanCurvatureShader;
+        vislib::graphics::gl::GLSLShader prantlCurvatureShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
         vislib::graphics::gl::GLSLShader normalizePositionsShader;
@@ -382,11 +383,11 @@ namespace protein {
         Color::ColoringMode currentColoringMode0;
         Color::ColoringMode currentColoringMode1;
 
-        enum curvatureMode { EvansCurvature, NormalCurvature, NathanReedCurvature, MeanCurvature };
+        enum curvatureMode { EvansCurvature, NormalCurvature, NathanReedCurvature, MeanCurvature, PrantlCurvature };
         curvatureMode currentCurvatureMode;
         std::map<curvatureMode, vislib::graphics::gl::GLSLShader*> curvatureShaderMap = {
             {EvansCurvature, &this->curvatureShader}, {NormalCurvature, &this->normalCurvatureShader},
-            {NathanReedCurvature, &this->nathanReedCurvatureShader}, {MeanCurvature, &this->meanCurvatureShader}};
+            {NathanReedCurvature, &this->nathanReedCurvatureShader}, {MeanCurvature, &this->meanCurvatureShader}, {PrantlCurvature, &this->prantlCurvatureShader}};
         enum contourMode { Suggestive, Shading, ShadingAndCurvature };
         std::map<contourMode, vislib::graphics::gl::GLSLShader*> contourShaderMap = {{Suggestive, &this->SC_Shader},
             {Shading, &this->C_Shader}, {ShadingAndCurvature, &this->C_Curvature_Shader}};
