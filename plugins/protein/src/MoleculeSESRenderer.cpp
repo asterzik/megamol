@@ -377,13 +377,13 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->prantl2MeanShader, "contours::vertex", "contours::curvature::prantl2mean"))
         return false;
-    if (!this->loadShader(this->prantlGaussianShader, "contours::vertex", "contours::curvature::prantlmean"))
+    if (!this->loadShader(this->prantlGaussianShader, "contours::vertex", "contours::curvature::prantlgaussian"))
         return false;
-    if (!this->loadShader(this->prantl2GaussianShader, "contours::vertex", "contours::curvature::prantl2mean"))
+    if (!this->loadShader(this->prantl2GaussianShader, "contours::vertex", "contours::curvature::prantl2gaussian"))
         return false;
-    if (!this->loadShader(this->prantlRadialShader, "contours::vertex", "contours::curvature::prantlmean"))
+    if (!this->loadShader(this->prantlRadialShader, "contours::vertex", "contours::curvature::prantlradial"))
         return false;
-    if (!this->loadShader(this->prantl2RadialShader, "contours::vertex", "contours::curvature::prantl2mean"))
+    if (!this->loadShader(this->prantl2RadialShader, "contours::vertex", "contours::curvature::prantl2radial"))
         return false;
     if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
         return false;
