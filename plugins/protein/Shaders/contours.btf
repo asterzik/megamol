@@ -849,7 +849,7 @@
 
 //Begin
 
-			vec2 CalcCurvature_ShapeOperator(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
+			float CalcCurvature_ShapeOperator(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn, vec3 p)
 			{
 	
 				vec3 local_trianglePos[TRIANGLE_VERTICES];
@@ -973,12 +973,33 @@
 				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
 				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
 
+                //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
+                vec2 eigenvec1;
+                // vec2 eigenvec2;
+
+                if(tmp_gpu.y ==0 ){
+                    eigenvec1.x = L1 - tmp_gpu.z;
+                    eigenvec1.y = tmp_gpu.y;
+                    // eigenvec2.x = L2 - tmp_gpu.z;
+                    // eigenvec2.y = tmp_gpu.y;
+                }
+                else
+                {
+                    eigenvec1 = vec2(1.0, 0.0);
+                    // eigenvec2 = vec2(0, 1);
+                }
+
+//TODO: project lightdir onto tangent plane and transform into local coordinates 
+                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - p); 
+                float cos2 = dot(lightdir, eigenvec1);
+                float radial_curv = L1 * cos2 + L2 * (1- cos2);
+
 
 				// float gauss = L1 * L2;
 	
 				// float mean = 0.5 * (L1 + L2);
 
-				return vec2(L1, L2);
+				return radial_curv;
 			}
 
 
@@ -1000,10 +1021,9 @@
                 vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
 
                 // Compute curvature for all "edges" in the 4-neighborhood
-                vec2 eigenvalues = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop);
-                float gauss_curv = (eigenvalues.x * eigenvalues.y);
+                float curv = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop, p);
 
-                fragCurvature = vec4(vec3(gauss_curv),1.0);
+                fragCurvature = vec4(vec3(curv),1.0);
             }
                 
             -->
@@ -1023,7 +1043,7 @@
             uniform sampler2D tex_fragNormal;
 
 //Begin
-			vec2 CalcCurvature_ShapeOperator_2edge(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
+			float CalcCurvature_ShapeOperator_2edge(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn, vec3 p)
 			{
 	
 				vec3 local_trianglePos[TRIANGLE_VERTICES];
@@ -1140,13 +1160,30 @@
 
 				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
 				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
+                //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
+                vec2 eigenvec1;
+                // vec2 eigenvec2;
+
+                if(tmp_gpu.y ==0 ){
+                    eigenvec1.x = L1 - tmp_gpu.z;
+                    eigenvec1.y = tmp_gpu.y;
+                    // eigenvec2.x = L2 - tmp_gpu.z;
+                    // eigenvec2.y = tmp_gpu.y;
+                }
+                else
+                {
+                    eigenvec1 = vec2(1.0, 0.0);
+                    // eigenvec2 = vec2(0, 1);
+                }
+
+                float radial_curv = L1 * cos2 + L2 * (1-cos2);
 
 
 				// float gauss = L1 * L2;
 	
 				// float mean = 0.5 * (L1 + L2);
 
-				return vec2(L1, L2);
+				return radial_curv; 
 			}
 
             void main() {
@@ -1167,10 +1204,9 @@
                 vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
 
                 // Compute curvature for all "edges" in the 4-neighborhood
-                vec2 eigenvalues = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop);
-                float gauss_curv = eigenvalues.x * eigenvalues.y;
+                float radial_curv = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop, p);
 
-                fragCurvature = vec4(vec3(gauss_curv),1.0);
+                fragCurvature = vec4(vec3(radial_curv),1.0);
             }
                 
             -->
@@ -1510,7 +1546,7 @@
 
                 // Compute curvature for all "edges" in the 4-neighborhood
                 vec2 eigenvalues = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop);
-                float gauss_curv = eigenvalues.x * eigenvalues.y;
+                float gauss_curv = eigenvalues.x *  eigenvalues.y;
 
                 fragCurvature = vec4(vec3(gauss_curv),1.0);
             }
