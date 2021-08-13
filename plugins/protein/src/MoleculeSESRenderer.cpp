@@ -186,7 +186,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 #pragma endregion Set parameters
 
     // Parameters for normalPyramid
-    this->smoothNormals = True;
+    this->smoothNormals = true;
     this->smoothNormalsParam.SetParameter(new param::BoolParam(this->smoothNormals));
     this->MakeSlotAvailable(&this->smoothNormalsParam);
 
@@ -206,7 +206,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->pyramidGammaParam.SetParameter(new param::FloatParam(this->pyramidGamma, 1.0));
     this->MakeSlotAvailable(&this->pyramidGammaParam);
 
-    this->smoothPositions = True;
+    this->smoothPositions = true;
     this->smoothPositionsParam.SetParameter(new param::BoolParam(this->smoothPositions));
     this->MakeSlotAvailable(&this->smoothPositionsParam);
 
