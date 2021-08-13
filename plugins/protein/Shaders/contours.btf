@@ -495,13 +495,10 @@
             </snippet>
         </shader>
         
-        <shader name="prantl">
+        <shader name="prantlmean">
           <snippet type="version">420</snippet>
           <snippet type="string">
             <!--
-            #define LOCAL_X  0
-			#define LOCAL_Y  1
-			#define LOCAL_Z  2
 			#define TRIANGLE_VERTICES  3
 
 
@@ -511,13 +508,6 @@
             uniform sampler2D tex_fragNormal;
 
 //Begin
-            /**
-			 * Map value s from interval [a1, a2] to interval [b1, b2]
-			 */
-			float MapRange(float a1, float a2, float b1, float b2, float s)
-			{
-				return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
-			}
 
 			vec2 CalcCurvature_ShapeOperator(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
 			{
@@ -534,12 +524,15 @@
 	
 	
 				vec3 axis[TRIANGLE_VERTICES];
-				axis[LOCAL_X] = normalize(_ba_);
-				axis[LOCAL_Z] = normalize(cross(axis[LOCAL_X], _ca_));    
-				axis[LOCAL_Y] = normalize(cross(axis[LOCAL_X], axis[LOCAL_Z]));
+				axis[0] = normalize(_ba_);
+				axis[2] = normalize(cross(axis[0], _ca_));    
+				axis[1] = normalize(cross(axis[0], axis[2]));
 				
-				mat3 transformMatrix = mat3(axis[LOCAL_X], axis[LOCAL_Y], axis[LOCAL_Z]);  
-                transformMatrix = transpose(transformMatrix);
+				// mat3 transformMatrix = mat3(axis[0], axis[1], axis[2]);  
+                // transformMatrix = transpose(transformMatrix);
+                mat3 transformMatrix = mat3(axis[0][0], axis[1][0], axis[2][0],
+                                            axis[0][1], axis[1][1], axis[2][1],
+                                            axis[0][2], axis[1][2], axis[2][2]);
 				
 				local_trianglePos[0] = vec3(0,0,0);
 				local_triangleNor[0] = transformMatrix * an;
@@ -602,28 +595,26 @@
 				mat3 resRight;
 	
 				resLeft[0][0] = v.x * invB_B + u.x * invB_A;
-				resLeft[1][0] = v.x * invB_C + u.x * invB_B;
-				resLeft[2][0] = v.y * invB_B + u.y * invB_A;
+				resLeft[0][1] = v.x * invB_C + u.x * invB_B;
+				resLeft[0][2] = v.y * invB_B + u.y * invB_A;
 				resRight[0][0] = v.y * invB_C + u.y * invB_B;
-				resRight[1][0] = v.z * invB_B + u.z * invB_A;
-				resRight[2][0] = v.z * invB_C + u.z * invB_B;
+				resRight[0][1] = v.z * invB_B + u.z * invB_A;
+				resRight[0][2] = v.z * invB_C + u.z * invB_B;
 
-				resLeft[0][1] = v.x * invB_D + u.x * invB_B;
+				resLeft[1][0] = v.x * invB_D + u.x * invB_B;
 				resLeft[1][1] = v.x * invB_E + u.x * invB_D;
-				resLeft[2][1] = v.y * invB_D + u.y * invB_B;
-				resRight[0][1] = v.y * invB_E + u.y * invB_D;
+				resLeft[1][2] = v.y * invB_D + u.y * invB_B;
+				resRight[1][0] = v.y * invB_E + u.y * invB_D;
 				resRight[1][1] = v.z * invB_D + u.z * invB_B;
-				resRight[2][1] = v.z * invB_E + u.z * invB_D;
+				resRight[1][2] = v.z * invB_E + u.z * invB_D;
 
-				resLeft[0][2] = v.x * invB_E + u.x * invB_C;
-				resLeft[1][2] = v.x * invB_F + u.x * invB_E;
+				resLeft[2][0] = v.x * invB_E + u.x * invB_C;
+				resLeft[2][1] = v.x * invB_F + u.x * invB_E;
 				resLeft[2][2] = v.y * invB_E + u.y * invB_C;
-				resRight[0][2] = v.y * invB_F + u.y * invB_E;
-				resRight[1][2] = v.z * invB_E + u.z * invB_C;
+				resRight[2][0] = v.y * invB_F + u.y * invB_E;
+				resRight[2][1] = v.z * invB_E + u.z * invB_C;
 				resRight[2][2] = v.z * invB_F + u.z * invB_E;
 
-                resLeft = transpose(resLeft);
-                resRight = transpose(resRight);
 				//================================================================================
 				
 				vec3 finalM_gpu_a = vec3(du.x, dv.x, du.y) * resLeft;
@@ -651,8 +642,47 @@
 			}
 
 
+            void main() {
+                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
+
+                vec3 p = passPosition_view.xyz;
+                vec3 n = normalize(passNormal_view.xyz);
+
+                //TODO: Bottom und Top vertauscht?
+
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+
+                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+
+                // Compute curvature for all "edges" in the 4-neighborhood
+                vec2 eigenvalues = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop);
+                float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
+
+                fragCurvature = vec4(vec3(mean_curv),1.0);
+            }
+                
+            -->
+            </snippet>
+        </shader>
+
+        <shader name="prantl2mean">
+          <snippet type="version">420</snippet>
+          <snippet type="string">
+            <!--
+			#define TRIANGLE_VERTICES  3
 
 
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+//Begin
 			vec2 CalcCurvature_ShapeOperator_2edge(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
 			{
 	
@@ -668,15 +698,16 @@
 	
 	
 				vec3 axis[TRIANGLE_VERTICES];
-				axis[LOCAL_X] = normalize(_ba_);
-				axis[LOCAL_Z] = normalize(cross(axis[LOCAL_X], _ca_));    
-				axis[LOCAL_Y] = normalize(cross(axis[LOCAL_X], axis[LOCAL_Z]));
+				axis[0] = normalize(_ba_);
+				axis[2] = normalize(cross(axis[0], _ca_));    
+				axis[1] = normalize(cross(axis[0], axis[2]));
 
 
 
 
-				mat3 transformMatrix = (mat3(axis[LOCAL_X], axis[LOCAL_Y], axis[LOCAL_Z]));  //set columns
-				transformMatrix = transpose(transformMatrix);
+                mat3 transformMatrix = mat3(axis[0][0], axis[1][0], axis[2][0],
+                                            axis[0][1], axis[1][1], axis[2][1],
+                                            axis[0][2], axis[1][2], axis[2][2]);
 				
 
 				local_trianglePos[0] = vec3(0, 0, 0);
@@ -733,29 +764,27 @@
 	
 	
 				tmp[0][0] = v.x * invB_B + u.x * invB_A;
-				tmp[1][0] = v.x * invB_C + u.x * invB_B;
-				tmp[2][0] = v.y * invB_B + u.y * invB_A;
-				tmp[3][0] = v.y * invB_C + u.y * invB_B;
+				tmp[0][1] = v.x * invB_C + u.x * invB_B;
+				tmp[0][2] = v.y * invB_B + u.y * invB_A;
+				tmp[0][3] = v.y * invB_C + u.y * invB_B;
 
 
-				tmp[0][1] = v.x * invB_D + u.x * invB_B;
+				tmp[1][0] = v.x * invB_D + u.x * invB_B;
 				tmp[1][1] = v.x * invB_E + u.x * invB_D;
-				tmp[2][1] = v.y * invB_D + u.y * invB_B;
-				tmp[3][1] = v.y * invB_E + u.y * invB_D;
+				tmp[1][2] = v.y * invB_D + u.y * invB_B;
+				tmp[1][3] = v.y * invB_E + u.y * invB_D;
 
 
-				tmp[0][2] = v.x * invB_E + u.x * invB_C;
-				tmp[1][2] = v.x * invB_F + u.x * invB_E;
+				tmp[2][0] = v.x * invB_E + u.x * invB_C;
+				tmp[2][1] = v.x * invB_F + u.x * invB_E;
 				tmp[2][2] = v.y * invB_E + u.y * invB_C;
-				tmp[3][2] = v.y * invB_F + u.y * invB_E;
+				tmp[2][3] = v.y * invB_F + u.y * invB_E;
 
 
-				tmp[0][3] = 0;
-				tmp[1][3] = 0;
-				tmp[2][3] = 0;
+				tmp[3][0] = 0;
+				tmp[3][1] = 0;
+				tmp[3][2] = 0;
 				tmp[3][3] = 0;
-
-                tmp = transpose(tmp);
 
 				//================================================================================
 
@@ -777,148 +806,33 @@
 	
 				// float mean = 0.5 * (L1 + L2);
 
-				return vec2(L1, sqrtD);
+				return vec2(L1, L2);
 			}
 
-            // void main() {
-            //     vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
-            //     vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-            //     if(passPosition_view == vec4(0.0))
-            //         discard;
+            void main() {
+                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(passPosition_view == vec4(0.0))
+                    discard;
 
-            //     vec3 p = passPosition_view.xyz;
-            //     vec3 n = normalize(passNormal_view.xyz);
+                vec3 p = passPosition_view.xyz;
+                vec3 n = normalize(passNormal_view.xyz);
 
-            //     //TODO: Bottom und Top vertauscht?
+                //TODO: Bottom und Top vertauscht?
 
-            //     vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-            //     vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-            //     vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-            //     vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
 
-            //     vec3 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-            //     vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-            //     vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-            //     vec3 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
 
-            //     // Compute curvature for all "edges" in the 4-neighborhood
-            //     vec2 eigenvalues = CalcCurvature_ShapeOperator(p, pTop, pRight, n, nTop, nRight);
-            //     eigenvalues += CalcCurvature_ShapeOperator(p, pRight, pBottom, n, nRight, nBottom);
-            //     eigenvalues += CalcCurvature_ShapeOperator(p, pBottom, pLeft, n, nBottom, nLeft);
-            //     eigenvalues += CalcCurvature_ShapeOperator(p, pLeft, pTop, n, nLeft, nTop);
-            //     float mean_curv = (eigenvalues.x + eigenvalues.y);
+                // Compute curvature for all "edges" in the 4-neighborhood
+                vec2 eigenvalues = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop);
+                float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
 
-            //     frag /
-                
-            //screen space triangulation neighbors
-			//  TL TC TR
-			//  LC C  RC
-			//  BL BC BR
-
-			#define DIR_TL 0
-			#define DIR_TC 1
-			#define DIR_TR 2
-
-			#define DIR_LC 3
-			#define DIR_C  4
-			#define DIR_RC 5
-
-			#define DIR_BL 6
-			#define DIR_BC 7
-			#define DIR_BR 8
-
-
-
-			#define CURVATURE_FUNCTION CalcCurvature_ShapeOperator_2edge
-			// #define CURVATURE_FUNCTION CalcCurvature_ShapeOperator
-
-			/**
-			 * Main fragment shader
-			 */
-             void main()
-			{
-					
-				vec2 dirs[9]; 
-				ivec3 triangles[7];
-				vec3 pos[9];
-				vec3 nor[9];
-                
-                vec4 normal = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-
-                if(normal == vec4(0)) discard;
-
-                nor[0] = normal.xyz;
-
-                pos[0] = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0).xyz;
-				triangles[0] = ivec3(DIR_C, DIR_RC, DIR_TC);
-				triangles[1] = ivec3(DIR_C, DIR_TC, DIR_TL);
-				triangles[2] = ivec3(DIR_C, DIR_TL, DIR_LC);
-				triangles[3] = ivec3(DIR_C, DIR_LC, DIR_BL);
-				triangles[4] = ivec3(DIR_C, DIR_BL, DIR_BC);
-				triangles[5] = ivec3(DIR_C, DIR_BC, DIR_BR);
-				triangles[6] = ivec3(DIR_C, DIR_BR, DIR_RC);
-
-
-
-				int iStep = 1;	
-
-				dirs[DIR_C] = vec2(0, 0);
-
-				dirs[DIR_TL] = vec2(-iStep, iStep);
-				dirs[DIR_TC] = vec2(0, iStep);
-				dirs[DIR_TR] = vec2(iStep, iStep);
-
-				dirs[DIR_LC] = vec2(-iStep, 0);
-				dirs[DIR_RC] = vec2(iStep, 0);
-
-				dirs[DIR_BL] = vec2(-iStep , -iStep);
-				dirs[DIR_BC] = vec2(0, -iStep);
-				dirs[DIR_BR] = vec2(iStep , iStep);
-
-
-
-				for (int i = 1; i < 9; i++)
-				{
-                    pos[i] = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + dirs[i]), 0).xyz;
-                    nor[i] = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + dirs[i]), 0).xyz;
-				}								
-
-
-                vec2 curv = CURVATURE_FUNCTION(pos[DIR_C], pos[DIR_RC], pos[DIR_TC], 
-                                nor[DIR_C], nor[DIR_RC], nor[DIR_TC]);
-
-
-				// float activeCurv = 0;
-				// if (_meanCurvature == 1) activeCurv = curv.y;
-				// else activeCurv = curv.x;
-                float activeCurv = (curv.x + curv.y) * 0.5;
-
-	
-				
-
-				float intervalSize = 2.5;
-				activeCurv = clamp(activeCurv, -intervalSize, intervalSize);
-	
-
-				if (activeCurv < 0)
-				{
-					activeCurv = MapRange(-intervalSize, 0.0, 0.0, 0.49999, activeCurv);
-				}
-				else if (activeCurv > 0)
-				{
-					activeCurv = MapRange(0.0, intervalSize, 0.50001, 1.0, activeCurv);
-				}
-				else
-				{
-					activeCurv = 0.5;
-				}
-					
-                    fragCurvature = vec4(vec3(activeCurv), 1.0);
-				
-
+                fragCurvature = vec4(vec3(mean_curv),1.0);
             }
-            //End
-
+                
             -->
             </snippet>
         </shader>
