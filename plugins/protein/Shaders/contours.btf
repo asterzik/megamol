@@ -975,29 +975,24 @@
 
                 //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
                 vec2 eigenvec1;
-                // vec2 eigenvec2;
 
                 if(tmp_gpu.y ==0 ){
                     eigenvec1.x = L1 - tmp_gpu.z;
                     eigenvec1.y = tmp_gpu.y;
-                    // eigenvec2.x = L2 - tmp_gpu.z;
-                    // eigenvec2.y = tmp_gpu.y;
                 }
                 else
                 {
                     eigenvec1 = vec2(1.0, 0.0);
-                    // eigenvec2 = vec2(0, 1);
                 }
 
-//TODO: project lightdir onto tangent plane and transform into local coordinates 
-                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - p); 
-                float cos2 = dot(lightdir, eigenvec1);
+                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - p); 
+                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates
+                vec3 mean_normal = local_triangleNor[0] + local_triangleNor[1] + local_triangleNor[2];
+                mean_normal /= 3;
+                //TODO: get more accurate plane normal
+                vec2 proj_viewdir = (viewdir * (1.0 - dot(viewdir,mean_normal))).xy; //project onto tangent plane
+                float cos2 = dot(proj_viewdir, eigenvec1);
                 float radial_curv = L1 * cos2 + L2 * (1- cos2);
-
-
-				// float gauss = L1 * L2;
-	
-				// float mean = 0.5 * (L1 + L2);
 
 				return radial_curv;
 			}
@@ -1161,29 +1156,28 @@
 				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
 				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
                 //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
+                //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
                 vec2 eigenvec1;
-                // vec2 eigenvec2;
 
                 if(tmp_gpu.y ==0 ){
                     eigenvec1.x = L1 - tmp_gpu.z;
                     eigenvec1.y = tmp_gpu.y;
-                    // eigenvec2.x = L2 - tmp_gpu.z;
-                    // eigenvec2.y = tmp_gpu.y;
                 }
                 else
                 {
                     eigenvec1 = vec2(1.0, 0.0);
-                    // eigenvec2 = vec2(0, 1);
                 }
 
-                float radial_curv = L1 * cos2 + L2 * (1-cos2);
+                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - p); 
+                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates
+                vec3 mean_normal = local_triangleNor[0] + local_triangleNor[1] + local_triangleNor[2];
+                mean_normal /= 3;
+                //TODO: get more accurate plane normal
+                vec2 proj_viewdir = (viewdir * (1.0 - dot(viewdir,mean_normal))).xy; //project onto tangent plane
+                float cos2 = dot(proj_viewdir, eigenvec1);
+                float radial_curv = L1 * cos2 + L2 * (1- cos2);
 
-
-				// float gauss = L1 * L2;
-	
-				// float mean = 0.5 * (L1 + L2);
-
-				return radial_curv; 
+				return radial_curv;
 			}
 
             void main() {
