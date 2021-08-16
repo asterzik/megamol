@@ -277,6 +277,7 @@
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
             uniform sampler2D curvatureTexture;
+            uniform float cutOff;
 
             void main()
             {
@@ -290,7 +291,7 @@
                 float dotp = dot(normal, lightdir);
                 float col = dotp * dotp / abs(curvature);
                 
-                if(col > 0.2)
+                if(col > cutOff)
                     discard;
 
                 col = 1.0 - col; //invert color because background is dark

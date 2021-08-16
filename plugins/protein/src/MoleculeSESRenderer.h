@@ -307,6 +307,8 @@ namespace protein {
         GLboolean SCMedianFilter;
         megamol::core::param::ParamSlot SCCircularNeighborhoodParam;
         GLboolean SCCircularNeighborhood;
+        megamol::core::param::ParamSlot cutOffParam;
+        GLfloat cutOff;
 
 
         bool drawSES;
@@ -441,8 +443,10 @@ namespace protein {
         GLuint contourFBO;
         GLuint curvatureFBO;
         GLuint positionFBO[2];
+        GLuint normalFBO[2];
         GLuint smoothPositionTexture[2];
         GLuint normalTexture;
+        GLuint smoothNormalTexture[2];
         // GLuint* cur_normalTexture;
         // GLuint* cur_positionTexture;
         GLuint curvatureTexture;
