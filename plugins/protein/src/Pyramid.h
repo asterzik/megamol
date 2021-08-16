@@ -10,7 +10,7 @@ public:
 
     ~Pyramid();
 
-    bool create(std::string name, int width, int height, megamol::core::CoreInstance* ci, std::string pullPath,
+    bool create(std::string name, int _width, int _height, megamol::core::CoreInstance* ci, std::string pullPath,
         std::string pushPath = "pullpush::pushNormal");
     Pyramid* push();
     Pyramid* push(int level);
@@ -58,6 +58,8 @@ private:
     // VertexArrayObject* vertexArrayObject;
     GLuint VBO;
     GLuint VAO;
+    int width;
+    int height;
 
     // mip framebuffer objects to render to
     std::vector<GLuint> fboHandles;

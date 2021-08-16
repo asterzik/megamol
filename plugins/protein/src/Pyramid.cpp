@@ -9,10 +9,13 @@ static bool firstFrame = true;
 Pyramid::Pyramid() {
     // intentionally empty
 }
-bool Pyramid::create(std::string name, int width, int height, megamol::core::CoreInstance* ci, std::string pullPath,
+bool Pyramid::create(std::string name, int _width, int _height, megamol::core::CoreInstance* ci, std::string pullPath,
     std::string pushPath /* = "pullpush::pushNormal" */) {
     vislib::graphics::gl::ShaderSource vertSrc;
     vislib::graphics::gl::ShaderSource fragSrc;
+    this->width = _width;
+    this->height = _height;
+
 
     textureName = name;
 
@@ -139,9 +142,11 @@ Pyramid* Pyramid::pull() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureMap[textureName]);
     glUniform1i(this->pullShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
+    // TODO: extend this width and height stuff (prev_width)
     for (int level = 0; level < getMipmapNumber(); level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
-
+        glUniform1f(this->pullShaderProgram.ParameterLocation("prev_width"),
+            (this->width) / level); // TODO: Do I need to check, that level != 0?
         glUniform1i(this->pullShaderProgram.ParameterLocation("level"), level);
         glUniform1d(this->pullShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2, getMipmapNumber() - level - 1));
         glBindVertexArray(VAO);
