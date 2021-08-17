@@ -662,20 +662,43 @@ void pull(out vec4 pulledFragMaxX) {
     vec2 md_tl = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level - 1)).xy;
     vec2 md_tr = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level - 1)).xy;
     vec2 md_br = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level - 1)).xy;
-    float maximum = max(max(md_bl.x, md_tl.x), max(md_tr.x, md_br.x));
-    float minimum = min(min(md_bl.y, md_tl.y), min(md_tr.y, md_br.y));
+    float maximum, minimum;
+    if(prev_height == 1){
+        maximum = max(md_bl.x, md_br.x);
+        minimum = min(md_bl.y, md_br.y);
+    }
+    else if(prev_width == 1){
+        maximum = max(md_bl.x, md_tl.x);
+        minimum = min(md_bl.y, md_tl.y);
+    }
+    else{
+        maximum = max(max(md_bl.x, md_tl.x), max(md_tr.x, md_br.x));
+        minimum = min(min(md_bl.y, md_tl.y), min(md_tr.y, md_br.y));
+    }
     if(level != 0){
-        if(mod(prev_width, 2)!=0 && gl_FragCoord.x == floor(floor(prev_width)/2)-0.5){
+        if(mod(prev_width, 2)!=0 && gl_FragCoord.x == floor(prev_width/2)-0.5){
             vec2 add_tr = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(2, 1), level - 1)).xy;
             vec2 add_br = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(2, 0), level - 1)).xy;
-            maximum = max(maximum, max(add_br.x, add_tr.x));
-            minimum = min(minimum, min(add_br.y, add_tr.y));
+            if(prev_height == 1){
+                maximum = max(maximum, add_br.x);
+                minimum = min(minimum, add_br.y);
+            }
+            else{
+                maximum = max(maximum, max(add_br.x, add_tr.x));
+                minimum = min(minimum, min(add_br.y, add_tr.y));
+            }
         }
-        if(mod(prev_height,2)!=0 && gl_FragCoord.y == floor(floor(prev_height)/2)-0.5){
+        if(mod(prev_height,2)!=0 && gl_FragCoord.y == floor(prev_height/2)-0.5){
             vec2 add_tl = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 2), level - 1)).xy;
             vec2 add_tr = (texelFetch(pyramid_fragMaxX, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 2), level - 1)).xy;
-            maximum = max(maximum, max(add_tr.x, add_tl.x));
-            minimum = min(minimum, min(add_tr.y, add_tl.y));
+            if(prev_width == 1){
+                maximum = max(maximum, add_tl.x);
+                minimum = min(minimum, add_tl.y);
+            }
+            else{
+                maximum = max(maximum, max(add_tr.x, add_tl.x));
+                minimum = min(minimum, min(add_tr.y, add_tl.y));
+            }
         }
     }
     pulledFragMaxX = vec4(maximum, minimum, 0, 0.0);
@@ -685,8 +708,14 @@ void main() {
     fragMaxX = vec4(0.0f);
 
     if (level == 0) {
-        float width = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0).x;
-        fragMaxX = vec4(width);
+        vec4 texel = texelFetch(inputTex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+        if(texel == vec4(0))
+        {
+            fragMaxX = vec4(-9999,9999,0,0);
+        }
+        else{
+            fragMaxX = vec4(texel.x, texel.x, 0, 0);
+        }
         return;
     }
 
@@ -716,20 +745,43 @@ void pull(out vec4 pulledFragMaxY) {
     vec2 md_tl = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 1), level - 1)).xy;
     vec2 md_tr = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(1), level - 1)).xy;
     vec2 md_br = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 0), level - 1)).xy;
-    float maximum = max(max(md_bl.x, md_tl.x), max(md_tr.x, md_br.x));
-    float minimum = min(min(md_bl.y, md_tl.y), min(md_tr.y, md_br.y));
+    float maximum, minimum;
+    if(prev_height == 1){
+        maximum = max(md_bl.x, md_br.x);
+        minimum = min(md_bl.y, md_br.y);
+    }
+    else if(prev_width == 1){
+        maximum = max(md_bl.x, md_tl.x);
+        minimum = min(md_bl.y, md_tl.y);
+    }
+    else{
+        maximum = max(max(md_bl.x, md_tl.x), max(md_tr.x, md_br.x));
+        minimum = min(min(md_bl.y, md_tl.y), min(md_tr.y, md_br.y));
+    }
     if(level != 0){
-        if(mod(prev_width, 2)!=0 && gl_FragCoord.x == floor(floor(prev_width)/2)-0.5){
+        if(mod(prev_width, 2)!=0 && gl_FragCoord.x == floor(prev_width/2)-0.5){
             vec2 add_tr = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(2, 1), level - 1)).xy;
             vec2 add_br = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(2, 0), level - 1)).xy;
-            maximum = max(maximum, max(add_br.x, add_tr.x));
-            minimum = min(minimum, min(add_br.y, add_tr.y));
+            if(prev_height == 1){
+                maximum = max(maximum, add_br.x);
+                minimum = min(minimum, add_br.y);
+            }
+            else{
+                maximum = max(maximum, max(add_br.x, add_tr.x));
+                minimum = min(minimum, min(add_br.y, add_tr.y));
+            }
         }
-        if(mod(prev_height,2)!=0 && gl_FragCoord.y == floor(floor(prev_height)/2)-0.5){
+        if(mod(prev_height,2)!=0 && gl_FragCoord.y == floor(prev_height/2)-0.5){
             vec2 add_tl = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(0, 2), level - 1)).xy;
             vec2 add_tr = (texelFetch(pyramid_fragMaxY, ivec2(gl_FragCoord.xy) * 2 + ivec2(1, 2), level - 1)).xy;
-            maximum = max(maximum, max(add_tr.x, add_tl.x));
-            minimum = min(minimum, min(add_tr.y, add_tl.y));
+            if(prev_width == 1){
+                maximum = max(maximum, add_tl.x);
+                minimum = min(minimum, add_tl.y);
+            }
+            else{
+                maximum = max(maximum, max(add_tr.x, add_tl.x));
+                minimum = min(minimum, min(add_tr.y, add_tl.y));
+            }
         }
     }
     pulledFragMaxY = vec4(maximum, minimum, 0.0, 0.0);
