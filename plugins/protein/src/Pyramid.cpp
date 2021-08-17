@@ -142,11 +142,19 @@ Pyramid* Pyramid::pull() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureMap[textureName]);
     glUniform1i(this->pullShaderProgram.ParameterLocation("level_max"), getMipmapNumber());
+    float prev_width = this->width;
+    float prev_height = this->height;
     // TODO: extend this width and height stuff (prev_width)
     for (int level = 0; level < getMipmapNumber(); level++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboHandles[level]);
-        glUniform1f(this->pullShaderProgram.ParameterLocation("prev_width"),
-            (this->width) / level); // TODO: Do I need to check, that level != 0?
+        if (level > 1) {
+            prev_width = prev_width / 2;
+            prev_height = prev_height / 2;
+            prev_width = floor(prev_width);
+            prev_height = floor(prev_height);
+        }
+        glUniform1f(this->pullShaderProgram.ParameterLocation("prev_width"), prev_width);
+        glUniform1f(this->pullShaderProgram.ParameterLocation("prev_height"), prev_height);
         glUniform1i(this->pullShaderProgram.ParameterLocation("level"), level);
         glUniform1d(this->pullShaderProgram.ParameterLocation("lf"), 1.0 / glm::pow(2, getMipmapNumber() - level - 1));
         glBindVertexArray(VAO);
