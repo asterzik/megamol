@@ -368,12 +368,14 @@ bool MoleculeSESRenderer::create(void) {
     // shaders for contour drawing
     if (!this->loadShader(this->SC_Shader, "contours::vertex", "contours::contours::SC"))
         return false;
+    if (!this->loadShader(this->SC_Curvature_Shader, "contours::vertex", "contours::contours::SC_Curvature"))
+        return false;
     if (!this->loadShader(this->C_Shader, "contours::vertex", "contours::contours::C"))
         return false;
     if (!this->loadShader(this->C_Curvature_Shader, "contours::vertex", "contours::contours::C_Curvature"))
         return false;
-    if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::curvature::fragment"))
-        return false;
+    // if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::curvature::fragment"))
+    //     return false;
     if (!this->loadShader(this->curvatureShader, "contours::vertex", "contours::curvature::evans"))
         return false;
     if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::curvature::normal"))
@@ -844,34 +846,34 @@ void MoleculeSESRenderer::SmoothPositions() {
     // glEnable(GL_DEPTH_TEST);
 }
 
-void MoleculeSESRenderer::SuggestiveContours() {
+void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader) {
 
 
-    if (this->smoothNormals) {
-        this->SmoothNormals();
-    }
+    calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
     glDisable(GL_DEPTH_TEST);
-    this->SC_Shader.Enable();
-    glUniform1i(SC_Shader.ParameterLocation("radius"), this->SCRadius);
-    glUniform1f(SC_Shader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
-    glUniform1f(SC_Shader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
-    glUniform1i(SC_Shader.ParameterLocation("medianFilter"), this->SCMedianFilter);
-    glUniform1i(SC_Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
+    Shader.Enable();
+    glUniform1i(Shader.ParameterLocation("radius"), this->SCRadius);
+    glUniform1f(Shader.ParameterLocation("neighbourThreshold"), this->SCNeighbourThreshold);
+    glUniform1f(Shader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
+    glUniform1i(Shader.ParameterLocation("medianFilter"), this->SCMedianFilter);
+    glUniform1i(Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, normalPyramid.get("fragNormal"));
+        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
-    // glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
-    glUniform1i(SC_Shader.ParameterLocation("normalTexture"), 1);
+    glUniform1i(Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
     if (smoothPositions) {
-        glBindTexture(GL_TEXTURE_2D, positionPyramid.get("fragPosition"));
+        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
-    glUniform1i(SC_Shader.ParameterLocation("positionTexture"), 2);
+    glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+    glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
     glGetError();
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -880,11 +882,11 @@ void MoleculeSESRenderer::SuggestiveContours() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    this->SC_Shader.Disable();
+    Shader.Disable();
 }
-// TODO: Improve the naming stuff here, this is horrible!
 void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
 
+    calculateTextureBBX();
     calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
     glDisable(GL_DEPTH_TEST);
     // auto shader = *contourShaderMap[this->currentContourMode];
@@ -908,7 +910,11 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, curvatureTexture);
     glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
+    glUniform1i(Shader.ParameterLocation("depthTexture"), 4);
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
+    glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1500,8 +1506,8 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             } else if (this->currentDisplayedProperty == Curvature) {
                 renderCurvature(*curvatureShaderMap[currentCurvatureMode]);
             } else {
-                if (this->currentContourMode == Suggestive)
-                    this->SuggestiveContours();
+                if (this->currentContourMode == Suggestive || this->currentContourMode == SuggestiveAndCurvature)
+                    this->SuggestiveContours(*contourShaderMap[currentContourMode]);
                 else
                     this->Contours(*contourShaderMap[currentContourMode]);
             }

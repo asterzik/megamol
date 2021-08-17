@@ -170,7 +170,7 @@ namespace protein {
         /**
          * Postprocessing: Calculate Suggestive Contours using minima of diffuse shading
          */
-        void SuggestiveContours();
+        void SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader);
         void Contours(vislib::graphics::gl::GLSLShader& Shader);
 
         void displayPositions();
@@ -351,9 +351,9 @@ namespace protein {
         vislib::graphics::gl::GLSLShader lightShader;
         // shader for contour generation
         vislib::graphics::gl::GLSLShader SC_Shader;
+        vislib::graphics::gl::GLSLShader SC_Curvature_Shader;
         vislib::graphics::gl::GLSLShader C_Curvature_Shader;
         vislib::graphics::gl::GLSLShader C_Shader;
-        vislib::graphics::gl::GLSLShader SCfromCurvatureShader;
         // shader for curvature calculation
         vislib::graphics::gl::GLSLShader curvatureShader;
         vislib::graphics::gl::GLSLShader normalCurvatureShader;
@@ -409,9 +409,10 @@ namespace protein {
             {PrantlMean, &this->prantlMeanShader}, {Prantl2Mean, &this->prantl2MeanShader},
             {PrantlGaussian, &this->prantlGaussianShader}, {Prantl2Gaussian, &this->prantl2GaussianShader},
             {PrantlRadial, &this->prantlRadialShader}, {Prantl2Radial, &this->prantl2RadialShader}};
-        enum contourMode { Suggestive, Shading, ShadingAndCurvature };
+        enum contourMode { Suggestive, SuggestiveAndCurvature, Shading, ShadingAndCurvature };
         std::map<contourMode, vislib::graphics::gl::GLSLShader*> contourShaderMap = {{Suggestive, &this->SC_Shader},
-            {Shading, &this->C_Shader}, {ShadingAndCurvature, &this->C_Curvature_Shader}};
+            {SuggestiveAndCurvature, &this->SC_Curvature_Shader}, {Shading, &this->C_Shader},
+            {ShadingAndCurvature, &this->C_Curvature_Shader}};
         contourMode currentContourMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;
