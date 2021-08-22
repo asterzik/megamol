@@ -260,7 +260,6 @@
                 float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
                 vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
                 float col = dot(normal, lightdir);
-                col = col * col / abs(curvature);
 
                 int darker = 0; //How many values are darker than the current pixel?
                 float maxIntensity = col;
@@ -294,7 +293,6 @@
                             cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).z;
                             cur_lightdir = normalize(-cur_position);
                             cur = dot(cur_normal, cur_lightdir);
-                            cur = cur * cur / abs(cur_curvature);
                             if(cur <= col)
                                 ++darker;
                             if(cur > maxIntensity)
@@ -309,7 +307,6 @@
                                 cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).z;
                                 cur_lightdir = normalize(-cur_position);
                                 cur = dot(cur_normal, cur_lightdir);
-                                cur = cur * cur / abs(cur_curvature);
                                 if(cur <= col)
                                     ++darker;
                                 if(cur > maxIntensity)
@@ -324,7 +321,6 @@
                                     cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).z;
                                     cur_lightdir = normalize(-cur_position);
                                     cur = dot(cur_normal, cur_lightdir);
-                                    cur = cur * cur / abs(cur_curvature);
                                     if(cur <= col)
                                         ++darker;
                                     if(cur > maxIntensity)
@@ -341,7 +337,6 @@
                                 cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).z;
                                 cur_lightdir = normalize(-cur_position);
                                 cur = dot(cur_normal, cur_lightdir);
-                                cur = cur * cur / abs(cur_curvature);
                                 if(cur <= col)
                                     ++darker;
                                 if(cur > maxIntensity)
@@ -436,10 +431,9 @@
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
                 vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                float dotp = dot(normal, lightdir);
-                float col = dotp * dotp / abs(curvature);
+                float col = dot(normal, lightdir);
                 
-                if(col > cutOff)
+                if(col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
                     discard;
 
                 col = 1.0 - col; //invert color because background is dark
