@@ -481,6 +481,8 @@ namespace protein {
         vislib::Array<vislib::StringA> molIdxList;
         // flag for SES computation (false = one SES per molecule)
         bool computeSesPerMolecule;
+        void RenderTestCase(glm::mat4 view, glm::mat4 proj);
+        vislib::graphics::gl::GLSLGeometryShader testCaseShader;
     };
 
 } /* end namespace protein */

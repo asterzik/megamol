@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<btf type="MegaMolGLSLGeometryShader" version="1.0" namespace="testCase">
+    <include file="protein"/>
+      <shader name="vertex">
+        <snippet type="version">430</snippet>
+        <snippet type="string">
+        <!--
+            in layout(location = 0) vec3 in_Position;	
+
+            out VS_OUT
+            {
+                vec3 position;
+            } vs_out;
+
+            // uniform mat4 mvp; //projection * view * model matrix
+            uniform mat4 view;
+            uniform mat4 proj;
+
+            void main()
+            {
+                // Pass Through
+                vs_out.position = in_Position;
+                
+                // Calculation
+                gl_Position = proj * view * vec4(in_Position , 1);//mvp * vec4(in_Position , 1);
+            }
+
+            -->
+            </snippet>
+        </shader>
+      <shader name="geometry">
+        <snippet type="version">430</snippet>
+        <snippet type="string">
+        <!--
+            layout (points) in;
+            layout (triangle_strip, max_vertices = 4) out;
+
+            in VS_OUT
+            {
+                vec3 position;	
+            } gs_in[];
+
+            out GS_OUT
+            {
+                vec3 position;				
+                vec2 posInQuad; //coordinate in imposter space
+
+            }gs_out;
+
+            uniform float radiusSphere = 0.3;
+            // uniform mat4 projection;
+            uniform float scale = 1; //scale because coordinates were scaled to cube with edges in range [-1,1]
+            uniform mat4 view;
+            uniform mat4 proj;
+
+
+            // =========================================================================
+            // create view aligned imposter quads
+            void main()
+            {	
+
+                // translation of points to form corner points
+                vec4 dx_s = vec4(radiusSphere * proj[0][0] *  scale, 0.0, 0.0, 0.0) ;
+                vec4 dy_s = vec4(0.0, radiusSphere * proj[1][1] *scale, 0.0, 0.0) ;
+
+                vec3 dx = vec3(radiusSphere *  scale, 0.0, 0.0) ;
+                vec3 dy = vec3(0.0, radiusSphere *scale, 0.0) ;
+                
+                gl_Position = gl_in[0].gl_Position - dx_s - dy_s;
+                gs_out.position = gs_in[0].position -dx - dy;
+                gs_out.posInQuad = vec2(-1.0, -1.0);
+                EmitVertex();
+                
+                gl_Position = gl_in[0].gl_Position + dx_s - dy_s;
+                gs_out.position = gs_in[0].position +dx -dy;
+                gs_out.posInQuad = vec2(1.0, -1.0);
+                EmitVertex();
+                
+                gl_Position = gl_in[0].gl_Position - dx_s + dy_s;
+                gs_out.position = gs_in[0].position -dx + dy;
+                gs_out.posInQuad = vec2(-1.0, 1.0);
+                EmitVertex();
+                
+                gl_Position = gl_in[0].gl_Position + dx_s + dy_s;
+                gs_out.position = gs_in[0].position +dx + dy;
+                gs_out.posInQuad = vec2(1.0, 1.0);
+                EmitVertex();
+                
+                EndPrimitive();
+            }
+
+            -->
+            </snippet>
+        </shader>
+      <shader name="fragment">
+        <snippet type="version">430</snippet>
+        <snippet type="string">
+        <!--
+            in GS_OUT
+            {
+                vec3 position;
+                vec2 posInQuad; //coordinate in imposter space
+
+            } fs_in;
+
+            // uniform mat4 mv; //view * model matrix
+            // uniform mat4 projection;
+            uniform float radiusSphere = 0.3; 
+            uniform float scale = 1; 
+
+            uniform vec3 viewPos = vec3(0,0,0);
+
+            layout(location=0) out vec4 FragNormal;
+            layout(location=1) out vec4 FragPosition;
+
+            uniform mat4 view;
+            uniform mat4 proj;
+
+            void main (void)
+            {
+                // Will be 1 at Sphere Border 
+                // Will be 0 at Sphere Center
+                float mag = dot(fs_in.posInQuad, fs_in.posInQuad);
+                
+                if(mag > 1.0)
+                {
+                    discard;
+                }
+                
+                //Compare with https://stackoverflow.com/questions/10488086/drawing-a-sphere-in-opengl-es/10506172#10506172
+                
+                //Calculate depth of fragment
+                float localDepth = sqrt(1.0 - mag);
+                float totalDepth = fs_in.position.z - localDepth * radiusSphere;
+
+
+                //Calculate Normal
+                vec3 normal = normalize(vec3(fs_in.posInQuad, localDepth));
+            
+                vec3 FragPos = (view * vec4(fs_in.position, 1.0)).xyz;
+                vec3 viewDir = normalize(viewPos - FragPos);
+                FragPos += localDepth * radiusSphere * scale * viewDir;
+                viewDir = normalize(viewPos - FragPos);
+                
+                //Calculate gl_FragDepth
+                // float far=gl_DepthRange.far; 
+                // float near=gl_DepthRange.near;
+                // vec4 clipFragPos = proj * vec4(FragPos, 1.0);
+                // // vec4 clipFragPos =  vec4(FragPos, 1.0);
+                // float ndcDepth = clipFragPos.z / clipFragPos.w;
+                // gl_FragDepth = (((far-near) * ndcDepth) + near + far) / 2.0;
+
+
+                FragNormal = vec4(normal, 1.0);
+                FragPosition = vec4(FragPos, 1.0);
+            }
+
+            -->
+            </snippet>
+        </shader>
+</btf>

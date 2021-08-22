@@ -402,6 +402,56 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->blurShader, "contours::vertex", "contours::postprocessing::blur"))
         return false;
+
+    // // Load test case shader
+    using namespace vislib::graphics::gl;
+
+    ShaderSource vertSrc;
+    ShaderSource geomSrc;
+    ShaderSource fragSrc;
+
+    CoreInstance* ci = this->GetCoreInstance();
+    std::string vertex = "testCase::vertex";
+    std::string geometry = "testCase::geometry";
+    std::string fragment = "testCase::fragment";
+
+    std::string msg;
+    if (!ci->ShaderSourceFactory().MakeShaderSource(vertex.c_str(), vertSrc)) {
+        std::ostringstream stream;
+        stream << this->ClassName() << ": Unable to load vertex shader source: " << vertex;
+        msg = stream.str();
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, msg.c_str());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource(geometry.c_str(), geomSrc)) {
+        std::ostringstream stream;
+        stream << this->ClassName() << ": Unable to load geometry shader source: " << geometry;
+        msg = stream.str();
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, msg.c_str());
+        return false;
+    }
+    if (!ci->ShaderSourceFactory().MakeShaderSource(fragment.c_str(), fragSrc)) {
+        std::ostringstream fragStream;
+        fragStream << this->ClassName() << ": Unable to load fragment shader source: " << fragment;
+        msg = fragStream.str();
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, msg.c_str());
+        return false;
+    }
+
+    try {
+        if (!testCaseShader.Compile(
+                vertSrc.Code(), vertSrc.Count(), geomSrc.Code(), geomSrc.Count(), fragSrc.Code(), fragSrc.Count())) {
+            throw vislib::Exception("Generic creation failure", __FILE__, __LINE__);
+        }
+        testCaseShader.Link();
+    } catch (vislib::Exception e) {
+        std::ostringstream exStream;
+        exStream << this->ClassName() << ": Unable to create shader programm from " << vertex << ", " << geometry
+                 << " and " << fragment << ": " << e.GetMsgA();
+        msg = exStream.str();
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, msg.c_str());
+        return false;
+    }
     return true;
 }
 
@@ -574,9 +624,38 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    this->RenderSESGpuRaycasting(mol);
-
+    // this->RenderSESGpuRaycasting(mol);
+    // view = glm::mat4(1.0f);
+    this->RenderTestCase(view, proj);
     if (offscreenRendering) {
+        if (this->smoothNormals) {
+            this->SmoothNormals();
+            // this->cur_normalTexture = normalPyramid.get("fragNormal");
+        }
+        // else
+        // this->cur_normalTexture = &normalTexture;
+
+        if (this->smoothPositions) {
+            this->SmoothPositions();
+            // this->cur_positionTexture = positionPyramid.get("fragPosition");
+        }
+        //  else
+        //     this->cur_positionTexture = &positionTexture;
+
+        if (this->currentDisplayedProperty == Position) {
+            this->displayPositions();
+        } else if (this->currentDisplayedProperty == NormalizedPosition) {
+            this->displayNormalizedPositions();
+        } else if (this->currentDisplayedProperty == Normal) {
+            this->displayNormals();
+        } else if (this->currentDisplayedProperty == Curvature) {
+            renderCurvature(*curvatureShaderMap[currentCurvatureMode]);
+        } else {
+            if (this->currentContourMode == Suggestive || this->currentContourMode == SuggestiveAndCurvature)
+                this->SuggestiveContours(*contourShaderMap[currentContourMode]);
+            else
+                this->Contours(*contourShaderMap[currentContourMode]);
+        }
         // stop rendering to frame buffer object
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
@@ -1039,6 +1118,7 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(0);
 }
+
 void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shader) {
 
     this->calculateCurvature(Shader);
@@ -1482,36 +1562,6 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         }
 #pragma endregion // sphere shader
         // Offscreen Rendering
-        if (offscreenRendering) {
-            if (this->smoothNormals) {
-                this->SmoothNormals();
-                // this->cur_normalTexture = normalPyramid.get("fragNormal");
-            }
-            // else
-            // this->cur_normalTexture = &normalTexture;
-
-            if (this->smoothPositions) {
-                this->SmoothPositions();
-                // this->cur_positionTexture = positionPyramid.get("fragPosition");
-            }
-            //  else
-            //     this->cur_positionTexture = &positionTexture;
-
-            if (this->currentDisplayedProperty == Position) {
-                this->displayPositions();
-            } else if (this->currentDisplayedProperty == NormalizedPosition) {
-                this->displayNormalizedPositions();
-            } else if (this->currentDisplayedProperty == Normal) {
-                this->displayNormals();
-            } else if (this->currentDisplayedProperty == Curvature) {
-                renderCurvature(*curvatureShaderMap[currentCurvatureMode]);
-            } else {
-                if (this->currentContourMode == Suggestive || this->currentContourMode == SuggestiveAndCurvature)
-                    this->SuggestiveContours(*contourShaderMap[currentContourMode]);
-                else
-                    this->Contours(*contourShaderMap[currentContourMode]);
-            }
-        }
     }
 }
 
@@ -2309,4 +2359,60 @@ vislib::math::Vector<float, 3> MoleculeSESRenderer::GetProteinAtomColor(unsigned
             this->atomColorTable[idx * 3 + 0], this->atomColorTable[idx * 3 + 1], this->atomColorTable[idx * 3 + 0]);
     else
         return vislib::math::Vector<float, 3>(0.5f, 0.5f, 0.5f);
+}
+
+/*
+ * Render two spheres, one big one small for testing purposes
+ */
+void MoleculeSESRenderer::RenderTestCase(glm::mat4 view, glm::mat4 proj) {
+    unsigned int VBO, VAO;
+    glGenBuffers(1, &VBO);
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), NULL, GL_STATIC_DRAW);
+    // fill buffer
+    float pos[6] = {-0.5, 0, 0, 0.5, 0, 0};
+    float* positions = &pos[0];
+    int posSize = 6 * sizeof(float);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, posSize, positions);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+    glBindVertexArray(0);
+    // scale coordinates such that they lie in cube with edges [-1,1].
+    // glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    // view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, -viewPos.z));
+    // float radiusSphere = 0.2; // radius for the spheres representing the atoms
+    testCaseShader.Enable();
+    // shader.setFloat("scale", scale);
+    // shader.setVec3("viewPos", viewPos);
+    // shader.setVec3("lightPos", viewPos);
+    // shader.setFloat("radiusSphere", radiusSphere);
+    // render loop
+    // -----------
+    // while (!glfwWindowShouldClose(window)) {
+    // render
+    // ------
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // glm::mat4 projection = glm::perspective(glm::radians(fov), (float) SCR_WIDTH / (float) SCR_HEIGHT, 1.0f, 10.0f);
+
+    // glm::mat4 mvp = projection * view * model;
+    // glm::mat4 mv = view * model;
+    // glm::mat4 mv_inverse = inverse(mv);
+
+    // testCaseShader.Enable();
+    // shader.setMat4("projection", projection);
+    // shader.setMat4("mvp", mvp);
+    // shader.setMat4("mv", mv);
+    glUniformMatrix4fv(testCaseShader.ParameterLocation("view"), 1, false, &view[0][0]);
+    glUniformMatrix4fv(testCaseShader.ParameterLocation("proj"), 1, false, &proj[0][0]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_POINTS, 0, 2);
+
+    // glfwSwapBuffers(window);
+    // glfwPollEvents();
 }
