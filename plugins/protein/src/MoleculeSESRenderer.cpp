@@ -76,6 +76,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCMedianFilterParam("SCMedianFilter", "Use median filter for suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
+        , SCorthogonalViewParam("SCorthogonalView", "viewDir = (0,0,1) else viewdir = normalize(viewPos - fragPos).")
         , cutOffParam("cut off point for contours",
               "Curvature Contours: How big can the dot product between normal and "
               "viewdir get, such that the point is still considered a contour?")
@@ -237,6 +238,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCCircularNeighborhood = true;
     this->SCCircularNeighborhoodParam.SetParameter(new param::BoolParam(this->SCCircularNeighborhood));
     this->MakeSlotAvailable(&this->SCCircularNeighborhoodParam);
+
+    this->SCorthogonalView = true;
+    this->SCorthogonalViewParam.SetParameter(new param::BoolParam(this->SCorthogonalView));
+    this->MakeSlotAvailable(&this->SCorthogonalViewParam);
 
     this->cutOff = 0.15f;
     this->cutOffParam.SetParameter(new param::FloatParam(this->cutOff));
@@ -793,6 +798,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->SCCircularNeighborhood = this->SCCircularNeighborhoodParam.Param<param::BoolParam>()->Value();
         this->SCCircularNeighborhoodParam.ResetDirty();
     }
+    if (this->SCorthogonalViewParam.IsDirty()) {
+        this->SCorthogonalView = this->SCorthogonalViewParam.Param<param::BoolParam>()->Value();
+        this->SCorthogonalViewParam.ResetDirty();
+    }
     if (this->cutOffParam.IsDirty()) {
         this->cutOff = this->cutOffParam.Param<param::FloatParam>()->Value();
         this->cutOffParam.ResetDirty();
@@ -939,6 +948,8 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1f(Shader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
     glUniform1i(Shader.ParameterLocation("medianFilter"), this->SCMedianFilter);
     glUniform1i(Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
+    glUniform1i(Shader.ParameterLocation("orthogonal_view"), this->SCorthogonalView);
+    glUniform1f(Shader.ParameterLocation("cutOff"), this->cutOff);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);

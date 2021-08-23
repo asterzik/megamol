@@ -307,6 +307,8 @@ namespace protein {
         GLboolean SCMedianFilter;
         megamol::core::param::ParamSlot SCCircularNeighborhoodParam;
         GLboolean SCCircularNeighborhood;
+        megamol::core::param::ParamSlot SCorthogonalViewParam;
+        GLboolean SCorthogonalView;
         megamol::core::param::ParamSlot cutOffParam;
         GLfloat cutOff;
 
