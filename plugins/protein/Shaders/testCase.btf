@@ -47,7 +47,7 @@
 
             }gs_out;
 
-            uniform float radiusSphere = 0.3;
+            uniform float radiusSphere = 1;
             // uniform mat4 projection;
             uniform float scale = 1; //scale because coordinates were scaled to cube with edges in range [-1,1]
             uniform mat4 view;
@@ -65,24 +65,29 @@
 
                 vec3 dx = vec3(radiusSphere *  scale, 0.0, 0.0) ;
                 vec3 dy = vec3(0.0, radiusSphere *scale, 0.0) ;
+
                 
                 gl_Position = gl_in[0].gl_Position - dx_s - dy_s;
                 gs_out.position = gs_in[0].position -dx - dy;
+                // gs_out.position = gs_in[0].position;
                 gs_out.posInQuad = vec2(-1.0, -1.0);
                 EmitVertex();
                 
                 gl_Position = gl_in[0].gl_Position + dx_s - dy_s;
                 gs_out.position = gs_in[0].position +dx -dy;
+                // gs_out.position = gs_in[0].position;
                 gs_out.posInQuad = vec2(1.0, -1.0);
                 EmitVertex();
                 
                 gl_Position = gl_in[0].gl_Position - dx_s + dy_s;
                 gs_out.position = gs_in[0].position -dx + dy;
+                // gs_out.position = gs_in[0].position;
                 gs_out.posInQuad = vec2(-1.0, 1.0);
                 EmitVertex();
                 
                 gl_Position = gl_in[0].gl_Position + dx_s + dy_s;
                 gs_out.position = gs_in[0].position +dx + dy;
+                // gs_out.position = gs_in[0].position;
                 gs_out.posInQuad = vec2(1.0, 1.0);
                 EmitVertex();
                 
@@ -105,10 +110,10 @@
 
             // uniform mat4 mv; //view * model matrix
             // uniform mat4 projection;
-            uniform float radiusSphere = 0.3; 
+            uniform float radiusSphere = 1; 
             uniform float scale = 1; 
 
-            uniform vec3 viewPos = vec3(0,0,0);
+            uniform vec4 viewpos;
 
             layout(location=0) out vec4 FragNormal;
             layout(location=1) out vec4 FragPosition;
@@ -131,16 +136,15 @@
                 
                 //Calculate depth of fragment
                 float localDepth = sqrt(1.0 - mag);
-                float totalDepth = fs_in.position.z - localDepth * radiusSphere;
+                // float totalDepth = fs_in.position.z - localDepth * radiusSphere;
 
 
                 //Calculate Normal
                 vec3 normal = normalize(vec3(fs_in.posInQuad, localDepth));
             
-                vec3 FragPos = (view * vec4(fs_in.position, 1.0)).xyz;
-                vec3 viewDir = normalize(viewPos - FragPos);
-                FragPos += localDepth * radiusSphere * scale * viewDir;
-                viewDir = normalize(viewPos - FragPos);
+                // vec3 FragPos = (view * vec4(fs_in.position, 1.0)).xyz;
+                // vec3 viewDir = normalize(viewpos.xyz - FragPos);
+                vec3 FragPos = vec3(fs_in.position.xy, fs_in.position.z + localDepth * radiusSphere * scale);
                 
                 //Calculate gl_FragDepth
                 // float far=gl_DepthRange.far; 
@@ -150,9 +154,10 @@
                 // float ndcDepth = clipFragPos.z / clipFragPos.w;
                 // gl_FragDepth = (((far-near) * ndcDepth) + near + far) / 2.0;
 
+                normal = mat3(transpose(inverse(view))) * normal;
 
                 FragNormal = vec4(normal, 1.0);
-                FragPosition = vec4(FragPos, 1.0);
+                FragPosition = view * vec4(FragPos, 1.0);
             }
 
             -->

@@ -5,6 +5,8 @@
  */
 
 #include "stdafx.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #define _USE_MATH_DEFINES 1
 
@@ -33,6 +35,7 @@
 #include "vislib/graphics/gl/IncludeAllGL.h"
 #include "vislib/graphics/gl/ShaderSource.h"
 #include "vislib/sys/File.h"
+
 
 using namespace megamol;
 using namespace megamol::core;
@@ -626,7 +629,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     // this->RenderSESGpuRaycasting(mol);
     // view = glm::mat4(1.0f);
-    this->RenderTestCase(view, proj);
+    this->RenderTestCase();
     if (offscreenRendering) {
         if (this->smoothNormals) {
             this->SmoothNormals();
@@ -1321,6 +1324,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
     glm::vec4 up = cameraInfo.up_vector();
     float nearplane = cameraInfo.near_clipping_plane();
     float farplane = cameraInfo.far_clipping_plane();
+    auto campos = cameraInfo.position();
 #pragma endregion // set camerastuff
 
     unsigned int cntRS;
@@ -2364,7 +2368,7 @@ vislib::math::Vector<float, 3> MoleculeSESRenderer::GetProteinAtomColor(unsigned
 /*
  * Render two spheres, one big one small for testing purposes
  */
-void MoleculeSESRenderer::RenderTestCase(glm::mat4 view, glm::mat4 proj) {
+void MoleculeSESRenderer::RenderTestCase() {
     unsigned int VBO, VAO;
     glGenBuffers(1, &VBO);
     glGenVertexArrays(1, &VAO);
@@ -2380,23 +2384,16 @@ void MoleculeSESRenderer::RenderTestCase(glm::mat4 view, glm::mat4 proj) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
     glBindVertexArray(0);
     // scale coordinates such that they lie in cube with edges [-1,1].
-    // glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, 3.0f);
-    // view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, -viewPos.z));
+    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, 9.0f);
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, -viewPos.z));
     // float radiusSphere = 0.2; // radius for the spheres representing the atoms
     testCaseShader.Enable();
-    // shader.setFloat("scale", scale);
-    // shader.setVec3("viewPos", viewPos);
-    // shader.setVec3("lightPos", viewPos);
-    // shader.setFloat("radiusSphere", radiusSphere);
-    // render loop
-    // -----------
-    // while (!glfwWindowShouldClose(window)) {
-    // render
     // ------
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // glm::mat4 projection = glm::perspective(glm::radians(fov), (float) SCR_WIDTH / (float) SCR_HEIGHT, 1.0f, 10.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float) this->width / (float) this->height, 1.0f, 10.0f);
 
     // glm::mat4 mvp = projection * view * model;
     // glm::mat4 mv = view * model;
@@ -2408,6 +2405,8 @@ void MoleculeSESRenderer::RenderTestCase(glm::mat4 view, glm::mat4 proj) {
     // shader.setMat4("mv", mv);
     glUniformMatrix4fv(testCaseShader.ParameterLocation("view"), 1, false, &view[0][0]);
     glUniformMatrix4fv(testCaseShader.ParameterLocation("proj"), 1, false, &proj[0][0]);
+    glm::vec4 viewpos = cameraInfo.eye_position();
+    glUniform4fv(testCaseShader.ParameterLocation("viewPos"), 1, &viewpos[0]);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBindVertexArray(VAO);
