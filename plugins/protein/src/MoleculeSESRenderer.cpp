@@ -1220,7 +1220,7 @@ void MoleculeSESRenderer::CreateFBO() {
 
     // texture for curvature
     glBindTexture(GL_TEXTURE_2D, this->curvatureTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -2374,17 +2374,22 @@ void MoleculeSESRenderer::RenderTestCase() {
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float), NULL, GL_STATIC_DRAW);
     // fill buffer
-    float pos[6] = {-0.5, 0, 0, 0.5, 0, 0};
+    float pos[6] = {-0.2, 0, 0, 0.7, 0, 0};
+    float col[2] = {0.2, 0.7};
     float* positions = &pos[0];
+    float* colors = &col[0];
     int posSize = 6 * sizeof(float);
     glBufferSubData(GL_ARRAY_BUFFER, 0, posSize, positions);
+    glBufferSubData(GL_ARRAY_BUFFER, posSize, 2 * sizeof(float), colors);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*) (intptr_t)(posSize));
     glBindVertexArray(0);
     // scale coordinates such that they lie in cube with edges [-1,1].
-    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, 9.0f);
+    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, 3.0f);
     glm::mat4 view = glm::mat4(1.0f);
     view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, -viewPos.z));
     // float radiusSphere = 0.2; // radius for the spheres representing the atoms

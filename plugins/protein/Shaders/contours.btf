@@ -394,9 +394,10 @@
                     discard;
                 }
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
-                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy;
-                float rel_depth = (position.z - depth.y) / (depth.x - depth.y);
+                // vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                vec3 lightdir = vec3(0.0,0.0,1.0);
+                // vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy;
+                // float rel_depth = (position.z - depth.y) / (depth.x - depth.y);
                 float dotp = dot(normal, lightdir);
                 float col = dotp;
                 
@@ -430,7 +431,8 @@
                 }
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
-                vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                // vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                vec3 lightdir = vec3(0.0,0.0,1.0);
                 float col = dot(normal, lightdir);
                 
                 if(col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))

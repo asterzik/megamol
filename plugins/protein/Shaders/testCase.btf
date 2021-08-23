@@ -6,10 +6,12 @@
         <snippet type="string">
         <!--
             in layout(location = 0) vec3 in_Position;	
+            in layout(location = 1) float in_radius;
 
             out VS_OUT
             {
                 vec3 position;
+                float radius;
             } vs_out;
 
             // uniform mat4 mvp; //projection * view * model matrix
@@ -20,6 +22,7 @@
             {
                 // Pass Through
                 vs_out.position = in_Position;
+                vs_out.radius = in_radius;
                 
                 // Calculation
                 gl_Position = proj * view * vec4(in_Position , 1);//mvp * vec4(in_Position , 1);
@@ -38,16 +41,17 @@
             in VS_OUT
             {
                 vec3 position;	
+                float radius;
             } gs_in[];
 
             out GS_OUT
             {
                 vec3 position;				
                 vec2 posInQuad; //coordinate in imposter space
+                float radius;
 
             }gs_out;
 
-            uniform float radiusSphere = 1;
             // uniform mat4 projection;
             uniform float scale = 1; //scale because coordinates were scaled to cube with edges in range [-1,1]
             uniform mat4 view;
@@ -59,12 +63,14 @@
             void main()
             {	
 
+                float radius = gs_in[0].radius;
+                gs_out.radius = radius;
                 // translation of points to form corner points
-                vec4 dx_s = vec4(radiusSphere * proj[0][0] *  scale, 0.0, 0.0, 0.0) ;
-                vec4 dy_s = vec4(0.0, radiusSphere * proj[1][1] *scale, 0.0, 0.0) ;
+                vec4 dx_s = vec4(radius * proj[0][0] *  scale, 0.0, 0.0, 0.0) ;
+                vec4 dy_s = vec4(0.0, radius * proj[1][1] *scale, 0.0, 0.0) ;
 
-                vec3 dx = vec3(radiusSphere *  scale, 0.0, 0.0) ;
-                vec3 dy = vec3(0.0, radiusSphere *scale, 0.0) ;
+                vec3 dx = vec3(radius *  scale, 0.0, 0.0) ;
+                vec3 dy = vec3(0.0, radius *scale, 0.0) ;
 
                 
                 gl_Position = gl_in[0].gl_Position - dx_s - dy_s;
@@ -105,12 +111,12 @@
             {
                 vec3 position;
                 vec2 posInQuad; //coordinate in imposter space
+                float radius;
 
             } fs_in;
 
             // uniform mat4 mv; //view * model matrix
             // uniform mat4 projection;
-            uniform float radiusSphere = 1; 
             uniform float scale = 1; 
 
             uniform vec4 viewpos;
@@ -144,7 +150,7 @@
             
                 // vec3 FragPos = (view * vec4(fs_in.position, 1.0)).xyz;
                 // vec3 viewDir = normalize(viewpos.xyz - FragPos);
-                vec3 FragPos = vec3(fs_in.position.xy, fs_in.position.z + localDepth * radiusSphere * scale);
+                vec3 FragPos = vec3(fs_in.position.xy, fs_in.position.z + localDepth * fs_in.radius * scale);
                 
                 //Calculate gl_FragDepth
                 // float far=gl_DepthRange.far; 
