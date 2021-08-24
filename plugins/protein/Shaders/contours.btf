@@ -396,6 +396,8 @@
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
             uniform sampler2D depthTexture;
+            uniform float cutOff;
+            uniform bool orthogonal_view;
             uniform int level_max;
 
             void main()
@@ -404,15 +406,19 @@
                 if(normal == vec3(0.0)){
                     discard;
                 }
-                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
-                // vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                vec3 lightdir = vec3(0.0,0.0,1.0);
+                vec3 lightdir;
+                if(orthogonal_view)
+                    lightdir = vec3(0.0,0.0,1.0);
+                else{
+                    vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                }
                 // vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy;
                 // float rel_depth = (position.z - depth.y) / (depth.x - depth.y);
                 float dotp = dot(normal, lightdir);
                 float col = dotp;
                 
-                if(col > 0.2)
+                if(col > cutOff)
                     discard;
 
                 col = 1.0 - col; //invert color because background is dark
@@ -433,6 +439,7 @@
             uniform sampler2D positionTexture;
             uniform sampler2D curvatureTexture;
             uniform float cutOff;
+            uniform bool orthogonal_view;
 
             void main()
             {
@@ -440,12 +447,16 @@
                 if(normal == vec3(0.0)){
                     discard;
                 }
-                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
-                float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
-                // vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                vec3 lightdir = vec3(0.0,0.0,1.0);
+                vec3 lightdir;
+                if(orthogonal_view)
+                    lightdir = vec3(0.0,0.0,1.0);
+                else{
+                    vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                }
                 float col = dot(normal, lightdir);
                 
+                float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
                 if(col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
                     discard;
 

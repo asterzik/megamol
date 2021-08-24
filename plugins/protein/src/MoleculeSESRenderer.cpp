@@ -1007,6 +1007,7 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
     glUniform1i(Shader.ParameterLocation("depthTexture"), 4);
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
+    glUniform1i(Shader.ParameterLocation("orthogonal_view"), this->SCorthogonalView);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -2385,15 +2386,15 @@ void MoleculeSESRenderer::RenderTestCase() {
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 3 * 4 * sizeof(float), NULL, GL_STATIC_DRAW);
     // fill buffer
-    float pos[6] = {-0.2, 0, 0, 0.7, 0, 0};
-    float col[2] = {0.2, 0.7};
+    float pos[9] = {-0.2, 0, -5, 0.7, 0, -5, 0.2, 0, -2};
+    float col[3] = {0.2, 0.7, 0.2};
     float* positions = &pos[0];
     float* colors = &col[0];
-    int posSize = 6 * sizeof(float);
+    int posSize = 9 * sizeof(float);
     glBufferSubData(GL_ARRAY_BUFFER, 0, posSize, positions);
-    glBufferSubData(GL_ARRAY_BUFFER, posSize, 2 * sizeof(float), colors);
+    glBufferSubData(GL_ARRAY_BUFFER, posSize, 3 * sizeof(float), colors);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
     glEnableVertexAttribArray(1);
@@ -2410,6 +2411,7 @@ void MoleculeSESRenderer::RenderTestCase() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float) this->width / (float) this->height, 1.0f, 10.0f);
+    // glm::mat4 proj = glm::ortho(-1.0f, 3.0f, -1.0f, 1.0f, -10.0f, 10.0f);
 
     // glm::mat4 mvp = projection * view * model;
     // glm::mat4 mv = view * model;
@@ -2426,7 +2428,7 @@ void MoleculeSESRenderer::RenderTestCase() {
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBindVertexArray(VAO);
-    glDrawArrays(GL_POINTS, 0, 2);
+    glDrawArrays(GL_POINTS, 0, 3);
 
     // glfwSwapBuffers(window);
     // glfwPollEvents();

@@ -153,12 +153,12 @@
                 vec3 FragPos = vec3(fs_in.position.xy, fs_in.position.z + localDepth * fs_in.radius * scale);
                 
                 //Calculate gl_FragDepth
-                // float far=gl_DepthRange.far; 
-                // float near=gl_DepthRange.near;
-                // vec4 clipFragPos = proj * vec4(FragPos, 1.0);
-                // // vec4 clipFragPos =  vec4(FragPos, 1.0);
-                // float ndcDepth = clipFragPos.z / clipFragPos.w;
-                // gl_FragDepth = (((far-near) * ndcDepth) + near + far) / 2.0;
+                float far=gl_DepthRange.far; 
+                float near=gl_DepthRange.near;
+                vec4 clipFragPos = proj * vec4(FragPos, 1.0);
+                // vec4 clipFragPos =  vec4(FragPos, 1.0);
+                float ndcDepth = clipFragPos.z / clipFragPos.w;
+                gl_FragDepth = (((far-near) * ndcDepth) + near + far) / 2.0;
 
                 normal = mat3(transpose(inverse(view))) * normal;
 
