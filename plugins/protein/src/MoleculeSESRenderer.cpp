@@ -79,9 +79,12 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , OrthogonalViewParam("SCorthogonalView", "viewDir = (0,0,1) else viewdir = normalize(viewPos - fragPos).")
         , OrthoProjParam("orthographic projection",
               "Was orthographic projection used for the data generation? Other possibility perspective.")
+        , TestCaseParam("testcase", "Use the test case? Otherwise real data.")
         , cutOffParam("cut off point for contours",
               "Curvature Contours: How big can the dot product between normal and "
               "viewdir get, such that the point is still considered a contour?")
+        , nearPlaneParam("nearPlane", "Curvature Contours: How big can the dot product between normal and "
+                                      "viewdir get, such that the point is still considered a contour?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -249,10 +252,17 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->OrthoProjParam.SetParameter(new param::BoolParam(this->orthoproj));
     this->MakeSlotAvailable(&this->OrthoProjParam);
 
+    this->testcase = false;
+    this->TestCaseParam.SetParameter(new param::BoolParam(this->testcase));
+    this->MakeSlotAvailable(&this->TestCaseParam);
+
     this->cutOff = 0.15f;
     this->cutOffParam.SetParameter(new param::FloatParam(this->cutOff));
     this->MakeSlotAvailable(&this->cutOffParam);
 
+    this->nearplane = 1.0f;
+    this->nearPlaneParam.SetParameter(new param::FloatParam(this->nearplane));
+    this->MakeSlotAvailable(&this->nearPlaneParam);
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -638,9 +648,11 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    // this->RenderSESGpuRaycasting(mol);
-    // view = glm::mat4(1.0f);
-    this->RenderTestCase();
+    if (testcase)
+        this->RenderTestCase();
+    else
+        this->RenderSESGpuRaycasting(mol);
+
     if (offscreenRendering) {
         if (this->smoothNormals) {
             this->SmoothNormals();
@@ -812,9 +824,17 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->orthoproj = this->OrthoProjParam.Param<param::BoolParam>()->Value();
         this->OrthoProjParam.ResetDirty();
     }
+    if (this->TestCaseParam.IsDirty()) {
+        this->testcase = this->TestCaseParam.Param<param::BoolParam>()->Value();
+        this->TestCaseParam.ResetDirty();
+    }
     if (this->cutOffParam.IsDirty()) {
         this->cutOff = this->cutOffParam.Param<param::FloatParam>()->Value();
         this->cutOffParam.ResetDirty();
+    }
+    if (this->nearPlaneParam.IsDirty()) {
+        this->nearplane = this->nearPlaneParam.Param<param::FloatParam>()->Value();
+        this->nearPlaneParam.ResetDirty();
     }
     if (recomputeColors) {
         this->preComputationDone = false;
@@ -1019,7 +1039,8 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
     glUniform1i(Shader.ParameterLocation("orthogonal_view"), this->orthogonalView);
     glUniform1i(Shader.ParameterLocation("orthoproj"), this->orthoproj);
-    glUniform1f(Shader.ParameterLocation("near_plane"), 1.0f);
+    // float near_plane = this->cameraInfo.near_clipping_plane();
+    glUniform1f(Shader.ParameterLocation("near_plane"), this->nearplane);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);

@@ -311,8 +311,12 @@ namespace protein {
         GLboolean orthogonalView;
         megamol::core::param::ParamSlot OrthoProjParam;
         GLboolean orthoproj;
+        megamol::core::param::ParamSlot TestCaseParam;
+        GLboolean testcase;
         megamol::core::param::ParamSlot cutOffParam;
         GLfloat cutOff;
+        megamol::core::param::ParamSlot nearPlaneParam;
+        GLfloat nearplane;
 
 
         bool drawSES;
