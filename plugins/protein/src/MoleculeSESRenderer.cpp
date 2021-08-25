@@ -1039,8 +1039,8 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
     glUniform1i(Shader.ParameterLocation("orthogonal_view"), this->orthogonalView);
     glUniform1i(Shader.ParameterLocation("orthoproj"), this->orthoproj);
-    // float near_plane = this->cameraInfo.near_clipping_plane();
-    glUniform1f(Shader.ParameterLocation("near_plane"), this->nearplane);
+    float near_plane = this->cameraInfo.near_clipping_plane();
+    glUniform1f(Shader.ParameterLocation("near_plane"), near_plane);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
