@@ -438,11 +438,16 @@
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
             uniform sampler2D curvatureTexture;
+            uniform sampler2D depthTexture;
+            uniform int level_max;
             uniform float cutOff;
             uniform bool orthogonal_view;
+            uniform bool orthoproj;
+            uniform float near_plane;
 
             void main()
             {
+                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
                 if(normal == vec3(0.0)){
                     discard;
@@ -451,12 +456,18 @@
                 if(orthogonal_view)
                     lightdir = vec3(0.0,0.0,1.0);
                 else{
-                    vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                     lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
                 }
                 float col = dot(normal, lightdir);
                 
+                vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy; // Maximum and minimum value of depths
+                float rel_depth = (position.z - depth.y) / (depth.x - depth.y);
                 float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
+                // If perspective projection was used to generate the textures, scale curvature for constant width in parts that are further away
+                if(!orthoproj){
+                    curvature *= position.z / near_plane;
+                }
+
                 if(col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
                     discard;
 

@@ -1018,6 +1018,8 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1i(Shader.ParameterLocation("depthTexture"), 4);
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
     glUniform1i(Shader.ParameterLocation("orthogonal_view"), this->orthogonalView);
+    glUniform1i(Shader.ParameterLocation("orthoproj"), this->orthoproj);
+    glUniform1f(Shader.ParameterLocation("near_plane"), 1.0f);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -2398,7 +2400,7 @@ void MoleculeSESRenderer::RenderTestCase() {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, 3 * 4 * sizeof(float), NULL, GL_STATIC_DRAW);
     // fill buffer
-    float pos[9] = {-0.2, 0, -5, 0.7, 0, -5, 0.2, 0, -2};
+    float pos[9] = {-0.2, 0, 1, 0.7, 0, 1, 0.2, 0, -2};
     float col[3] = {0.2, 0.7, 0.2};
     float* positions = &pos[0];
     float* colors = &col[0];
@@ -2422,7 +2424,7 @@ void MoleculeSESRenderer::RenderTestCase() {
 
     glm::mat4 proj;
     if (orthoproj)
-        proj = glm::ortho(-1.0f, 3.0f, -1.0f, 1.0f, -10.0f, 10.0f);
+        proj = glm::ortho(-1.0f, 3.0f, -1.0f, 1.0f, 1.0f, 10.0f);
     else
         proj = glm::perspective(glm::radians(45.0f), (float) this->width / (float) this->height, 1.0f, 10.0f);
 
