@@ -1854,32 +1854,34 @@
             <!--
                 out vec4 FragColor;
                 uniform sampler2D screenTexture;
-
-                uniform bool horizontal;
-                uniform float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+                uniform float lambda = 0.25;
+                uniform float K = 1.0;
 
                 void main()
                 {             
-                vec4 resultv4 = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0) * weight[0]; // current fragment's contribution
-                if(resultv4 == vec4(0))
+                vec4 centre4 = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0); // current fragment's contribution
+                if(centre4 == vec4(0))
                     discard;
-                vec3 result = resultv4.rgb;
-                if(horizontal)
-                {
-                    for(int i = 1; i < 5; ++i)
-                    {
-                        result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(i,0)), 0).rgb * weight[i]; // current fragment's contribution
-                        result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-i,0)), 0).rgb * weight[i]; // current fragment's contribution
-                    }
-                }
-                else
-                {
-                    for(int i = 1; i < 5; ++i)
-                    {
-                        result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,i)), 0).rgb * weight[i]; // current fragment's contribution
-                        result += texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-i)), 0).rgb * weight[i]; // current fragment's contribution
-                    }
-                }
+                vec3 centre = centre4.rgb;
+                vec3 right = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).rgb; // current fragment's contribution
+                vec3 left = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).rgb; // current fragment's contribution
+                vec3 up = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).rgb; // current fragment's contribution
+                vec3 down = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).rgb; // current fragment's contribution
+
+                // Calculate differences
+                vec3 dr = right - centre;
+                vec3 dl = left - centre;
+                vec3 du = up - centre;
+                vec3 dd = down - centre;
+
+                //Calculate g
+                float gr = exp(-(length(dr)/K)*(length(dr)/K));
+                float gl = exp(-(length(dl)/K)*(length(dl)/K));
+                float gu = exp(-(length(du)/K)*(length(du)/K));
+                float gd = exp(-(length(dd)/K)*(length(dd)/K));
+
+
+                vec3 result = centre + lambda * (gr * dr + gl * dl + gu * du + gd * dd);
                 FragColor = vec4(result, 1.0);
                 }
             -->
