@@ -378,6 +378,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader normalizePositionsShader;
         vislib::graphics::gl::GLSLShader gaussianBlurShader;
         vislib::graphics::gl::GLSLShader peronaMalikBlurShader;
+        vislib::graphics::gl::GLSLShader depthBlurShader;
         ////////////
 
         // the bounding box of the protein
@@ -423,9 +424,9 @@ namespace protein {
             {SuggestiveAndCurvature, &this->SC_Curvature_Shader}, {Shading, &this->C_Shader},
             {ShadingAndCurvature, &this->C_Curvature_Shader}};
         contourMode currentContourMode;
-        enum blurMode { Gaussian, PeronaMalik };
-        std::map<blurMode, vislib::graphics::gl::GLSLShader*> blurShaderMap = {
-            {Gaussian, &this->gaussianBlurShader}, {PeronaMalik, &this->peronaMalikBlurShader}};
+        enum blurMode { Gaussian, PeronaMalik, DepthSensitive };
+        std::map<blurMode, vislib::graphics::gl::GLSLShader*> blurShaderMap = {{Gaussian, &this->gaussianBlurShader},
+            {PeronaMalik, &this->peronaMalikBlurShader}, {DepthSensitive, &this->depthBlurShader}};
         blurMode currentBlurMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;

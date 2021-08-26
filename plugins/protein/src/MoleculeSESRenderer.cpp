@@ -440,6 +440,8 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(
             this->peronaMalikBlurShader, "contours::vertex", "contours::postprocessing::perona-malik-blur"))
         return false;
+    if (!this->loadShader(this->depthBlurShader, "contours::vertex", "contours::postprocessing::depthBlur"))
+        return false;
 
     // // Load test case shader
     using namespace vislib::graphics::gl;
@@ -893,8 +895,11 @@ void MoleculeSESRenderer::calculateTextureBBX() {
 void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader) {
     glDisable(GL_DEPTH_TEST);
     Shader.Enable();
-    glActiveTexture(GL_TEXTURE0);
+    glUniform1i(Shader.ParameterLocation("positionTexture"), 1);
     glUniform1i(Shader.ParameterLocation("screenTexture"), 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glActiveTexture(GL_TEXTURE0);
 
     horizontal = true;
     bool first_iteration = true;
@@ -945,6 +950,9 @@ void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shad
      */
     glDisable(GL_DEPTH_TEST);
     Shader.Enable();
+    glActiveTexture(GL_TEXTURE1);
+    glUniform1i(Shader.ParameterLocation("positionTexture"), 1);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
     glActiveTexture(GL_TEXTURE0);
     glUniform1i(Shader.ParameterLocation("screenTexture"), 0);
 
