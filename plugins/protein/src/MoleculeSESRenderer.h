@@ -187,8 +187,8 @@ namespace protein {
         /**
          * Smooth normal texture using pull-push algorithm
          */
-        void SmoothNormals();
-        void SmoothPositions();
+        void SmoothNormals(vislib::graphics::gl::GLSLShader& Shader);
+        void SmoothPositions(vislib::graphics::gl::GLSLShader& Shader);
 
         /**
          * returns the color of the atom 'idx' for the current coloring mode
@@ -317,7 +317,7 @@ namespace protein {
         GLfloat cutOff;
         megamol::core::param::ParamSlot nearPlaneParam;
         GLfloat nearplane;
-
+        megamol::core::param::ParamSlot blurParam;
 
         bool drawSES;
         bool drawSAS;
@@ -376,7 +376,8 @@ namespace protein {
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
         vislib::graphics::gl::GLSLShader normalizePositionsShader;
-        vislib::graphics::gl::GLSLShader blurShader;
+        vislib::graphics::gl::GLSLShader gaussianBlurShader;
+        vislib::graphics::gl::GLSLShader peronaMalikBlurShader;
         ////////////
 
         // the bounding box of the protein
@@ -422,6 +423,10 @@ namespace protein {
             {SuggestiveAndCurvature, &this->SC_Curvature_Shader}, {Shading, &this->C_Shader},
             {ShadingAndCurvature, &this->C_Curvature_Shader}};
         contourMode currentContourMode;
+        enum blurMode { Gaussian, PeronaMalik };
+        std::map<blurMode, vislib::graphics::gl::GLSLShader*> blurShaderMap = {
+            {Gaussian, &this->gaussianBlurShader}, {PeronaMalik, &this->peronaMalikBlurShader}};
+        blurMode currentBlurMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;
 

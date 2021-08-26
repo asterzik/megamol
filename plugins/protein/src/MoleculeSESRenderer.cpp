@@ -85,6 +85,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
               "viewdir get, such that the point is still considered a contour?")
         , nearPlaneParam("nearPlane", "Curvature Contours: How big can the dot product between normal and "
                                       "viewdir get, such that the point is still considered a contour?")
+        , blurParam("blur parameter", " Which blur shader to use?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -152,6 +153,16 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     }
     this->contourModeParam << cContourp;
     this->MakeSlotAvailable(&this->contourModeParam);
+
+    // blur modes
+    this->currentBlurMode = Gaussian;
+    param::EnumParam* cbp = new param::EnumParam(int(this->currentBlurMode));
+    constexpr auto& blur_entries = magic_enum::enum_entries<blurMode>();
+    for (int i = 0; i < magic_enum::enum_count<blurMode>(); ++i) {
+        cbp->SetTypePair((int) blur_entries[i].first, std::string(blur_entries[i].second).c_str());
+    }
+    this->blurParam << cbp;
+    this->MakeSlotAvailable(&this->blurParam);
 
     // Color weighting parameter
     this->cmWeightParam.SetParameter(new param::FloatParam(0.5f, 0.0f, 1.0f));
@@ -424,7 +435,10 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->normalizePositionsShader, "contours::vertex", "contours::normalizePositions"))
         return false;
-    if (!this->loadShader(this->blurShader, "contours::vertex", "contours::postprocessing::blur"))
+    if (!this->loadShader(this->gaussianBlurShader, "contours::vertex", "contours::postprocessing::blur"))
+        return false;
+    if (!this->loadShader(
+            this->peronaMalikBlurShader, "contours::vertex", "contours::postprocessing::perona-malik-blur"))
         return false;
 
     // // Load test case shader
@@ -655,14 +669,14 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     if (offscreenRendering) {
         if (this->smoothNormals) {
-            this->SmoothNormals();
+            this->SmoothNormals(*blurShaderMap[currentBlurMode]);
             // this->cur_normalTexture = normalPyramid.get("fragNormal");
         }
         // else
         // this->cur_normalTexture = &normalTexture;
 
         if (this->smoothPositions) {
-            this->SmoothPositions();
+            this->SmoothPositions(*blurShaderMap[currentBlurMode]);
             // this->cur_positionTexture = positionPyramid.get("fragPosition");
         }
         //  else
@@ -738,6 +752,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (this->contourModeParam.IsDirty()) {
         this->currentContourMode = static_cast<contourMode>(this->contourModeParam.Param<param::EnumParam>()->Value());
         this->contourModeParam.ResetDirty();
+    }
+    if (this->blurParam.IsDirty()) {
+        this->currentBlurMode = static_cast<blurMode>(this->blurParam.Param<param::EnumParam>()->Value());
+        this->blurParam.ResetDirty();
     }
     if (this->displayedPropertyParam.IsDirty()) {
         this->currentDisplayedProperty =
@@ -872,18 +890,18 @@ void MoleculeSESRenderer::calculateTextureBBX() {
     this->bbx_levelMax = widthPyramid.getMipmapNumber();
 }
 
-void MoleculeSESRenderer::SmoothNormals() {
+void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader) {
     glDisable(GL_DEPTH_TEST);
-    this->blurShader.Enable();
+    Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glUniform1i(blurShader.ParameterLocation("screenTexture"), 0);
+    glUniform1i(Shader.ParameterLocation("screenTexture"), 0);
 
     horizontal = true;
     bool first_iteration = true;
     int amount = 1;
     for (unsigned int i = 0; i < amount; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, normalFBO[horizontal]);
-        glUniform1i(blurShader.ParameterLocation("horizontal"), horizontal);
+        glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
         glBindTexture(GL_TEXTURE_2D, first_iteration ? normalTexture : smoothNormalTexture[!horizontal]);
         glBindVertexArray(quadVAO);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -895,7 +913,7 @@ void MoleculeSESRenderer::SmoothNormals() {
     }
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    this->blurShader.Disable();
+    Shader.Disable();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // /*
     //  * Execute Pull-Push algorithm for smoothing
@@ -921,21 +939,21 @@ void MoleculeSESRenderer::SmoothNormals() {
     // normalPyramid.push_from(this->pyramidLayers);
     // glEnable(GL_DEPTH_TEST);
 }
-void MoleculeSESRenderer::SmoothPositions() {
+void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shader) {
     /*
      * Execute Pull-Push algorithm for smoothing
      */
     glDisable(GL_DEPTH_TEST);
-    this->blurShader.Enable();
+    Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glUniform1i(blurShader.ParameterLocation("screenTexture"), 0);
+    glUniform1i(Shader.ParameterLocation("screenTexture"), 0);
 
     horizontal = true;
     bool first_iteration = true;
     int amount = 10;
     for (unsigned int i = 0; i < amount; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, positionFBO[horizontal]);
-        glUniform1i(blurShader.ParameterLocation("horizontal"), horizontal);
+        glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
         glBindTexture(GL_TEXTURE_2D, first_iteration ? positionTexture : smoothPositionTexture[!horizontal]);
         glBindVertexArray(quadVAO);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -947,7 +965,7 @@ void MoleculeSESRenderer::SmoothPositions() {
     }
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    this->blurShader.Disable();
+    Shader.Disable();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // this->calculateTextureBBX();
     // positionPyramid.pullShaderProgram.Enable();
