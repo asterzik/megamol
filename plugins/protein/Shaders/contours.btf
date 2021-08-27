@@ -1798,22 +1798,6 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
-        // out vec4 FragColor;
-        // uniform sampler2D screenTexture;
-
-        // void main()
-        // {
-        //     vec3 col = 4.0 / 16 * texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0).xyz;
-        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
-        //     col += 2.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,-1)), 0).xyz;
-        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,-1)), 0).xyz;
-        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-1,1)), 0).xyz;
-        //     col += 1.0/16 *  texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(1,1)), 0).xyz;
-        //     FragColor = vec4(col, 1.0);
-        // }
 
         out vec4 FragColor;
         uniform sampler2D screenTexture;
@@ -1894,6 +1878,7 @@
                 out vec4 FragColor;
                 uniform sampler2D screenTexture;
                 uniform sampler2D positionTexture;
+                uniform float depthdiff;
                 void main()
                 {
                     vec2 offsets[8] = vec2[](vec2(-1,0), vec2(-1,1), vec2(0,1), vec2(1,1), vec2(1, 0), vec2(1, -1), vec2(0, -1), vec2(-1, -1));
@@ -1905,13 +1890,93 @@
                     for(int i = 0; i < 8; ++i){
                         vec3 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0).xyz;
                         vec3 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0).xyz;
-                        if(pos.z - posb.z < 0.3){
+                        if(abs(pos.z - posb.z) < depthdiff){
                             result += weights[i] * colb;
                             final_weight += weights[i];
                         }
                     }
                     FragColor = vec4(result / final_weight, 1.0);
                 }
+            -->
+            </snippet>
+        </shader>
+        <shader name="gauss-depth-blur">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+
+        out vec4 FragColor;
+        uniform sampler2D screenTexture;
+        uniform sampler2D positionTexture;
+         uniform float depthdiff;
+
+        uniform bool horizontal;
+        uniform float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+
+        void main()
+        {             
+        vec4 resultv4 = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0) * weight[0]; // current fragment's contribution
+        if(resultv4 == vec4(0))
+            discard;
+        vec3 result = resultv4.rgb;
+        vec3 pos = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).xyz;
+        float final_weight = weight[0];
+        if(horizontal)
+        {
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 cola = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(i,0)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posa = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(i,0)), 0).rgb; // current fragment's contribution
+                if(abs(pos.z - posa.z) < depthdiff){
+                    result += cola;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(-i,0)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(-i,0)), 0).rgb; // current fragment's contribution
+                if(abs(pos.z - posb.z) < depthdiff){
+                    result += colb;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 cola = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,i)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posa = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(0,i)), 0).rgb * weight[i]; // current fragment's contribution
+                if(abs(pos.z - posa.z) < depthdiff){
+                    result += cola;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+            for(int i = 1; i < 5; ++i)
+            {
+                vec3 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + vec2(0,-i)), 0).rgb * weight[i]; // current fragment's contribution
+                vec3 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + vec2(0,-i)), 0).rgb * weight[i]; // current fragment's contribution
+                if(abs(pos.z - posb.z) < depthdiff){
+                    result += colb;
+                    final_weight += weight[i];
+                }
+                else{
+                    break;
+                }
+            }
+        }
+        FragColor = vec4(result / final_weight, 1.0);
+        }
             -->
             </snippet>
         </shader>

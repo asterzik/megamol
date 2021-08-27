@@ -318,6 +318,10 @@ namespace protein {
         megamol::core::param::ParamSlot nearPlaneParam;
         GLfloat nearplane;
         megamol::core::param::ParamSlot blurParam;
+        megamol::core::param::ParamSlot numBlurParam;
+        GLint numBlur;
+        megamol::core::param::ParamSlot depthDiffParam;
+        GLfloat depthDiff;
 
         bool drawSES;
         bool drawSAS;
@@ -379,6 +383,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader gaussianBlurShader;
         vislib::graphics::gl::GLSLShader peronaMalikBlurShader;
         vislib::graphics::gl::GLSLShader depthBlurShader;
+        vislib::graphics::gl::GLSLShader depthGaussBlurShader;
         ////////////
 
         // the bounding box of the protein
@@ -424,9 +429,10 @@ namespace protein {
             {SuggestiveAndCurvature, &this->SC_Curvature_Shader}, {Shading, &this->C_Shader},
             {ShadingAndCurvature, &this->C_Curvature_Shader}};
         contourMode currentContourMode;
-        enum blurMode { Gaussian, PeronaMalik, DepthSensitive };
+        enum blurMode { Gaussian, PeronaMalik, DepthSensitive, DepthGaussian };
         std::map<blurMode, vislib::graphics::gl::GLSLShader*> blurShaderMap = {{Gaussian, &this->gaussianBlurShader},
-            {PeronaMalik, &this->peronaMalikBlurShader}, {DepthSensitive, &this->depthBlurShader}};
+            {PeronaMalik, &this->peronaMalikBlurShader}, {DepthSensitive, &this->depthBlurShader},
+            {DepthGaussian, &this->depthGaussBlurShader}};
         blurMode currentBlurMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;

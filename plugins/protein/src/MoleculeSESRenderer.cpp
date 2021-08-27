@@ -86,6 +86,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , nearPlaneParam("nearPlane", "Curvature Contours: How big can the dot product between normal and "
                                       "viewdir get, such that the point is still considered a contour?")
         , blurParam("blur parameter", " Which blur shader to use?")
+        , numBlurParam("# blurring iterations", " How many iterations of blurring?")
+        , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
+                                      "with the depth sensitive blur shader?")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -274,6 +277,14 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->nearplane = 1.0f;
     this->nearPlaneParam.SetParameter(new param::FloatParam(this->nearplane));
     this->MakeSlotAvailable(&this->nearPlaneParam);
+
+    this->depthDiff = 0.3f;
+    this->depthDiffParam.SetParameter(new param::FloatParam(this->depthDiff));
+    this->MakeSlotAvailable(&this->depthDiffParam);
+
+    this->numBlur = 1;
+    this->numBlurParam.SetParameter(new param::FloatParam(this->numBlur));
+    this->MakeSlotAvailable(&this->numBlurParam);
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -441,6 +452,8 @@ bool MoleculeSESRenderer::create(void) {
             this->peronaMalikBlurShader, "contours::vertex", "contours::postprocessing::perona-malik-blur"))
         return false;
     if (!this->loadShader(this->depthBlurShader, "contours::vertex", "contours::postprocessing::depthBlur"))
+        return false;
+    if (!this->loadShader(this->depthGaussBlurShader, "contours::vertex", "contours::postprocessing::gauss-depth-blur"))
         return false;
 
     // // Load test case shader
@@ -856,6 +869,14 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->nearplane = this->nearPlaneParam.Param<param::FloatParam>()->Value();
         this->nearPlaneParam.ResetDirty();
     }
+    if (this->numBlurParam.IsDirty()) {
+        this->numBlur = this->numBlurParam.Param<param::FloatParam>()->Value();
+        this->numBlurParam.ResetDirty();
+    }
+    if (this->depthDiffParam.IsDirty()) {
+        this->depthDiff = this->depthDiffParam.Param<param::FloatParam>()->Value();
+        this->depthDiffParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -897,14 +918,14 @@ void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader
     Shader.Enable();
     glUniform1i(Shader.ParameterLocation("positionTexture"), 1);
     glUniform1i(Shader.ParameterLocation("screenTexture"), 0);
+    glUniform1f(Shader.ParameterLocation("depthdiff"), this->depthDiff);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, positionTexture);
     glActiveTexture(GL_TEXTURE0);
 
     horizontal = true;
     bool first_iteration = true;
-    int amount = 1;
-    for (unsigned int i = 0; i < amount; i++) {
+    for (unsigned int i = 0; i < this->numBlur; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, normalFBO[horizontal]);
         glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
         glBindTexture(GL_TEXTURE_2D, first_iteration ? normalTexture : smoothNormalTexture[!horizontal]);
