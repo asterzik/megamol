@@ -26,6 +26,7 @@
 #include "mmcore/param/StringParam.h"
 #include "mmcore/utility/ColourParser.h"
 #include "mmcore/utility/sys/ASCIIFileBuffer.h"
+#include "protein/RMSF.h"
 #include "vislib/OutOfRangeException.h"
 #include "vislib/StringConverter.h"
 #include "vislib/StringTokeniser.h"
@@ -86,7 +87,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , nearPlaneParam("nearPlane", "Curvature Contours: How big can the dot product between normal and "
                                       "viewdir get, such that the point is still considered a contour?")
         , blurParam("blur parameter", " Which blur shader to use?")
-        , numBlurParam("# blurring iterations", " How many iterations of blurring?")
+        , numBlurParam("# normal blurring iterations", " How many iterations of blurring for normals?")
+        , numPosBlurParam("# position blurring iterations", " How many iterations of blurring for positions?")
         , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
                                       "with the depth sensitive blur shader?")
         , computeSesPerMolecule(false) {
@@ -285,6 +287,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->numBlur = 1;
     this->numBlurParam.SetParameter(new param::FloatParam(this->numBlur));
     this->MakeSlotAvailable(&this->numBlurParam);
+
+    this->numPosBlur = 10;
+    this->numPosBlurParam.SetParameter(new param::FloatParam(this->numPosBlur));
+    this->MakeSlotAvailable(&this->numPosBlurParam);
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -677,25 +683,25 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
+    if (!protein::computeRMSF(mol)) {
+        std::cout << "Computation of RMSF failed!" << std::endl;
+        return false;
+    }
+    float* bfactors = mol->AtomBFactors();
+
     if (testcase)
         this->RenderTestCase();
     else
         this->RenderSESGpuRaycasting(mol);
 
     if (offscreenRendering) {
-        if (this->smoothNormals) {
-            this->SmoothNormals(*blurShaderMap[currentBlurMode]);
-            // this->cur_normalTexture = normalPyramid.get("fragNormal");
-        }
-        // else
-        // this->cur_normalTexture = &normalTexture;
 
         if (this->smoothPositions) {
             this->SmoothPositions(*blurShaderMap[currentBlurMode]);
-            // this->cur_positionTexture = positionPyramid.get("fragPosition");
         }
-        //  else
-        //     this->cur_positionTexture = &positionTexture;
+        if (this->smoothNormals) {
+            this->SmoothNormals(*blurShaderMap[currentBlurMode]);
+        }
 
         if (this->currentDisplayedProperty == Position) {
             this->displayPositions();
@@ -873,6 +879,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->numBlur = this->numBlurParam.Param<param::FloatParam>()->Value();
         this->numBlurParam.ResetDirty();
     }
+    if (this->numPosBlurParam.IsDirty()) {
+        this->numPosBlur = this->numPosBlurParam.Param<param::FloatParam>()->Value();
+        this->numPosBlurParam.ResetDirty();
+    }
     if (this->depthDiffParam.IsDirty()) {
         this->depthDiff = this->depthDiffParam.Param<param::FloatParam>()->Value();
         this->depthDiffParam.ResetDirty();
@@ -979,8 +989,7 @@ void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shad
 
     horizontal = true;
     bool first_iteration = true;
-    int amount = 10;
-    for (unsigned int i = 0; i < amount; i++) {
+    for (unsigned int i = 0; i < this->numPosBlur; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, positionFBO[horizontal]);
         glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
         glBindTexture(GL_TEXTURE_2D, first_iteration ? positionTexture : smoothPositionTexture[!horizontal]);
@@ -1062,19 +1071,19 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     // auto shader = *contourShaderMap[this->currentContourMode];
     Shader.Enable();
     glActiveTexture(GL_TEXTURE1);
-    if (smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
-    } else {
-        glBindTexture(GL_TEXTURE_2D, normalTexture);
-    }
+    // if (smoothNormals) {
+    //     glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
+    // } else {
+    glBindTexture(GL_TEXTURE_2D, normalTexture);
+    // }
     // glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
-    if (smoothPositions) {
-        glBindTexture(GL_TEXTURE_2D, positionPyramid.get("fragPosition"));
-    } else {
-        glBindTexture(GL_TEXTURE_2D, positionTexture);
-    }
+    // if (smoothPositions) {
+    //     glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]);
+    // } else {
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    // }
     // glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
     glActiveTexture(GL_TEXTURE3);

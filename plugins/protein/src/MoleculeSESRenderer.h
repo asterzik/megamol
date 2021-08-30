@@ -183,6 +183,7 @@ namespace protein {
         void calculateCurvature(vislib::graphics::gl::GLSLShader& Shader);
         void renderCurvature(vislib::graphics::gl::GLSLShader& Shader);
         void calculateTextureBBX();
+        // void calculateRMSF();
 
         /**
          * Smooth normal texture using pull-push algorithm
@@ -320,6 +321,8 @@ namespace protein {
         megamol::core::param::ParamSlot blurParam;
         megamol::core::param::ParamSlot numBlurParam;
         GLint numBlur;
+        megamol::core::param::ParamSlot numPosBlurParam;
+        GLint numPosBlur;
         megamol::core::param::ParamSlot depthDiffParam;
         GLfloat depthDiff;
 
