@@ -62,8 +62,12 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , colorTableFileParam("color::colorTableFilename", "The filename of the color table.")
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
-        , smoothNormalsParam("smoothNormals", "Determines whether the pull-push algorithm is used or not")
-        , smoothPositionsParam("smoothPositions", "Determines whether the pull-push algorithm is used or not")
+        , smoothNormalsParam("smoothNormals", "Determines whether the normals will be smoothed")
+        , smoothPositionsParam("smoothPositions", "Determines whether the positions will be smoothed")
+        , smoothCurvatureParam("smoothCurvature", "Determines whether the curvature will be smoothed")
+        , numBlurParam("# normal blurring iterations", " How many iterations of blurring for normals?")
+        , numPosBlurParam("# position blurring iterations", " How many iterations of blurring for positions?")
+        , numCurvBlurParam("# curvature blurring iterations", " How many iterations of blurring for curvature?")
         , pyramidWeightsParam(
               "pyramidWeights", "The factor for the weights in the pull phase of the pull-push algorithm")
         , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push normalPyramid")
@@ -87,8 +91,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , nearPlaneParam("nearPlane", "Curvature Contours: How big can the dot product between normal and "
                                       "viewdir get, such that the point is still considered a contour?")
         , blurParam("blur parameter", " Which blur shader to use?")
-        , numBlurParam("# normal blurring iterations", " How many iterations of blurring for normals?")
-        , numPosBlurParam("# position blurring iterations", " How many iterations of blurring for positions?")
         , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
                                       "with the depth sensitive blur shader?")
         , computeSesPerMolecule(false) {
@@ -213,10 +215,13 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 
 #pragma endregion Set parameters
 
-    // Parameters for normalPyramid
     this->smoothNormals = true;
     this->smoothNormalsParam.SetParameter(new param::BoolParam(this->smoothNormals));
     this->MakeSlotAvailable(&this->smoothNormalsParam);
+
+    this->smoothCurvature = true;
+    this->smoothCurvatureParam.SetParameter(new param::BoolParam(this->smoothCurvature));
+    this->MakeSlotAvailable(&this->smoothCurvatureParam);
 
     this->pyramidWeight = 0.5f;
     this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
@@ -291,6 +296,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->numPosBlur = 10;
     this->numPosBlurParam.SetParameter(new param::FloatParam(this->numPosBlur));
     this->MakeSlotAvailable(&this->numPosBlurParam);
+
+    this->numCurvBlur = 1;
+    this->numCurvBlurParam.SetParameter(new param::FloatParam(this->numCurvBlur));
+    this->MakeSlotAvailable(&this->numCurvBlurParam);
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -301,6 +310,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->positionFBO[1] = 0;
     this->normalFBO[0] = 0;
     this->normalFBO[1] = 0;
+    this->smoothCurvFBO[0] = 0;
+    this->smoothCurvFBO[1] = 0;
 
     // width and height of the screen
     this->width = 0;
@@ -818,6 +829,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->smoothNormals = this->smoothNormalsParam.Param<param::BoolParam>()->Value();
         this->smoothNormalsParam.ResetDirty();
     }
+    if (this->smoothCurvatureParam.IsDirty()) {
+        this->smoothCurvature = this->smoothCurvatureParam.Param<param::BoolParam>()->Value();
+        this->smoothCurvatureParam.ResetDirty();
+    }
     if (this->smoothPositionsParam.IsDirty()) {
         this->smoothPositions = this->smoothPositionsParam.Param<param::BoolParam>()->Value();
         this->smoothPositionsParam.ResetDirty();
@@ -882,6 +897,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (this->numPosBlurParam.IsDirty()) {
         this->numPosBlur = this->numPosBlurParam.Param<param::FloatParam>()->Value();
         this->numPosBlurParam.ResetDirty();
+    }
+    if (this->numCurvBlurParam.IsDirty()) {
+        this->numCurvBlur = this->numCurvBlurParam.Param<param::FloatParam>()->Value();
+        this->numCurvBlurParam.ResetDirty();
     }
     if (this->depthDiffParam.IsDirty()) {
         this->depthDiff = this->depthDiffParam.Param<param::FloatParam>()->Value();
@@ -975,6 +994,35 @@ void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader
     // normalPyramid.push_from(this->pyramidLayers);
     // glEnable(GL_DEPTH_TEST);
 }
+void MoleculeSESRenderer::SmoothCurvature(vislib::graphics::gl::GLSLShader& Shader) {
+    glDisable(GL_DEPTH_TEST);
+    Shader.Enable();
+    glUniform1i(Shader.ParameterLocation("positionTexture"), 1);
+    glUniform1i(Shader.ParameterLocation("screenTexture"), 0);
+    glUniform1f(Shader.ParameterLocation("depthdiff"), this->depthDiff);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, positionTexture);
+    glActiveTexture(GL_TEXTURE0);
+
+    horizontal = true;
+    bool first_iteration = true;
+    for (unsigned int i = 0; i < this->numCurvBlur; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, smoothCurvFBO[horizontal]);
+        glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
+        glBindTexture(GL_TEXTURE_2D, first_iteration ? curvatureTexture : smoothCurvatureTexture[!horizontal]);
+        glBindVertexArray(quadVAO);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        horizontal = !horizontal;
+        if (first_iteration)
+            first_iteration = false;
+    }
+    glEnable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
+    Shader.Disable();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shader) {
     /*
      * Execute Pull-Push algorithm for smoothing
@@ -1067,28 +1115,35 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
 
     calculateTextureBBX();
     calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
+    if (smoothCurvature) {
+        SmoothCurvature(*blurShaderMap[this->currentBlurMode]);
+    }
     glDisable(GL_DEPTH_TEST);
     // auto shader = *contourShaderMap[this->currentContourMode];
     Shader.Enable();
     glActiveTexture(GL_TEXTURE1);
-    // if (smoothNormals) {
-    //     glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
-    // } else {
-    glBindTexture(GL_TEXTURE_2D, normalTexture);
-    // }
+    if (smoothNormals) {
+        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, normalTexture);
+    }
     // glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
-    // if (smoothPositions) {
-    //     glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]);
-    // } else {
-    glBindTexture(GL_TEXTURE_2D, positionTexture);
-    // }
+    if (smoothPositions) {
+        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, positionTexture);
+    }
     // glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, curvatureTexture);
     glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
+    if (smoothCurvature) {
+        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!horizontal]);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+    }
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
     glUniform1i(Shader.ParameterLocation("depthTexture"), 4);
@@ -1226,10 +1281,17 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
 void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shader) {
 
     this->calculateCurvature(Shader);
+    if (smoothCurvature) {
+        SmoothCurvature(*blurShaderMap[this->currentBlurMode]);
+    }
 
     glDisable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, this->curvatureTexture);
+    if (smoothCurvature) {
+        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!horizontal]);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+    }
     this->passThroughShader.Enable();
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
@@ -1261,12 +1323,18 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteFramebuffers(2, normalFBO);
         glDeleteTextures(2, smoothNormalTexture);
     }
+    if (smoothCurvFBO) {
+        glDeleteFramebuffers(2, smoothCurvFBO);
+        glDeleteTextures(2, smoothCurvatureTexture);
+    }
     glGenFramebuffers(1, &contourFBO);
     glGenFramebuffers(1, &curvatureFBO);
     glGenFramebuffers(2, positionFBO);
     glGenTextures(2, smoothPositionTexture);
     glGenFramebuffers(2, normalFBO);
     glGenTextures(2, smoothNormalTexture);
+    glGenFramebuffers(2, smoothCurvFBO);
+    glGenTextures(2, smoothCurvatureTexture);
     glGenTextures(1, &normalTexture);
     glGenTextures(1, &curvatureTexture);
     glGenTextures(1, &positionTexture);
@@ -1347,7 +1415,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindTexture(GL_TEXTURE_2D, 0);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete curvatureFBO", this->ClassName());
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete positionFBO", this->ClassName());
     }
     for (unsigned int i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, normalFBO[i]);
@@ -1358,6 +1426,22 @@ void MoleculeSESRenderer::CreateFBO() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, smoothNormalTexture[i], 0);
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete normalFBO", this->ClassName());
+    }
+
+    for (unsigned int i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, smoothCurvFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, smoothCurvatureTexture[i], 0);
     }
     glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -2442,6 +2526,10 @@ void MoleculeSESRenderer::deinitialise(void) {
     if (normalFBO) {
         glDeleteFramebuffers(2, normalFBO);
         glDeleteTextures(2, smoothNormalTexture);
+    }
+    if (smoothCurvFBO) {
+        glDeleteFramebuffers(2, smoothCurvFBO);
+        glDeleteTextures(2, smoothCurvatureTexture);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)

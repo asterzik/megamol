@@ -189,6 +189,7 @@ namespace protein {
          * Smooth normal texture using pull-push algorithm
          */
         void SmoothNormals(vislib::graphics::gl::GLSLShader& Shader);
+        void SmoothCurvature(vislib::graphics::gl::GLSLShader& Shader);
         void SmoothPositions(vislib::graphics::gl::GLSLShader& Shader);
 
         /**
@@ -291,6 +292,8 @@ namespace protein {
         GLfloat pyramidWeight;
         megamol::core::param::ParamSlot smoothNormalsParam;
         GLboolean smoothNormals;
+        megamol::core::param::ParamSlot smoothCurvatureParam;
+        GLboolean smoothCurvature;
         megamol::core::param::ParamSlot smoothPositionsParam;
         GLboolean smoothPositions;
         megamol::core::param::ParamSlot pyramidLayersParam;
@@ -323,6 +326,8 @@ namespace protein {
         GLint numBlur;
         megamol::core::param::ParamSlot numPosBlurParam;
         GLint numPosBlur;
+        megamol::core::param::ParamSlot numCurvBlurParam;
+        GLint numCurvBlur;
         megamol::core::param::ParamSlot depthDiffParam;
         GLfloat depthDiff;
 
@@ -468,13 +473,15 @@ namespace protein {
         GLuint curvatureFBO;
         GLuint positionFBO[2];
         GLuint normalFBO[2];
-        GLuint smoothPositionTexture[2];
+        GLuint smoothCurvFBO[2];
         GLuint normalTexture;
         GLuint smoothNormalTexture[2];
         // GLuint* cur_normalTexture;
         // GLuint* cur_positionTexture;
         GLuint curvatureTexture;
+        GLuint smoothCurvatureTexture[2];
         GLuint positionTexture;
+        GLuint smoothPositionTexture[2];
         GLuint objPositionTexture;
         GLuint contourDepthRBO;
 
