@@ -2578,9 +2578,9 @@ void MoleculeSESRenderer::RenderTestCase() {
     glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*) (intptr_t)(posSize));
     glBindVertexArray(0);
     // scale coordinates such that they lie in cube with edges [-1,1].
-    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, -3.0f);
     glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, -viewPos.z));
+    view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, viewPos.z));
     // float radiusSphere = 0.2; // radius for the spheres representing the atoms
     testCaseShader.Enable();
     // ------

@@ -418,7 +418,7 @@
                 float dotp = dot(normal, lightdir);
                 float col = dotp;
                 
-                if(col > cutOff)
+                if(col > cutOff || col < 0)
                     discard;
 
                 col = 1.0 - col; //invert color because background is dark
@@ -468,12 +468,12 @@
                     curvature *= position.z / near_plane;
                 }
 
-                if(col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
+                if(col < 0 || col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
                     discard;
 
                 // col = 1.0 - col; //invert color because background is dark
 
-                FragColor = vec4(1.0);
+                FragColor = vec4(vec3(col), 1.0);
             }
           -->
         </snippet>

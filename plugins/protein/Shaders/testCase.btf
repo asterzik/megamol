@@ -163,7 +163,7 @@
                 gl_FragDepth = (((far-near) * ndcDepth) + near + far) / 2.0;
                 }
 
-                normal = mat3(transpose(inverse(view))) * normal;
+                normal = normalize(mat3(transpose(inverse(view))) * normal);
 
                 FragNormal = vec4(normal, 1.0);
                 FragPosition = view * vec4(FragPos, 1.0);
