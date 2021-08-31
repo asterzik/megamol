@@ -290,15 +290,15 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->MakeSlotAvailable(&this->depthDiffParam);
 
     this->numBlur = 1;
-    this->numBlurParam.SetParameter(new param::FloatParam(this->numBlur));
+    this->numBlurParam.SetParameter(new param::FloatParam(this->numBlur, 1.0));
     this->MakeSlotAvailable(&this->numBlurParam);
 
     this->numPosBlur = 10;
-    this->numPosBlurParam.SetParameter(new param::FloatParam(this->numPosBlur));
+    this->numPosBlurParam.SetParameter(new param::FloatParam(this->numPosBlur, 1.0));
     this->MakeSlotAvailable(&this->numPosBlurParam);
 
     this->numCurvBlur = 1;
-    this->numCurvBlurParam.SetParameter(new param::FloatParam(this->numCurvBlur));
+    this->numCurvBlurParam.SetParameter(new param::FloatParam(this->numCurvBlur, 1.0));
     this->MakeSlotAvailable(&this->numCurvBlurParam);
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
@@ -952,17 +952,17 @@ void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader
     glBindTexture(GL_TEXTURE_2D, positionTexture);
     glActiveTexture(GL_TEXTURE0);
 
-    horizontal = true;
+    normal_horizontal = true;
     bool first_iteration = true;
     for (unsigned int i = 0; i < this->numBlur; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, normalFBO[horizontal]);
-        glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
-        glBindTexture(GL_TEXTURE_2D, first_iteration ? normalTexture : smoothNormalTexture[!horizontal]);
+        glBindFramebuffer(GL_FRAMEBUFFER, normalFBO[normal_horizontal]);
+        glUniform1i(Shader.ParameterLocation("horizontal"), normal_horizontal);
+        glBindTexture(GL_TEXTURE_2D, first_iteration ? normalTexture : smoothNormalTexture[!normal_horizontal]);
         glBindVertexArray(quadVAO);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        horizontal = !horizontal;
+        normal_horizontal = !normal_horizontal;
         if (first_iteration)
             first_iteration = false;
     }
@@ -1004,17 +1004,17 @@ void MoleculeSESRenderer::SmoothCurvature(vislib::graphics::gl::GLSLShader& Shad
     glBindTexture(GL_TEXTURE_2D, positionTexture);
     glActiveTexture(GL_TEXTURE0);
 
-    horizontal = true;
+    curv_horizontal = true;
     bool first_iteration = true;
     for (unsigned int i = 0; i < this->numCurvBlur; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, smoothCurvFBO[horizontal]);
-        glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
-        glBindTexture(GL_TEXTURE_2D, first_iteration ? curvatureTexture : smoothCurvatureTexture[!horizontal]);
+        glBindFramebuffer(GL_FRAMEBUFFER, smoothCurvFBO[curv_horizontal]);
+        glUniform1i(Shader.ParameterLocation("horizontal"), curv_horizontal);
+        glBindTexture(GL_TEXTURE_2D, first_iteration ? curvatureTexture : smoothCurvatureTexture[!curv_horizontal]);
         glBindVertexArray(quadVAO);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        horizontal = !horizontal;
+        curv_horizontal = !curv_horizontal;
         if (first_iteration)
             first_iteration = false;
     }
@@ -1035,17 +1035,17 @@ void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shad
     glActiveTexture(GL_TEXTURE0);
     glUniform1i(Shader.ParameterLocation("screenTexture"), 0);
 
-    horizontal = true;
+    pos_horizontal = true;
     bool first_iteration = true;
     for (unsigned int i = 0; i < this->numPosBlur; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, positionFBO[horizontal]);
-        glUniform1i(Shader.ParameterLocation("horizontal"), horizontal);
-        glBindTexture(GL_TEXTURE_2D, first_iteration ? positionTexture : smoothPositionTexture[!horizontal]);
+        glBindFramebuffer(GL_FRAMEBUFFER, positionFBO[pos_horizontal]);
+        glUniform1i(Shader.ParameterLocation("horizontal"), pos_horizontal);
+        glBindTexture(GL_TEXTURE_2D, first_iteration ? positionTexture : smoothPositionTexture[!pos_horizontal]);
         glBindVertexArray(quadVAO);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        horizontal = !horizontal;
+        pos_horizontal = !pos_horizontal;
         if (first_iteration)
             first_iteration = false;
     }
@@ -1086,14 +1086,14 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1f(Shader.ParameterLocation("cutOff"), this->cutOff);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!pos_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
     glUniform1i(Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
     if (smoothPositions) {
-        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!pos_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
@@ -1113,6 +1113,7 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
 }
 void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
 
+    // TODO: Something wrong with blurring for contours...
     calculateTextureBBX();
     calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
     if (smoothCurvature) {
@@ -1123,7 +1124,7 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     Shader.Enable();
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!normal_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
@@ -1131,19 +1132,19 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1i(Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
     if (smoothPositions) {
-        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!pos_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
     // glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
     glActiveTexture(GL_TEXTURE3);
-    glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
     if (smoothCurvature) {
-        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, curvatureTexture);
     }
+    glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
     glUniform1i(Shader.ParameterLocation("depthTexture"), 4);
@@ -1169,7 +1170,7 @@ void MoleculeSESRenderer::displayPositions() {
     passThroughShader.Enable();
     glActiveTexture(GL_TEXTURE0);
     if (smoothPositions) {
-        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]); // positionPyramid.get("fragPosition"));
+        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!pos_horizontal]); // positionPyramid.get("fragPosition"));
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
@@ -1197,7 +1198,7 @@ void MoleculeSESRenderer::displayNormalizedPositions() {
     normalizePositionsShader.Enable();
     glActiveTexture(GL_TEXTURE0);
     if (smoothPositions) {
-        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!pos_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
@@ -1229,7 +1230,7 @@ void MoleculeSESRenderer::displayNormals() {
     passThroughShader.Enable();
     glActiveTexture(GL_TEXTURE0);
     if (smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!normal_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
@@ -1253,14 +1254,14 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
     if (smoothPositions) {
-        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!horizontal]); // positionPyramid.get("fragPosition"));
+        glBindTexture(GL_TEXTURE_2D, smoothPositionTexture[!pos_horizontal]); // positionPyramid.get("fragPosition"));
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
     glUniform1i(Shader.ParameterLocation("tex_fragPosition"), 0);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
-        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!normal_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
@@ -1286,13 +1287,13 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
     }
 
     glDisable(GL_DEPTH_TEST);
+    this->passThroughShader.Enable();
     glActiveTexture(GL_TEXTURE0);
     if (smoothCurvature) {
-        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!horizontal]);
+        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, curvatureTexture);
     }
-    this->passThroughShader.Enable();
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -2346,7 +2347,6 @@ void MoleculeSESRenderer::CreateSingularityTextures() {
     GLint texSize;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &texSize);
 
-    // TODO: compute proper maximum number of cutting probes
     unsigned int numProbes = 16;
 
     for (cntRS = 0; cntRS < this->reducedSurface.size(); ++cntRS) {
@@ -2440,7 +2440,6 @@ void MoleculeSESRenderer::CreateSingularityTexture(unsigned int idxRS) {
     GLint texSize;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &texSize);
 
-    // TODO: compute proper maximum number of cutting probes
     unsigned int numProbes = 16;
 
     // set width and height of texture

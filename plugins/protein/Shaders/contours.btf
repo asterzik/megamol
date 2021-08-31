@@ -52,7 +52,6 @@
             void main()
             { 
                 vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
-                vec4 position_l = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-1,0), 0);
                 if(position == vec4(0.0))
                     discard;
                 vec2 depth = texelFetch(depthTexture, ivec2(0,0), level_max - 1).xy;
@@ -471,7 +470,7 @@
                 if(col < 0 || col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
                     discard;
 
-                // col = 1.0 - col; //invert color because background is dark
+                col = 1.0 - col; //invert color because background is dark
 
                 FragColor = vec4(vec3(col), 1.0);
             }
@@ -1881,17 +1880,23 @@
                 uniform float depthdiff;
                 void main()
                 {
-                    vec2 offsets[8] = vec2[](vec2(-1,0), vec2(-1,1), vec2(0,1), vec2(1,1), vec2(1, 0), vec2(1, -1), vec2(0, -1), vec2(-1, -1));
-                    float weights[8] = float[](2, 1, 2, 1, 2, 1, 2, 1);
-                    vec3 col = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0).xyz;
-                    vec3 pos = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).xyz;
-                    vec3 result = 4 * col;
+                    vec2 offsets[8] = vec2[](vec2(-1,1), vec2(0,1), vec2(1,1), 
+                                             vec2(-1,0),            vec2(1, 0),
+                                             vec2(-1, -1), vec2(0, -1), vec2(1, -1));
+                    float weights[8] = float[](1, 2, 1,
+                                               2,    2,
+                                                1, 2, 1);
+                    vec4 col = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
+                    vec4 pos = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
+                    if(col.a == 0 || pos.a == 0)
+                        discard;
+                    vec3 result = 4 * col.xyz;
                     float final_weight = 4;
                     for(int i = 0; i < 8; ++i){
-                        vec3 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0).xyz;
-                        vec3 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0).xyz;
-                        if(abs(pos.z - posb.z) < depthdiff){
-                            result += weights[i] * colb;
+                        vec4 colb = texelFetch(screenTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0);
+                        vec4 posb = texelFetch(positionTexture, ivec2(gl_FragCoord.xy + offsets[i]), 0);
+                        if(posb.a != 0 && colb.a != 0 && abs(pos.z - posb.z) < depthdiff){
+                            result += weights[i] * colb.xyz;
                             final_weight += weights[i];
                         }
                     }

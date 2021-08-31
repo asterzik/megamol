@@ -486,7 +486,9 @@ namespace protein {
         GLuint contourDepthRBO;
 
         // boolean for pingpong blurring
-        bool horizontal;
+        bool curv_horizontal;
+        bool pos_horizontal;
+        bool normal_horizontal;
 
         // VAO and VBO for screen filling quad
         unsigned int quadVAO, quadVBO;
