@@ -81,7 +81,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCMedianFilterParam("SCMedianFilter", "Use median filter for suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
-        , OrthogonalViewParam("SCorthogonalView", "viewDir = (0,0,1) else viewdir = normalize(viewPos - fragPos).")
+        , ViewTypeParam("ViewType", "zDir: viewDir = (0,0,1), minusPos: viewdir = normalize(viewPos - fragPos) "
+                                    "(viewPos = vec3(0)), interpolate: interpolate between both.")
         , OrthoProjParam("orthographic projection",
               "Was orthographic projection used for the data generation? Other possibility perspective.")
         , TestCaseParam("testcase", "Use the test case? Otherwise real data.")
@@ -170,6 +171,16 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     }
     this->blurParam << cbp;
     this->MakeSlotAvailable(&this->blurParam);
+
+    // blur modes
+    this->currentViewType = minusPos;
+    param::EnumParam* cvt = new param::EnumParam(int(this->currentViewType));
+    constexpr auto& view_entries = magic_enum::enum_entries<viewType>();
+    for (int i = 0; i < magic_enum::enum_count<viewType>(); ++i) {
+        cvt->SetTypePair((int) view_entries[i].first, std::string(view_entries[i].second).c_str());
+    }
+    this->ViewTypeParam << cvt;
+    this->MakeSlotAvailable(&this->ViewTypeParam);
 
     // Color weighting parameter
     this->cmWeightParam.SetParameter(new param::FloatParam(0.5f, 0.0f, 1.0f));
@@ -264,10 +275,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCCircularNeighborhood = true;
     this->SCCircularNeighborhoodParam.SetParameter(new param::BoolParam(this->SCCircularNeighborhood));
     this->MakeSlotAvailable(&this->SCCircularNeighborhoodParam);
-
-    this->orthogonalView = true;
-    this->OrthogonalViewParam.SetParameter(new param::BoolParam(this->orthogonalView));
-    this->MakeSlotAvailable(&this->OrthogonalViewParam);
 
     this->orthoproj = false;
     this->OrthoProjParam.SetParameter(new param::BoolParam(this->orthoproj));
@@ -870,9 +877,9 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->SCCircularNeighborhood = this->SCCircularNeighborhoodParam.Param<param::BoolParam>()->Value();
         this->SCCircularNeighborhoodParam.ResetDirty();
     }
-    if (this->OrthogonalViewParam.IsDirty()) {
-        this->orthogonalView = this->OrthogonalViewParam.Param<param::BoolParam>()->Value();
-        this->OrthogonalViewParam.ResetDirty();
+    if (this->ViewTypeParam.IsDirty()) {
+        this->currentViewType = static_cast<viewType>(this->ViewTypeParam.Param<param::EnumParam>()->Value());
+        this->ViewTypeParam.ResetDirty();
     }
     if (this->OrthoProjParam.IsDirty()) {
         this->orthoproj = this->OrthoProjParam.Param<param::BoolParam>()->Value();
@@ -1082,7 +1089,7 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1f(Shader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
     glUniform1i(Shader.ParameterLocation("medianFilter"), this->SCMedianFilter);
     glUniform1i(Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
-    glUniform1i(Shader.ParameterLocation("orthogonal_view"), this->orthogonalView);
+    glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
     glUniform1f(Shader.ParameterLocation("cutOff"), this->cutOff);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
@@ -1149,7 +1156,7 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
     glUniform1i(Shader.ParameterLocation("depthTexture"), 4);
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
-    glUniform1i(Shader.ParameterLocation("orthogonal_view"), this->orthogonalView);
+    glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
     glUniform1i(Shader.ParameterLocation("orthoproj"), this->orthoproj);
     float near_plane = this->cameraInfo.near_clipping_plane();
     glUniform1f(Shader.ParameterLocation("near_plane"), near_plane);

@@ -311,8 +311,7 @@ namespace protein {
         GLboolean SCMedianFilter;
         megamol::core::param::ParamSlot SCCircularNeighborhoodParam;
         GLboolean SCCircularNeighborhood;
-        megamol::core::param::ParamSlot OrthogonalViewParam;
-        GLboolean orthogonalView;
+        megamol::core::param::ParamSlot ViewTypeParam;
         megamol::core::param::ParamSlot OrthoProjParam;
         GLboolean orthoproj;
         megamol::core::param::ParamSlot TestCaseParam;
@@ -444,6 +443,8 @@ namespace protein {
         blurMode currentBlurMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;
+        enum viewType { zDir, minusPos, interpolate };
+        viewType currentViewType;
 
         /** vertex and attribute arrays for raycasting the tori */
         std::vector<vislib::Array<float>> torusVertexArray;

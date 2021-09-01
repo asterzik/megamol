@@ -87,32 +87,9 @@
             uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
             uniform bool medianFilter;
             uniform bool circularNeighborhood;
-            uniform bool orthogonal_view;
 
             void main()
             {
-                //total number of points according to radius [gauss circle problem]
-                // int total;
-                // if(radius == 1)
-                //     total = 5;
-                // else if(radius == 2)
-                //     total = 13;
-                // else if(radius == 3)
-                //     total = 29;
-                // else if(radius == 4)
-                //     total = 49;
-                // else if(radius == 5)
-                //     total = 81;
-                // else if(radius == 6)
-                //     total = 113;
-                // else if(radius == 7)
-                //     total = 149;
-                // else if(radius == 8)
-                //     total = 197;
-                // else if(radius == 9)
-                //     total = 253;
-                // else if(radius == 10)
-                //     total = 317;
 
                 vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
                 if(normal == vec3(0.0)){
@@ -120,9 +97,6 @@
                 }
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 lightdir;
-                if(orthogonal_view)
-                    lightdir =vec3(0.0, 0.0, 1.0); 
-                else
                     lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
                 float col = dot(normal, lightdir);
 
@@ -153,7 +127,6 @@
                             ++total;
                             cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
                             cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
-                            if(!orthogonal_view)
                                 lightdir = normalize(-cur_position);
                             cur = dot(cur_normal, lightdir);
                             if(cur <= col)
@@ -167,7 +140,6 @@
                                 ++total;
                                 cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
                                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
-                                if(!orthogonal_view)
                                     lightdir = normalize(-cur_position);
                                 cur = dot(cur_normal, lightdir);
                                 if(cur <= col)
@@ -181,7 +153,6 @@
                                     ++total;
                                     cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
                                     cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
-                                    if(!orthogonal_view)
                                         lightdir = normalize(-cur_position);
                                     cur = dot(cur_normal, lightdir);
                                     if(cur <= col)
@@ -197,7 +168,6 @@
                                 ++total;
                                 cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
                                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
-                                if(!orthogonal_view)
                                     lightdir = normalize(-cur_position);
                                 cur = dot(cur_normal, lightdir);
                                 if(cur <= col)
@@ -258,7 +228,6 @@
             uniform float cutOff;
             uniform bool medianFilter;
             uniform bool circularNeighborhood;
-            uniform bool orthogonal_view;
 
             void main()
             {
@@ -396,8 +365,8 @@
             uniform sampler2D positionTexture;
             uniform sampler2D depthTexture;
             uniform float cutOff;
-            uniform bool orthogonal_view;
             uniform int level_max;
+            uniform int viewType;
 
             void main()
             {
@@ -405,24 +374,23 @@
                 if(normal == vec3(0.0)){
                     discard;
                 }
+                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 lightdir;
-                if(orthogonal_view)
+                float col;
+                if(viewType == 1 || viewType == 2){
                     lightdir = vec3(0.0,0.0,1.0);
-                else{
-                    vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
-                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                    col = dot(normal, lightdir);
+                    if(col > cutOff || col < 0)
+                        discard;
                 }
-                // vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy;
-                // float rel_depth = (position.z - depth.y) / (depth.x - depth.y);
-                float dotp = dot(normal, lightdir);
-                float col = dotp;
+                if(viewType == 0 || viewType == 2){
+                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                    col = dot(normal, lightdir);
+                    if(col > cutOff || col < 0)
+                        discard;
+                }
                 
-                if(col > cutOff || col < 0)
-                    discard;
-
-                col = 1.0 - col; //invert color because background is dark
-
-                FragColor = vec4(vec3(col), 1.0);
+                FragColor = vec4(vec3(1.0), 1.0);
             }
           -->
         </snippet>
@@ -440,7 +408,8 @@
             uniform sampler2D depthTexture;
             uniform int level_max;
             uniform float cutOff;
-            uniform bool orthogonal_view;
+            uniform int viewType;
+            
             uniform bool orthoproj;
             uniform float near_plane;
 
@@ -451,28 +420,33 @@
                 if(normal == vec3(0.0)){
                     discard;
                 }
-                vec3 lightdir;
-                if(orthogonal_view)
-                    lightdir = vec3(0.0,0.0,1.0);
-                else{
-                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                }
-                float col = dot(normal, lightdir);
-                
                 vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy; // Maximum and minimum value of depths
-                float rel_depth = (position.z - depth.y) / (depth.x - depth.y);
-                float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
-                // If perspective projection was used to generate the textures, scale curvature for constant width in parts that are further away
-                if(!orthoproj){
-                    curvature *= position.z / near_plane;
+                vec3 lightdir;
+                float col, curvature;
+                if(viewType == 0 || viewType == 2){
+                    lightdir = vec3(0.0,0.0,1.0);
+                    col =dot(normal, lightdir);
+                    curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
+                    // If perspective projection was used to generate the textures, scale curvature for constant width in parts that are further away
+                    if(!orthoproj){
+                        curvature *= position.z / near_plane;
+                    }
+
+                    if(col < 0 || col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
+                        discard;
                 }
-
-                if(col < 0 || col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
-                    discard;
-
-                col = 1.0 - col; //invert color because background is dark
-
-                FragColor = vec4(vec3(col), 1.0);
+                if(viewType == 1 || viewType == 2){
+                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                    col =dot(normal, lightdir);
+                    curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
+                    // If perspective projection was used to generate the textures, scale curvature for constant width in parts that are further away
+                    if(!orthoproj){
+                        curvature *= position.z / near_plane;
+                    }
+                    if(col < 0 || col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
+                        discard;
+                }
+                FragColor = vec4(vec3(1.0), 1.0);
             }
           -->
         </snippet>
