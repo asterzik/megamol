@@ -473,10 +473,6 @@
                 col = 1.0 - col; //invert color because background is dark
 
                 FragColor = vec4(vec3(col), 1.0);
-                if(isnan(curvature))
-                    FragColor = vec4(1.0,0,0,1);
-                if(isinf(curvature))
-                    FragColor = vec4(0,1,0,1);
             }
           -->
         </snippet>
@@ -557,11 +553,14 @@
                 vec3 dy = dFdy(n) / length(pTop - pBottom);
                 
                 float curvature = (-(dx.x + dy.y)/n.z + (n.x * dx.z + n.y * dy.z) / (n.z * n.z)) / -2;
-
-                if(isnan(curvature))
+                if(isnan(curvature)) //This happens at the silhouette of the molecule, because for the calculation of dFdx or dFdy, neighbouring pixels are vec4(0).
                     discard;
 
                 fragCurvature = vec4(vec3(curvature), 1.0);
+                // if(length(pLeft-pRight) < 0.1)
+                //     fragCurvature = vec4(vec3(0.8118, 0.8, 0.0275), 1.0);
+                // if(length(pTop-pBottom) < 0.1)
+                //     fragCurvature = vec4(vec3(0.9451, 0.298, 0.7843), 1.0);
             }
             -->
             </snippet>
@@ -743,8 +742,6 @@
 
 				float determinantB = 1.0 / ((aa + cc) * (invB_D - invB_C));
 
-
-
 				//=======================================================================================
 
 				//col based matrices
@@ -820,8 +817,9 @@
                 vec2 eigenvalues = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop);
                 float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
 
-                // if(isnan(mean_curv) || isinf(mean_curv))
-                //     discard;
+                //TODO: If the effects of this discarding are really bothering, one could in an additional shader pass use the curvature of a neighbouring pixel for the nan and inf values.
+                if(isnan(mean_curv) || isinf(mean_curv))
+                    discard;
                 fragCurvature = vec4(vec3(mean_curv),1.0);
             }
                 
@@ -988,8 +986,8 @@
                 // Compute curvature for all "edges" in the 4-neighborhood
                 vec2 eigenvalues = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop);
                 float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
-                // if(isnan(mean_curv) || isinf(mean_curv))
-                //     discard;
+                if(isnan(mean_curv) || isinf(mean_curv))
+                    discard;
 
                 fragCurvature = vec4(vec3(mean_curv),1.0);
             }
@@ -1180,8 +1178,8 @@
                 // Compute curvature for all "edges" in the 4-neighborhood
                 float curv = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop, p);
 
-                // if(isnan(curv) || isinf(curv))
-                //     discard;
+                if(isnan(curv) || isinf(curv))
+                    discard;
                 fragCurvature = vec4(vec3(curv),1.0);
             }
                 
@@ -1364,8 +1362,8 @@
                 // Compute curvature for all "edges" in the 4-neighborhood
                 float radial_curv = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop, p);
                 
-                // if(isnan(radial_curv) || isinf(radial_curv))
-                //     discard;
+                if(isnan(radial_curv) || isinf(radial_curv))
+                    discard;
 
                 fragCurvature = vec4(vec3(radial_curv),1.0);
             }
@@ -1542,8 +1540,8 @@
                 vec2 eigenvalues = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop);
                 float gauss_curv = (eigenvalues.x * eigenvalues.y);
 
-                // if(isnan(gauss_curv) || isinf(gauss_curv))
-                //     discard;
+                if(isnan(gauss_curv) || isinf(gauss_curv))
+                    discard;
                 fragCurvature = vec4(vec3(gauss_curv),1.0);
             }
                 
@@ -1712,8 +1710,8 @@
                 vec2 eigenvalues = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop);
                 float gauss_curv = eigenvalues.x *  eigenvalues.y;
 
-                // if(isnan(gauss_curv) || isinf(gauss_curv))
-                //     discard;
+                if(isnan(gauss_curv) || isinf(gauss_curv))
+                    discard;
 
                 fragCurvature = vec4(vec3(gauss_curv),1.0);
             }
