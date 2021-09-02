@@ -126,7 +126,6 @@
 
             uniform mat4 view;
             uniform mat4 proj;
-            uniform bool orthoproj;
 
             void main (void)
             {
@@ -154,16 +153,6 @@
                 vec3 FragPos = vec3(fs_in.position.xy, fs_in.position.z + localDepth * fs_in.radius * scale);
                 
                 normal = normalize(mat3(transpose(inverse(view))) * normal);
-                //Calculate gl_FragDepth
-                if(!orthoproj){
-                    float far=gl_DepthRange.far; 
-                    float near=gl_DepthRange.near;
-                    vec4 clipFragPos = proj * vec4(FragPos, 1.0);
-                    // vec4 clipFragPos =  vec4(FragPos, 1.0);
-                    float ndcDepth = clipFragPos.z / clipFragPos.w;
-                    gl_FragDepth = (((far-near) * ndcDepth) + near + far) / 2.0;
-                }
-
 
                 FragNormal = vec4(normal, 1.0);
                 FragPosition = view * vec4(FragPos, 1.0);

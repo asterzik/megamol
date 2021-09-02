@@ -717,7 +717,10 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     float* bfactors = mol->AtomBFactors();
 
     if (testcase)
-        this->RenderPerspectiveTestCase();
+        if (orthoproj)
+            this->RenderTestCase();
+        else
+            this->RenderPerspectiveTestCase();
     else
         this->RenderSESGpuRaycasting(mol);
 
@@ -2611,31 +2614,14 @@ void MoleculeSESRenderer::RenderTestCase() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 proj;
-    if (orthoproj)
-        proj = glm::ortho(-1.0f, 3.0f, -1.0f, 1.0f, 1.0f, 10.0f);
-    else
-        proj = glm::perspective(glm::radians(45.0f), (float) this->width / (float) this->height, 1.0f, 10.0f);
+    proj = glm::ortho(-1.0f, 3.0f, -1.0f, 1.0f, 1.0f, 10.0f);
 
-    // glm::mat4 mvp = projection * view * model;
-    // glm::mat4 mv = view * model;
-    // glm::mat4 mv_inverse = inverse(mv);
-
-    // testCaseShader.Enable();
-    // shader.setMat4("projection", projection);
-    // shader.setMat4("mvp", mvp);
-    // shader.setMat4("mv", mv);
     glUniformMatrix4fv(testCaseShader.ParameterLocation("view"), 1, false, &view[0][0]);
     glUniformMatrix4fv(testCaseShader.ParameterLocation("proj"), 1, false, &proj[0][0]);
-    glm::vec4 viewpos = cameraInfo.eye_position();
-    glUniform4fv(testCaseShader.ParameterLocation("viewPos"), 1, &viewpos[0]);
-    glUniform1i(testCaseShader.ParameterLocation("orthoproj"), orthoproj);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBindVertexArray(VAO);
     glDrawArrays(GL_POINTS, 0, 3);
-
-    // glfwSwapBuffers(window);
-    // glfwPollEvents();
 }
 /*
  * Render two spheres, one big one small for testing purposes
