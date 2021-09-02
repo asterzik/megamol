@@ -367,6 +367,7 @@
             uniform float cutOff;
             uniform int level_max;
             uniform int viewType;
+            uniform bool whiteBackground;
 
             void main()
             {
@@ -377,20 +378,31 @@
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 lightdir;
                 float col;
-                if(viewType == 1 || viewType == 2){
-                    lightdir = vec3(0.0,0.0,1.0);
-                    col = dot(normal, lightdir);
-                    if(col > cutOff || col < 0)
-                        discard;
-                }
-                if(viewType == 0 || viewType == 2){
-                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                    col = dot(normal, lightdir);
-                    if(col > cutOff || col < 0)
-                        discard;
-                }
-                
-                FragColor = vec4(vec3(1.0), 1.0);
+                if(whiteBackground){
+                        lightdir = vec3(0.0,0.0,1.0);
+                        col = dot(normal, lightdir);
+                        FragColor = col * vec4(1.0, 0.0, 0.0, 1.0);
+                        if(col <= cutOff)
+                            FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                        if(col < 0){
+                            FragColor = vec4(1.0, 0.0, 1.0, 0.0);
+                        }
+                    }
+                else{
+                    if(viewType == 1 || viewType == 2){
+                        lightdir = vec3(0.0,0.0,1.0);
+                        col = dot(normal, lightdir);
+                        if(col > cutOff || col < 0)
+                            discard;
+                    }
+                    if(viewType == 0 || viewType == 2){
+                        lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                        col = dot(normal, lightdir);
+                        if(col > cutOff || col < 0)
+                            discard;
+                    }
+                    FragColor = vec4(vec3(1.0), 1.0);
+                    }
             }
           -->
         </snippet>

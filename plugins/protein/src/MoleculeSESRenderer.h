@@ -329,6 +329,8 @@ namespace protein {
         GLint numCurvBlur;
         megamol::core::param::ParamSlot depthDiffParam;
         GLfloat depthDiff;
+        megamol::core::param::ParamSlot whiteBackgroundParam;
+        GLboolean whiteBackground;
 
         bool drawSES;
         bool drawSAS;
@@ -515,7 +517,9 @@ namespace protein {
         // flag for SES computation (false = one SES per molecule)
         bool computeSesPerMolecule;
         void RenderTestCase();
+        void RenderPerspectiveTestCase();
         vislib::graphics::gl::GLSLGeometryShader testCaseShader;
+        vislib::graphics::gl::GLSLGeometryShader perspectiveTestCaseShader;
     };
 
 } /* end namespace protein */

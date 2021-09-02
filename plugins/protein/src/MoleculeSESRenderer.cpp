@@ -94,6 +94,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , blurParam("blur parameter", " Which blur shader to use?")
         , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
                                       "with the depth sensitive blur shader?")
+        , whiteBackgroundParam("white background", "White Background instead of the standard megamol blue.")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -307,6 +308,11 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->numCurvBlur = 1;
     this->numCurvBlurParam.SetParameter(new param::FloatParam(this->numCurvBlur, 1.0));
     this->MakeSlotAvailable(&this->numCurvBlurParam);
+
+    this->whiteBackground = false;
+    this->whiteBackgroundParam.SetParameter(new param::BoolParam(this->whiteBackground));
+    this->MakeSlotAvailable(&this->whiteBackgroundParam);
+
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -478,6 +484,9 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(this->depthBlurShader, "contours::vertex", "contours::postprocessing::depthBlur"))
         return false;
     if (!this->loadShader(this->depthGaussBlurShader, "contours::vertex", "contours::postprocessing::gauss-depth-blur"))
+        return false;
+    if (!this->loadShader(
+            this->perspectiveTestCaseShader, "testCase_perspective::vertex", "testCase_perspective::fragment"))
         return false;
 
     // // Load test case shader
@@ -708,7 +717,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     float* bfactors = mol->AtomBFactors();
 
     if (testcase)
-        this->RenderTestCase();
+        this->RenderPerspectiveTestCase();
     else
         this->RenderSESGpuRaycasting(mol);
 
@@ -912,6 +921,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (this->depthDiffParam.IsDirty()) {
         this->depthDiff = this->depthDiffParam.Param<param::FloatParam>()->Value();
         this->depthDiffParam.ResetDirty();
+    }
+    if (this->whiteBackgroundParam.IsDirty()) {
+        this->whiteBackground = this->whiteBackgroundParam.Param<param::BoolParam>()->Value();
+        this->whiteBackgroundParam.ResetDirty();
     }
     if (recomputeColors) {
         this->preComputationDone = false;
@@ -1120,7 +1133,6 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
 }
 void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
 
-    // TODO: Something wrong with blurring for contours...
     calculateTextureBBX();
     calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
     if (smoothCurvature) {
@@ -1161,8 +1173,13 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     float near_plane = this->cameraInfo.near_clipping_plane();
     glUniform1f(Shader.ParameterLocation("near_plane"), near_plane);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
+    glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    if (whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 0.0);
+    } else {
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -2619,4 +2636,71 @@ void MoleculeSESRenderer::RenderTestCase() {
 
     // glfwSwapBuffers(window);
     // glfwPollEvents();
+}
+/*
+ * Render two spheres, one big one small for testing purposes
+ */
+void MoleculeSESRenderer::RenderPerspectiveTestCase() {
+    unsigned int VBO, VAO;
+    glGenBuffers(1, &VBO);
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // fill buffer
+    float positions[] = {
+        1.0f, 1.0f, 0.0f,   // top right
+        1.0f, -1.0f, 0.0f,  // bottom right
+        -1.0f, 1.0f, 0.0f,  // top left
+                            // second triangle
+        1.0f, -1.0f, 0.0f,  // bottom right
+        -1.0f, -1.0f, 0.0f, // bottom left
+        -1.0f, 1.0f, 0.0f   // top left
+    };
+    glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+
+    // scale coordinates such that they lie in cube with edges [-1,1].
+    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, -3.0f);
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, viewPos.z));
+    // float radiusSphere = 0.2; // radius for the spheres representing the atoms
+    perspectiveTestCaseShader.Enable();
+    // ------
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float) this->width / (float) this->height, 0.1f, 10.0f);
+    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("view"), 1, false, &view[0][0]);
+    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("proj"), 1, false, &proj[0][0]);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindVertexArray(VAO);
+
+    // first sphere
+    float radius = 0.2;
+    glm::mat4 model = glm::mat4(1.0);
+    model = glm::translate(model, glm::vec3(-0.2, 0.0, 1.0));
+    model = glm::scale(model, glm::vec3(radius));
+    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("model"), 1, false, &model[0][0]);
+    glUniform1f(perspectiveTestCaseShader.ParameterLocation("radius"), radius);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // second sphere
+    radius = 0.7;
+    model = glm::mat4(1.0);
+    model = glm::translate(model, glm::vec3(0.7, 0.0, 1.0));
+    model = glm::scale(model, glm::vec3(radius));
+    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("model"), 1, false, &model[0][0]);
+    glUniform1f(perspectiveTestCaseShader.ParameterLocation("radius"), radius);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // third sphere
+    radius = 0.2;
+    model = glm::mat4(1.0);
+    model = glm::translate(model, glm::vec3(0.2, 0.0, -2.0));
+    model = glm::scale(model, glm::vec3(radius));
+    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("model"), 1, false, &model[0][0]);
+    glUniform1f(perspectiveTestCaseShader.ParameterLocation("radius"), radius);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
