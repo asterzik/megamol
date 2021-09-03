@@ -710,10 +710,10 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    if (!protein::computeRMSF(mol)) {
-        std::cout << "Computation of RMSF failed!" << std::endl;
-        return false;
-    }
+    // if (!protein::computeRMSF(mol)) {
+    //     std::cout << "Computation of RMSF failed!" << std::endl;
+    //     return false;
+    // }
     float* bfactors = mol->AtomBFactors();
 
     if (testcase)
@@ -1553,232 +1553,260 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
         GLuint attribInCuttingPlane;
 
         if (this->drawSES) {
-#pragma region // torus shader
-            if (offscreenRendering) {
-                this->torusShaderOR.Enable();
+            // #pragma region // torus shader
+            //             if (offscreenRendering) {
+            //                 this->torusShaderOR.Enable();
 
-#pragma region // set shader variables and attributes
-                glUniform4fvARB(this->torusShaderOR.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-                glUniform3fvARB(this->torusShaderOR.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-                glUniform3fvARB(this->torusShaderOR.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-                glUniform3fvARB(this->torusShaderOR.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(this->torusShaderOR.ParameterLocation("zValues"), 0.0, nearplane, farplane);
+            // #pragma region // set shader variables and attributes
+            //                 glUniform4fvARB(this->torusShaderOR.ParameterLocation("viewAttr"), 1,
+            //                 glm::value_ptr(viewportStuff));
+            //                 glUniform3fvARB(this->torusShaderOR.ParameterLocation("camIn"), 1,
+            //                 glm::value_ptr(camdir));
+            //                 glUniform3fvARB(this->torusShaderOR.ParameterLocation("camRight"), 1,
+            //                 glm::value_ptr(right)); glUniform3fvARB(this->torusShaderOR.ParameterLocation("camUp"),
+            //                 1, glm::value_ptr(up)); glUniform3fARB(this->torusShaderOR.ParameterLocation("zValues"),
+            //                 0.0, nearplane, farplane);
 
-                attribInParams = glGetAttribLocationARB(this->torusShaderOR, "inParams");
-                attribQuatC = glGetAttribLocationARB(this->torusShaderOR, "quatC");
-                attribInSphere = glGetAttribLocationARB(this->torusShaderOR, "inSphere");
-                attribInColors = glGetAttribLocationARB(this->torusShaderOR, "inColors");
-                attribInCuttingPlane = glGetAttribLocationARB(this->torusShaderOR, "inCuttingPlane");
-#pragma endregion // set shader variables and attributes
-            } else {
-                this->torusShader.Enable();
-                // set shader variables
-
-
-                glUniform4fvARB(this->torusShader.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-                glUniform3fvARB(this->torusShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-                glUniform3fvARB(this->torusShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-                glUniform3fvARB(this->torusShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(this->torusShader.ParameterLocation("zValues"), 0.0, nearplane, farplane);
-                // get attribute locations
-                attribInParams = glGetAttribLocationARB(this->torusShader, "inParams");
-                attribQuatC = glGetAttribLocationARB(this->torusShader, "quatC");
-                attribInSphere = glGetAttribLocationARB(this->torusShader, "inSphere");
-                attribInColors = glGetAttribLocationARB(this->torusShader, "inColors");
-                attribInCuttingPlane = glGetAttribLocationARB(this->torusShader, "inCuttingPlane");
-            }
-
-            // set color to orange
-            glColor3f(1.0f, 0.75f, 0.0f);
-            glEnableClientState(GL_VERTEX_ARRAY);
-
-#pragma region // enable attributes and set pointer
-            // enable vertex attribute arrays for the attribute locations
-            glEnableVertexAttribArrayARB(attribInParams);
-            glEnableVertexAttribArrayARB(attribQuatC);
-            glEnableVertexAttribArrayARB(attribInSphere);
-            glEnableVertexAttribArrayARB(attribInColors);
-            glEnableVertexAttribArrayARB(attribInCuttingPlane);
-            // set vertex and attribute pointers and draw them
-            glVertexAttribPointerARB(attribInParams, 3, GL_FLOAT, 0, 0, this->torusInParamArray[cntRS].PeekElements());
-            glVertexAttribPointerARB(attribQuatC, 4, GL_FLOAT, 0, 0, this->torusQuatCArray[cntRS].PeekElements());
-            glVertexAttribPointerARB(attribInSphere, 4, GL_FLOAT, 0, 0, this->torusInSphereArray[cntRS].PeekElements());
-            glVertexAttribPointerARB(attribInColors, 4, GL_FLOAT, 0, 0, this->torusColors[cntRS].PeekElements());
-            glVertexAttribPointerARB(
-                attribInCuttingPlane, 3, GL_FLOAT, 0, 0, this->torusInCuttingPlaneArray[cntRS].PeekElements());
-#pragma endregion // enable attirbutes and set pointers
-
-            glVertexPointer(3, GL_FLOAT, 0, this->torusVertexArray[cntRS].PeekElements());
-            glDrawArrays(GL_POINTS, 0, ((unsigned int) this->torusVertexArray[cntRS].Count()) / 3);
-
-#pragma region // disable vertex attribute arrays for the attribute locations
-            glDisableVertexAttribArrayARB(attribInParams);
-            glDisableVertexAttribArrayARB(attribQuatC);
-            glDisableVertexAttribArrayARB(attribInSphere);
-            glDisableVertexAttribArrayARB(attribInColors);
-            glDisableVertexAttribArrayARB(attribInCuttingPlane);
-            glDisableClientState(GL_VERTEX_ARRAY);
-#pragma endregion // disable vertex attribute arrays for the attribute locations
-
-            if (offscreenRendering) {
-                this->torusShaderOR.Disable();
-            } else {
-                this->torusShader.Disable();
-            }
-
-#pragma endregion // torus shader
-
-#pragma region // spherical triangles
-            /////////////////////////////////////////////////
-            // ray cast the spherical triangles on the GPU //
-            /////////////////////////////////////////////////
-            GLuint attribVec1;
-            GLuint attribVec2;
-            GLuint attribVec3;
-            GLuint attribTexCoord1;
-            GLuint attribTexCoord2;
-            GLuint attribTexCoord3;
-            GLuint attribColors;
-
-            // bind texture
-            glBindTexture(GL_TEXTURE_2D, singularityTexture[cntRS]);
-            // enable spherical triangle shader
-            if (offscreenRendering) {
-                this->sphericalTriangleShaderOR.Enable();
-#pragma region // set shader variables and get attribute locations
-               // set shader variables
-                glUniform4fvARB(
-                    this->sphericalTriangleShaderOR.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-                glUniform3fvARB(this->sphericalTriangleShaderOR.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-                glUniform3fvARB(
-                    this->sphericalTriangleShaderOR.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-                glUniform3fvARB(this->sphericalTriangleShaderOR.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(this->sphericalTriangleShaderOR.ParameterLocation("zValues"), 0.0, nearplane, farplane);
-                glUniform2fARB(this->sphericalTriangleShaderOR.ParameterLocation("texOffset"),
-                    1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
-                // get attribute locations
-                attribVec1 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec1");
-                attribVec2 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec2");
-                attribVec3 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec3");
-                attribTexCoord1 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribTexCoord1");
-                attribTexCoord2 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribTexCoord2");
-                attribTexCoord3 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribTexCoord3");
-                attribColors = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribColors");
-#pragma endregion // set shader variables and get attribute locations
-            } else {
-                this->sphericalTriangleShader.Enable();
-                // set shader variables
-                glUniform4fvARB(
-                    this->sphericalTriangleShader.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-                glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-                glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-                glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-                glUniform3fARB(this->sphericalTriangleShader.ParameterLocation("zValues"), 0.0, nearplane, farplane);
-                glUniform2fARB(this->sphericalTriangleShader.ParameterLocation("texOffset"),
-                    1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
-                // get attribute locations
-                attribVec1 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec1");
-                attribVec2 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec2");
-                attribVec3 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec3");
-                attribTexCoord1 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribTexCoord1");
-                attribTexCoord2 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribTexCoord2");
-                attribTexCoord3 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribTexCoord3");
-                attribColors = glGetAttribLocationARB(this->sphericalTriangleShader, "attribColors");
-            }
-
-            // set color to turquoise
-            glColor3f(0.0f, 0.75f, 1.0f);
-            glEnableClientState(GL_VERTEX_ARRAY);
-#pragma region // vertex attributes
-            // enable vertex attribute arrays for the attribute locations
-            glEnableVertexAttribArrayARB(attribVec1);
-            glEnableVertexAttribArrayARB(attribVec2);
-            glEnableVertexAttribArrayARB(attribVec3);
-            glEnableVertexAttribArrayARB(attribTexCoord1);
-            glEnableVertexAttribArrayARB(attribTexCoord2);
-            glEnableVertexAttribArrayARB(attribTexCoord3);
-            glEnableVertexAttribArrayARB(attribColors);
-            // set vertex and attribute pointers and draw them
-            glVertexAttribPointerARB(attribVec1, 4, GL_FLOAT, 0, 0, this->sphericTriaVec1[cntRS].PeekElements());
-            glVertexAttribPointerARB(attribVec2, 4, GL_FLOAT, 0, 0, this->sphericTriaVec2[cntRS].PeekElements());
-            glVertexAttribPointerARB(attribVec3, 4, GL_FLOAT, 0, 0, this->sphericTriaVec3[cntRS].PeekElements());
-            glVertexAttribPointerARB(
-                attribTexCoord1, 3, GL_FLOAT, 0, 0, this->sphericTriaTexCoord1[cntRS].PeekElements());
-            glVertexAttribPointerARB(
-                attribTexCoord2, 3, GL_FLOAT, 0, 0, this->sphericTriaTexCoord2[cntRS].PeekElements());
-            glVertexAttribPointerARB(
-                attribTexCoord3, 3, GL_FLOAT, 0, 0, this->sphericTriaTexCoord3[cntRS].PeekElements());
-            glVertexAttribPointerARB(attribColors, 3, GL_FLOAT, 0, 0, this->sphericTriaColors[cntRS].PeekElements());
-#pragma endregion // vertex attributes
-            glVertexPointer(4, GL_FLOAT, 0, this->sphericTriaVertexArray[cntRS].PeekElements());
-            glDrawArrays(GL_POINTS, 0, ((unsigned int) this->sphericTriaVertexArray[cntRS].Count()) / 4);
-#pragma region // disable vertex attributes
-            // disable vertex attribute arrays for the attribute locations
-            glDisableVertexAttribArrayARB(attribVec1);
-            glDisableVertexAttribArrayARB(attribVec2);
-            glDisableVertexAttribArrayARB(attribVec3);
-            glDisableVertexAttribArrayARB(attribTexCoord1);
-            glDisableVertexAttribArrayARB(attribTexCoord2);
-            glDisableVertexAttribArrayARB(attribTexCoord3);
-            glDisableVertexAttribArrayARB(attribColors);
-            glDisableClientState(GL_VERTEX_ARRAY);
-#pragma endregion // disable vertex attributes
+            //                 attribInParams = glGetAttribLocationARB(this->torusShaderOR, "inParams");
+            //                 attribQuatC = glGetAttribLocationARB(this->torusShaderOR, "quatC");
+            //                 attribInSphere = glGetAttribLocationARB(this->torusShaderOR, "inSphere");
+            //                 attribInColors = glGetAttribLocationARB(this->torusShaderOR, "inColors");
+            //                 attribInCuttingPlane = glGetAttribLocationARB(this->torusShaderOR, "inCuttingPlane");
+            // #pragma endregion // set shader variables and attributes
+            //             } else {
+            //                 this->torusShader.Enable();
+            //                 // set shader variables
 
 
-            // disable spherical triangle shader
-            if (offscreenRendering) {
-                this->sphericalTriangleShaderOR.Disable();
-            } else {
-                this->sphericalTriangleShader.Disable();
-            }
-            // unbind texture
-            glBindTexture(GL_TEXTURE_2D, 0);
-#pragma endregion // spherical triangles
-        }
+            //                 glUniform4fvARB(this->torusShader.ParameterLocation("viewAttr"), 1,
+            //                 glm::value_ptr(viewportStuff));
+            //                 glUniform3fvARB(this->torusShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
+            //                 glUniform3fvARB(this->torusShader.ParameterLocation("camRight"), 1,
+            //                 glm::value_ptr(right)); glUniform3fvARB(this->torusShader.ParameterLocation("camUp"), 1,
+            //                 glm::value_ptr(up)); glUniform3fARB(this->torusShader.ParameterLocation("zValues"), 0.0,
+            //                 nearplane, farplane);
+            //                 // get attribute locations
+            //                 attribInParams = glGetAttribLocationARB(this->torusShader, "inParams");
+            //                 attribQuatC = glGetAttribLocationARB(this->torusShader, "quatC");
+            //                 attribInSphere = glGetAttribLocationARB(this->torusShader, "inSphere");
+            //                 attribInColors = glGetAttribLocationARB(this->torusShader, "inColors");
+            //                 attribInCuttingPlane = glGetAttribLocationARB(this->torusShader, "inCuttingPlane");
+            //             }
+
+            //             // set color to orange
+            //             glColor3f(1.0f, 0.75f, 0.0f);
+            //             glEnableClientState(GL_VERTEX_ARRAY);
+
+            // #pragma region // enable attributes and set pointer
+            //             // enable vertex attribute arrays for the attribute locations
+            //             glEnableVertexAttribArrayARB(attribInParams);
+            //             glEnableVertexAttribArrayARB(attribQuatC);
+            //             glEnableVertexAttribArrayARB(attribInSphere);
+            //             glEnableVertexAttribArrayARB(attribInColors);
+            //             glEnableVertexAttribArrayARB(attribInCuttingPlane);
+            //             // set vertex and attribute pointers and draw them
+            //             glVertexAttribPointerARB(attribInParams, 3, GL_FLOAT, 0, 0,
+            //             this->torusInParamArray[cntRS].PeekElements()); glVertexAttribPointerARB(attribQuatC, 4,
+            //             GL_FLOAT, 0, 0, this->torusQuatCArray[cntRS].PeekElements());
+            //             glVertexAttribPointerARB(attribInSphere, 4, GL_FLOAT, 0, 0,
+            //             this->torusInSphereArray[cntRS].PeekElements()); glVertexAttribPointerARB(attribInColors, 4,
+            //             GL_FLOAT, 0, 0, this->torusColors[cntRS].PeekElements()); glVertexAttribPointerARB(
+            //                 attribInCuttingPlane, 3, GL_FLOAT, 0, 0,
+            //                 this->torusInCuttingPlaneArray[cntRS].PeekElements());
+            // #pragma endregion // enable attirbutes and set pointers
+
+            //             glVertexPointer(3, GL_FLOAT, 0, this->torusVertexArray[cntRS].PeekElements());
+            //             glDrawArrays(GL_POINTS, 0, ((unsigned int) this->torusVertexArray[cntRS].Count()) / 3);
+
+            // #pragma region // disable vertex attribute arrays for the attribute locations
+            //             glDisableVertexAttribArrayARB(attribInParams);
+            //             glDisableVertexAttribArrayARB(attribQuatC);
+            //             glDisableVertexAttribArrayARB(attribInSphere);
+            //             glDisableVertexAttribArrayARB(attribInColors);
+            //             glDisableVertexAttribArrayARB(attribInCuttingPlane);
+            //             glDisableClientState(GL_VERTEX_ARRAY);
+            // #pragma endregion // disable vertex attribute arrays for the attribute locations
+
+            //             if (offscreenRendering) {
+            //                 this->torusShaderOR.Disable();
+            //             } else {
+            //                 this->torusShader.Disable();
+            //             }
+
+            // #pragma endregion // torus shader
+
+            // #pragma region // spherical triangles
+            //             /////////////////////////////////////////////////
+            //             // ray cast the spherical triangles on the GPU //
+            //             /////////////////////////////////////////////////
+            //             GLuint attribVec1;
+            //             GLuint attribVec2;
+            //             GLuint attribVec3;
+            //             GLuint attribTexCoord1;
+            //             GLuint attribTexCoord2;
+            //             GLuint attribTexCoord3;
+            //             GLuint attribColors;
+
+            //             // bind texture
+            //             glBindTexture(GL_TEXTURE_2D, singularityTexture[cntRS]);
+            //             // enable spherical triangle shader
+            //             if (offscreenRendering) {
+            //                 this->sphericalTriangleShaderOR.Enable();
+            // #pragma region // set shader variables and get attribute locations
+            //                // set shader variables
+            //                 glUniform4fvARB(
+            //                     this->sphericalTriangleShaderOR.ParameterLocation("viewAttr"), 1,
+            //                     glm::value_ptr(viewportStuff));
+            //                 glUniform3fvARB(this->sphericalTriangleShaderOR.ParameterLocation("camIn"), 1,
+            //                 glm::value_ptr(camdir)); glUniform3fvARB(
+            //                     this->sphericalTriangleShaderOR.ParameterLocation("camRight"), 1,
+            //                     glm::value_ptr(right));
+            //                 glUniform3fvARB(this->sphericalTriangleShaderOR.ParameterLocation("camUp"), 1,
+            //                 glm::value_ptr(up));
+            //                 glUniform3fARB(this->sphericalTriangleShaderOR.ParameterLocation("zValues"), 0.0,
+            //                 nearplane, farplane);
+            //                 glUniform2fARB(this->sphericalTriangleShaderOR.ParameterLocation("texOffset"),
+            //                     1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
+            //                 // get attribute locations
+            //                 attribVec1 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec1");
+            //                 attribVec2 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec2");
+            //                 attribVec3 = glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribVec3");
+            //                 attribTexCoord1 = glGetAttribLocationARB(this->sphericalTriangleShaderOR,
+            //                 "attribTexCoord1"); attribTexCoord2 =
+            //                 glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribTexCoord2");
+            //                 attribTexCoord3 = glGetAttribLocationARB(this->sphericalTriangleShaderOR,
+            //                 "attribTexCoord3"); attribColors =
+            //                 glGetAttribLocationARB(this->sphericalTriangleShaderOR, "attribColors");
+            // #pragma endregion // set shader variables and get attribute locations
+            //             } else {
+            //                 this->sphericalTriangleShader.Enable();
+            //                 // set shader variables
+            //                 glUniform4fvARB(
+            //                     this->sphericalTriangleShader.ParameterLocation("viewAttr"), 1,
+            //                     glm::value_ptr(viewportStuff));
+            //                 glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camIn"), 1,
+            //                 glm::value_ptr(camdir));
+            //                 glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camRight"), 1,
+            //                 glm::value_ptr(right));
+            //                 glUniform3fvARB(this->sphericalTriangleShader.ParameterLocation("camUp"), 1,
+            //                 glm::value_ptr(up));
+            //                 glUniform3fARB(this->sphericalTriangleShader.ParameterLocation("zValues"), 0.0,
+            //                 nearplane, farplane);
+            //                 glUniform2fARB(this->sphericalTriangleShader.ParameterLocation("texOffset"),
+            //                     1.0f / (float) this->singTexWidth[cntRS], 1.0f / (float) this->singTexHeight[cntRS]);
+            //                 // get attribute locations
+            //                 attribVec1 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec1");
+            //                 attribVec2 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec2");
+            //                 attribVec3 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribVec3");
+            //                 attribTexCoord1 = glGetAttribLocationARB(this->sphericalTriangleShader,
+            //                 "attribTexCoord1"); attribTexCoord2 =
+            //                 glGetAttribLocationARB(this->sphericalTriangleShader, "attribTexCoord2"); attribTexCoord3
+            //                 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribTexCoord3"); attribColors
+            //                 = glGetAttribLocationARB(this->sphericalTriangleShader, "attribColors");
+            //             }
+
+            //             // set color to turquoise
+            //             glColor3f(0.0f, 0.75f, 1.0f);
+            //             glEnableClientState(GL_VERTEX_ARRAY);
+            // #pragma region // vertex attributes
+            //             // enable vertex attribute arrays for the attribute locations
+            //             glEnableVertexAttribArrayARB(attribVec1);
+            //             glEnableVertexAttribArrayARB(attribVec2);
+            //             glEnableVertexAttribArrayARB(attribVec3);
+            //             glEnableVertexAttribArrayARB(attribTexCoord1);
+            //             glEnableVertexAttribArrayARB(attribTexCoord2);
+            //             glEnableVertexAttribArrayARB(attribTexCoord3);
+            //             glEnableVertexAttribArrayARB(attribColors);
+            //             // set vertex and attribute pointers and draw them
+            //             glVertexAttribPointerARB(attribVec1, 4, GL_FLOAT, 0, 0,
+            //             this->sphericTriaVec1[cntRS].PeekElements()); glVertexAttribPointerARB(attribVec2, 4,
+            //             GL_FLOAT, 0, 0, this->sphericTriaVec2[cntRS].PeekElements());
+            //             glVertexAttribPointerARB(attribVec3, 4, GL_FLOAT, 0, 0,
+            //             this->sphericTriaVec3[cntRS].PeekElements()); glVertexAttribPointerARB(
+            //                 attribTexCoord1, 3, GL_FLOAT, 0, 0, this->sphericTriaTexCoord1[cntRS].PeekElements());
+            //             glVertexAttribPointerARB(
+            //                 attribTexCoord2, 3, GL_FLOAT, 0, 0, this->sphericTriaTexCoord2[cntRS].PeekElements());
+            //             glVertexAttribPointerARB(
+            //                 attribTexCoord3, 3, GL_FLOAT, 0, 0, this->sphericTriaTexCoord3[cntRS].PeekElements());
+            //             glVertexAttribPointerARB(attribColors, 3, GL_FLOAT, 0, 0,
+            //             this->sphericTriaColors[cntRS].PeekElements());
+            // #pragma endregion // vertex attributes
+            //             glVertexPointer(4, GL_FLOAT, 0, this->sphericTriaVertexArray[cntRS].PeekElements());
+            //             glDrawArrays(GL_POINTS, 0, ((unsigned int) this->sphericTriaVertexArray[cntRS].Count()) / 4);
+            // #pragma region // disable vertex attributes
+            //             // disable vertex attribute arrays for the attribute locations
+            //             glDisableVertexAttribArrayARB(attribVec1);
+            //             glDisableVertexAttribArrayARB(attribVec2);
+            //             glDisableVertexAttribArrayARB(attribVec3);
+            //             glDisableVertexAttribArrayARB(attribTexCoord1);
+            //             glDisableVertexAttribArrayARB(attribTexCoord2);
+            //             glDisableVertexAttribArrayARB(attribTexCoord3);
+            //             glDisableVertexAttribArrayARB(attribColors);
+            //             glDisableClientState(GL_VERTEX_ARRAY);
+            // #pragma endregion // disable vertex attributes
+
+
+            //             // disable spherical triangle shader
+            //             if (offscreenRendering) {
+            //                 this->sphericalTriangleShaderOR.Disable();
+            //             } else {
+            //                 this->sphericalTriangleShader.Disable();
+            //             }
+            //             // unbind texture
+            //             glBindTexture(GL_TEXTURE_2D, 0);
+            // #pragma endregion // spherical triangles
+            //         }
 
 #pragma region // sphere shader
-        /////////////////////////////////////
-        // ray cast the spheres on the GPU //
-        /////////////////////////////////////
-        // enable sphere shader
-        if (offscreenRendering) {
-            this->sphereShaderOR.Enable();
+            /////////////////////////////////////
+            // ray cast the spheres on the GPU //
+            /////////////////////////////////////
+            // enable sphere shader
+            if (offscreenRendering) {
+                this->sphereShaderOR.Enable();
 #pragma region // set shader variables
-            glUniform4fvARB(this->sphereShaderOR.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-            glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-            glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-            glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-            glUniform3fARB(this->sphereShaderOR.ParameterLocation("zValues"), 0.0, nearplane, farplane);
+                glUniform4fvARB(this->sphereShaderOR.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
+                glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
+                glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camRight"), 1, glm::value_ptr(right));
+                glUniform3fvARB(this->sphereShaderOR.ParameterLocation("camUp"), 1, glm::value_ptr(up));
+                glUniform3fARB(this->sphereShaderOR.ParameterLocation("zValues"), 0.0, nearplane, farplane);
 #pragma endregion // set shader variables
-        } else {
-            this->sphereShader.Enable();
-            // set shader variables
+            } else {
+                this->sphereShader.Enable();
+                // set shader variables
 
 
-            glUniform4fvARB(this->sphereShader.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
-            glUniform3fvARB(this->sphereShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
-            glUniform3fvARB(this->sphereShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
-            glUniform3fvARB(this->sphereShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
-            glUniform3fARB(this->sphereShader.ParameterLocation("zValues"), 0.0, nearplane, farplane);
-        }
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_COLOR_ARRAY);
-        // set vertex and color pointers and draw them
-        glColorPointer(3, GL_FLOAT, 0, this->sphereColors[cntRS].PeekElements());
-        glVertexPointer(4, GL_FLOAT, 0, this->sphereVertexArray[cntRS].PeekElements());
-        glDrawArrays(GL_POINTS, 0, ((unsigned int) this->sphereVertexArray[cntRS].Count()) / 4);
-        // disable sphere shader
-        glDisableClientState(GL_COLOR_ARRAY);
-        glDisableClientState(GL_VERTEX_ARRAY);
+                glUniform4fvARB(this->sphereShader.ParameterLocation("viewAttr"), 1, glm::value_ptr(viewportStuff));
+                glUniform3fvARB(this->sphereShader.ParameterLocation("camIn"), 1, glm::value_ptr(camdir));
+                glUniform3fvARB(this->sphereShader.ParameterLocation("camRight"), 1, glm::value_ptr(right));
+                glUniform3fvARB(this->sphereShader.ParameterLocation("camUp"), 1, glm::value_ptr(up));
+                glUniform3fARB(this->sphereShader.ParameterLocation("zValues"), 0.0, nearplane, farplane);
+            }
+            glEnableClientState(GL_VERTEX_ARRAY);
+            glEnableClientState(GL_COLOR_ARRAY);
+            // set vertex and color pointers and draw them
+            // glColorPointer(3, GL_FLOAT, 0, this->sphereColors[cntRS].PeekElements());
+            // glVertexPointer(4, GL_FLOAT, 0, this->sphereVertexArray[cntRS].PeekElements());
+            // glDrawArrays(GL_POINTS, 0, ((unsigned int) this->sphereVertexArray[cntRS].Count()) / 4);
+            float colors[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+            float vertices[12] = {10.328, 20.121, -4.012, 2, 8.233, 20.042, -0.768, 0.5, 8.13, 20.952, -7.128, 0.5};
+            // float vertices[12] = {0, 0, 0, 0.5, 2, 0, 0, 2, 0, 0, -5, 0.5};
+            glColorPointer(3, GL_FLOAT, 0, colors);
+            glVertexPointer(4, GL_FLOAT, 0, vertices);
+            glDrawArrays(GL_POINTS, 0, 3);
+            // disable sphere shader
+            glDisableClientState(GL_COLOR_ARRAY);
+            glDisableClientState(GL_VERTEX_ARRAY);
 
 
-        if (offscreenRendering) {
-            this->sphereShaderOR.Disable();
-        } else {
-            this->sphereShader.Disable();
-        }
+            if (offscreenRendering) {
+                this->sphereShaderOR.Disable();
+            } else {
+                this->sphereShader.Disable();
+            }
 #pragma endregion // sphere shader
-        // Offscreen Rendering
+            // Offscreen Rendering
+        }
     }
 }
 
