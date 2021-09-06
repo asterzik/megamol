@@ -318,8 +318,6 @@ namespace protein {
         GLboolean testcase;
         megamol::core::param::ParamSlot cutOffParam;
         GLfloat cutOff;
-        megamol::core::param::ParamSlot nearPlaneParam;
-        GLfloat nearplane;
         megamol::core::param::ParamSlot blurParam;
         megamol::core::param::ParamSlot numBlurParam;
         GLint numBlur;

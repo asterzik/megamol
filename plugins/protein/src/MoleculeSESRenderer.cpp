@@ -89,8 +89,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , cutOffParam("cut off point for contours",
               "Curvature Contours: How big can the dot product between normal and "
               "viewdir get, such that the point is still considered a contour?")
-        , nearPlaneParam("nearPlane", "Curvature Contours: How big can the dot product between normal and "
-                                      "viewdir get, such that the point is still considered a contour?")
         , blurParam("blur parameter", " Which blur shader to use?")
         , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
                                       "with the depth sensitive blur shader?")
@@ -288,10 +286,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->cutOff = 0.15f;
     this->cutOffParam.SetParameter(new param::FloatParam(this->cutOff));
     this->MakeSlotAvailable(&this->cutOffParam);
-
-    this->nearplane = 1.0f;
-    this->nearPlaneParam.SetParameter(new param::FloatParam(this->nearplane));
-    this->MakeSlotAvailable(&this->nearPlaneParam);
 
     this->depthDiff = 0.3f;
     this->depthDiffParam.SetParameter(new param::FloatParam(this->depthDiff));
@@ -901,10 +895,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (this->cutOffParam.IsDirty()) {
         this->cutOff = this->cutOffParam.Param<param::FloatParam>()->Value();
         this->cutOffParam.ResetDirty();
-    }
-    if (this->nearPlaneParam.IsDirty()) {
-        this->nearplane = this->nearPlaneParam.Param<param::FloatParam>()->Value();
-        this->nearPlaneParam.ResetDirty();
     }
     if (this->numBlurParam.IsDirty()) {
         this->numBlur = this->numBlurParam.Param<param::FloatParam>()->Value();
