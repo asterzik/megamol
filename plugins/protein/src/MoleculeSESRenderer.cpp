@@ -1094,6 +1094,7 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1i(Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
     glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
     glUniform1f(Shader.ParameterLocation("cutOff"), this->cutOff);
+    glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!pos_horizontal]);
@@ -1113,7 +1114,11 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
     glGetError();
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    if (this->whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 1.0);
+    } else {
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -1194,7 +1199,11 @@ void MoleculeSESRenderer::displayPositions() {
 
 
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    if (this->whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 1.0);
+    } else {
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -1207,7 +1216,11 @@ void MoleculeSESRenderer::displayNormalizedPositions() {
     this->calculateTextureBBX();
     glDisable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    if (this->whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 1.0);
+    } else {
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     normalizePositionsShader.Enable();
     glActiveTexture(GL_TEXTURE0);
@@ -1253,7 +1266,11 @@ void MoleculeSESRenderer::displayNormals() {
     glGetError();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    if (this->whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 1.0);
+    } else {
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -1310,7 +1327,11 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
     }
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    if (this->whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 1.0);
+    } else {
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);

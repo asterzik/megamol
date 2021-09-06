@@ -30,7 +30,7 @@
             void main()
             { 
                 vec4 color = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
-                if(color == vec4(0.0))
+                if(color.a == 0)
                     discard;
                 FragColor = color;
             }
@@ -87,6 +87,7 @@
             uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
             uniform bool medianFilter;
             uniform bool circularNeighborhood;
+            uniform bool whiteBackground;
 
             void main()
             {
@@ -201,7 +202,8 @@
                     col = filterValues[int(floor(total * 1.0 / 2.0))];
                 }
 
-                col = 1.0 - col; //invert color because background is dark
+                if(!whiteBackground)
+                    col = 1.0 - col; //invert color because background is dark
 
                 FragColor = vec4(col, col, col, 1.0);
             }
@@ -228,6 +230,7 @@
             uniform float cutOff;
             uniform bool medianFilter;
             uniform bool circularNeighborhood;
+            uniform bool whiteBackground;
 
             void main()
             {
@@ -347,7 +350,8 @@
                     col = filterValues[int(floor(total * 1.0 / 2.0))];
                 }
 
-                col = 1.0 - col; //invert color because background is dark
+                if(!whiteBackground)
+                    col = 1.0 - col; //invert color because background is dark
 
                 FragColor = vec4(col, col, col, 1.0);
             }
@@ -378,29 +382,22 @@
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 lightdir;
                 float col;
-                if(whiteBackground){
-                        // lightdir = vec3(0.0,0.0,1.0);
-                        lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                        col = dot(normal, lightdir);
-                        FragColor = col * vec4(1.0, 0.0, 0.0, 1.0);
-                        if(col <= cutOff)
-                            FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-                        if(col < 0){
-                            FragColor = vec4(1.0, 0.0, 1.0, 1.0);
-                        }
-                    }
+                if(viewType == 0){
+                    lightdir = vec3(0.0,0.0,1.0);
+                }
                 else{
-                    if(viewType == 0){
-                        lightdir = vec3(0.0,0.0,1.0);
-                    }
-                    else{
-                        lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                    }
-                    col = dot(normal, lightdir);
-                    if(col > cutOff)
-                        discard;
+                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                }
+                col = dot(normal, lightdir);
+                if(col > cutOff)
+                    discard;
+                if(whiteBackground){
+                    FragColor = vec4(vec3(0.0), 1.0);
+                }
+                else{
                     FragColor = vec4(vec3(1.0), 1.0);
-                    }
+                }
+
             }
           -->
         </snippet>
@@ -420,8 +417,8 @@
             uniform float cutOff;
             uniform int viewType;
             
-            uniform bool orthoproj;
             uniform float near_plane;
+            uniform bool whiteBackground;
 
             void main()
             {
@@ -446,7 +443,12 @@
                 col =dot(normal, lightdir);
                 if(col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
                     discard;
-                FragColor = vec4(vec3(1.0), 1.0);
+                if(whiteBackground){
+                    FragColor = vec4(vec3(0.0), 1.0);
+                }
+                else{
+                    FragColor = vec4(vec3(1.0), 1.0);
+                }
             }
           -->
         </snippet>
