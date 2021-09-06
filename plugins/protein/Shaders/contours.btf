@@ -390,18 +390,15 @@
                         }
                     }
                 else{
-                    if(viewType == 0 || viewType == 2){
+                    if(viewType == 0){
                         lightdir = vec3(0.0,0.0,1.0);
-                        col = dot(normal, lightdir);
-                        if(col > cutOff || col < 0)
-                            discard;
                     }
-                    if(viewType == 1 || viewType == 2){
+                    else{
                         lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                        col = dot(normal, lightdir);
-                        if(col > cutOff || col < 0)
-                            discard;
                     }
+                    col = dot(normal, lightdir);
+                    if(col > cutOff)
+                        discard;
                     FragColor = vec4(vec3(1.0), 1.0);
                     }
             }
@@ -436,29 +433,19 @@
                 vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy; // Maximum and minimum value of depths
                 vec3 lightdir;
                 float col, curvature;
-                if(viewType == 0 || viewType == 2){
+                curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
+                //orthogonal projection
+                if(viewType == 0){
                     lightdir = vec3(0.0,0.0,1.0);
-                    col =dot(normal, lightdir);
-                    curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
-                    // If perspective projection was used to generate the textures, scale curvature for constant width in parts that are further away
-                    if(!orthoproj){
-                        curvature *= position.z / near_plane;
-                    }
-
-                    if(col < 0 || col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
-                        discard;
                 }
-                if(viewType == 1 || viewType == 2){
+                //perspective projection
+                else{
                     lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                    col =dot(normal, lightdir);
-                    curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
-                    // If perspective projection was used to generate the textures, scale curvature for constant width in parts that are further away
-                    if(!orthoproj){
-                        curvature *= position.z / near_plane;
-                    }
-                    if(col < 0 || col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
-                        discard;
+                    curvature *= position.z / near_plane;
                 }
+                col =dot(normal, lightdir);
+                if(col > sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature))))
+                    discard;
                 FragColor = vec4(vec3(1.0), 1.0);
             }
           -->

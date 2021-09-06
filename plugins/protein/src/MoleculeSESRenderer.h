@@ -445,7 +445,7 @@ namespace protein {
         blurMode currentBlurMode;
         enum displayedProperty { Position, NormalizedPosition, Normal, Curvature, Contour };
         displayedProperty currentDisplayedProperty;
-        enum viewType { zDir, minusPos, interpolate };
+        enum viewType { zDir, minusPos };
         viewType currentViewType;
 
         /** vertex and attribute arrays for raycasting the tori */
