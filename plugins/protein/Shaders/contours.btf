@@ -994,7 +994,7 @@
 
 //Begin
 
-			float CalcCurvature_ShapeOperator(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn, vec3 p)
+			float CalcCurvature_ShapeOperator(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
 			{
 	
 				vec3 local_trianglePos[TRIANGLE_VERTICES];
@@ -1128,12 +1128,9 @@
                     eigenvec1 = vec2(1.0, 0.0);
                 }
 
-                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - p); 
+                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
                 viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates
-                vec3 mean_normal = local_triangleNor[0] + local_triangleNor[1] + local_triangleNor[2];
-                mean_normal /= 3;
-                //TODO: get more accurate plane normal
-                vec2 proj_viewdir = (viewdir * (1.0 - dot(viewdir,mean_normal))).xy; //project onto tangent plane
+                vec2 proj_viewdir = (viewdir * (1.0 - dot(viewdir,local_triangleNor[0]))).xy; //project onto tangent plane
                 float cos2 = dot(proj_viewdir, eigenvec1);
                 float radial_curv = L1 * cos2 + L2 * (1- cos2);
 
@@ -1155,7 +1152,7 @@
                     vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
                     vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                    curv = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz, p.xyz);
+                    curv = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
                 }
                 else{
                     vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
@@ -1163,7 +1160,7 @@
                     vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
                     vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                    curv = CalcCurvature_ShapeOperator(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz, p.xyz);
+                    curv = CalcCurvature_ShapeOperator(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
 
                 }
 
@@ -1189,7 +1186,7 @@
             uniform sampler2D tex_fragNormal;
 
 //Begin
-			float CalcCurvature_ShapeOperator_2edge(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn, vec3 p)
+			float CalcCurvature_ShapeOperator_2edge(vec3 a, vec3 b, vec3 c, vec3 an, vec3 bn, vec3 cn)
 			{
 	
 				vec3 local_trianglePos[TRIANGLE_VERTICES];
@@ -1319,12 +1316,9 @@
                     eigenvec1 = vec2(1.0, 0.0);
                 }
 
-                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - p); 
+                vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
                 viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates
-                vec3 mean_normal = local_triangleNor[0] + local_triangleNor[1] + local_triangleNor[2];
-                mean_normal /= 3;
-                //TODO: get more accurate plane normal
-                vec2 proj_viewdir = (viewdir * (1.0 - dot(viewdir,mean_normal))).xy; //project onto tangent plane
+                vec2 proj_viewdir = (viewdir * (1.0 - dot(viewdir,local_triangleNor[0]))).xy; //project onto tangent plane
                 float cos2 = dot(proj_viewdir, eigenvec1);
                 float radial_curv = L1 * cos2 + L2 * (1- cos2);
 
@@ -1345,7 +1339,7 @@
                     vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
                     vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz, p.xyz);
+                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
                 }
                 else{
                     vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
@@ -1353,7 +1347,7 @@
                     vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
                     vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz, p.xyz);
+                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
 
                 }
 
