@@ -68,11 +68,11 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , numBlurParam("# normal blurring iterations", " How many iterations of blurring for normals?")
         , numPosBlurParam("# position blurring iterations", " How many iterations of blurring for positions?")
         , numCurvBlurParam("# curvature blurring iterations", " How many iterations of blurring for curvature?")
-        , pyramidWeightsParam(
-              "pyramidWeights", "The factor for the weights in the pull phase of the pull-push algorithm")
-        , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push normalPyramid")
-        , pyramidGammaParam("pyramidGamma",
-              "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
+        // , pyramidWeightsParam(
+        //       "pyramidWeights", "The factor for the weights in the pull phase of the pull-push algorithm")
+        // , pyramidLayersParam("pyramidLayers", "Number of layers in the pull-push normalPyramid")
+        // , pyramidGammaParam("pyramidGamma",
+        //       "The higher the exponent gamma, the more non-linear the interpolation between points becomes")
         , SCRadiusParam("SCRadius", "Radius to consider around one pixel for SC")
         , SCNeighbourThresholdParam("SCNeighbourThreshold",
               "How many darker pixels are allowed to be in the surrounding to still be rendered")
@@ -235,21 +235,21 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->smoothCurvatureParam.SetParameter(new param::BoolParam(this->smoothCurvature));
     this->MakeSlotAvailable(&this->smoothCurvatureParam);
 
-    this->pyramidWeight = 0.5f;
-    this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
-    this->MakeSlotAvailable(&this->pyramidWeightsParam);
+    // this->pyramidWeight = 0.5f;
+    // this->pyramidWeightsParam.SetParameter(new param::FloatParam(this->pyramidWeight));
+    // this->MakeSlotAvailable(&this->pyramidWeightsParam);
 
     // normalPyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
     //     "pullpush::pushNormal");
     const int mipmapNumber = (int) glm::log2(glm::max<float>(this->width, this->height)) + 1;
-    this->pyramidLayers = 3;
-    // TODO: somehow this breaks if i do not hardcode the second parameter
-    this->pyramidLayersParam.SetParameter(new param::IntParam(this->pyramidLayers, 1, 11));
-    this->MakeSlotAvailable(&this->pyramidLayersParam);
+    // this->pyramidLayers = 3;
+    // // TODO: somehow this breaks if i do not hardcode the second parameter
+    // this->pyramidLayersParam.SetParameter(new param::IntParam(this->pyramidLayers, 1, 11));
+    // this->MakeSlotAvailable(&this->pyramidLayersParam);
 
-    this->pyramidGamma = 1.0f;
-    this->pyramidGammaParam.SetParameter(new param::FloatParam(this->pyramidGamma, 1.0));
-    this->MakeSlotAvailable(&this->pyramidGammaParam);
+    // this->pyramidGamma = 1.0f;
+    // this->pyramidGammaParam.SetParameter(new param::FloatParam(this->pyramidGamma, 1.0));
+    // this->MakeSlotAvailable(&this->pyramidGammaParam);
 
     this->smoothPositions = true;
     this->smoothPositionsParam.SetParameter(new param::BoolParam(this->smoothPositions));
@@ -853,18 +853,18 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->smoothPositions = this->smoothPositionsParam.Param<param::BoolParam>()->Value();
         this->smoothPositionsParam.ResetDirty();
     }
-    if (this->pyramidWeightsParam.IsDirty()) {
-        this->pyramidWeight = this->pyramidWeightsParam.Param<param::FloatParam>()->Value();
-        this->pyramidWeightsParam.ResetDirty();
-    }
-    if (this->pyramidLayersParam.IsDirty()) {
-        this->pyramidLayers = this->pyramidLayersParam.Param<param::IntParam>()->Value();
-        this->pyramidLayersParam.ResetDirty();
-    }
-    if (this->pyramidGammaParam.IsDirty()) {
-        this->pyramidGamma = this->pyramidGammaParam.Param<param::FloatParam>()->Value();
-        this->pyramidGammaParam.ResetDirty();
-    }
+    // if (this->pyramidWeightsParam.IsDirty()) {
+    //     this->pyramidWeight = this->pyramidWeightsParam.Param<param::FloatParam>()->Value();
+    //     this->pyramidWeightsParam.ResetDirty();
+    // }
+    // if (this->pyramidLayersParam.IsDirty()) {
+    //     this->pyramidLayers = this->pyramidLayersParam.Param<param::IntParam>()->Value();
+    //     this->pyramidLayersParam.ResetDirty();
+    // }
+    // if (this->pyramidGammaParam.IsDirty()) {
+    //     this->pyramidGamma = this->pyramidGammaParam.Param<param::FloatParam>()->Value();
+    //     this->pyramidGammaParam.ResetDirty();
+    // }
     if (this->SCRadiusParam.IsDirty()) {
         this->SCRadius = this->SCRadiusParam.Param<param::IntParam>()->Value();
         this->SCRadiusParam.ResetDirty();
@@ -1592,7 +1592,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glEnableClientState(GL_VERTEX_ARRAY);
 
 #pragma region // enable attributes and set pointer
-                // enable vertex attribute arrays for the attribute locations
+               // enable vertex attribute arrays for the attribute locations
                 glEnableVertexAttribArrayARB(attribInParams);
                 glEnableVertexAttribArrayARB(attribQuatC);
                 glEnableVertexAttribArrayARB(attribInSphere);
@@ -1630,9 +1630,9 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
 #pragma endregion // torus shader
 
 #pragma region // spherical triangles
-                /////////////////////////////////////////////////
-                // ray cast the spherical triangles on the GPU //
-                /////////////////////////////////////////////////
+               /////////////////////////////////////////////////
+               // ray cast the spherical triangles on the GPU //
+               /////////////////////////////////////////////////
                 GLuint attribVec1;
                 GLuint attribVec2;
                 GLuint attribVec3;
@@ -1696,7 +1696,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glColor3f(0.0f, 0.75f, 1.0f);
                 glEnableClientState(GL_VERTEX_ARRAY);
 #pragma region // vertex attributes
-                // enable vertex attribute arrays for the attribute locations
+               // enable vertex attribute arrays for the attribute locations
                 glEnableVertexAttribArrayARB(attribVec1);
                 glEnableVertexAttribArrayARB(attribVec2);
                 glEnableVertexAttribArrayARB(attribVec3);
@@ -1720,7 +1720,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
                 glVertexPointer(4, GL_FLOAT, 0, this->sphericTriaVertexArray[cntRS].PeekElements());
                 glDrawArrays(GL_POINTS, 0, ((unsigned int) this->sphericTriaVertexArray[cntRS].Count()) / 4);
 #pragma region // disable vertex attributes
-                // disable vertex attribute arrays for the attribute locations
+               // disable vertex attribute arrays for the attribute locations
                 glDisableVertexAttribArrayARB(attribVec1);
                 glDisableVertexAttribArrayARB(attribVec2);
                 glDisableVertexAttribArrayARB(attribVec3);
