@@ -477,9 +477,9 @@
                 vec3 n = normalize(passNormal_view.xyz);
 
                 vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
                 vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
                 // Compute curvature
                 vec3 dx = dFdx(n);
@@ -521,9 +521,9 @@
                 vec3 n = normalize(passNormal_view.xyz);
 
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
                 vec3 dx = dFdx(n) / length(pLeft - pRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
                 vec3 dy = dFdy(n) / length(pTop - pBottom);
@@ -561,12 +561,11 @@
                 vec3 p = passPosition_view.xyz;
                 vec3 n = normalize(passNormal_view.xyz);
 
-                //TODO: Bottom und Top vertauscht?
 
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
                 float curvatureLeft = dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
                 float curvatureTop = dot(n , p - pTop) / (length(pTop - p) * length(pTop - p));
@@ -602,12 +601,10 @@
                 vec3 p = passPosition_view.xyz;
                 vec3 n = normalize(passNormal_view.xyz);
 
-                //TODO: Bottom und Top vertauscht?
-
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
                 vec3 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
                 vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
@@ -773,24 +770,30 @@
 
 
             void main() {
-                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
-                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-                if(passPosition_view == vec4(0.0))
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
                     discard;
 
-                vec3 p = passPosition_view.xyz;
-                vec3 n = normalize(passNormal_view.xyz);
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                //TODO: Bottom und Top vertauscht?
+                vec2 eigenvalues;
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
 
-                // Compute curvature for all "edges" in the 4-neighborhood
-                vec2 eigenvalues = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop);
+                }
                 float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
 
                 //TODO: If the effects of this discarding are really bothering, one could in an additional shader pass use the curvature of a neighbouring pixel for the nan and inf values.
@@ -943,24 +946,30 @@
 			}
 
             void main() {
-                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
-                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-                if(passPosition_view == vec4(0.0))
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
                     discard;
 
-                vec3 p = passPosition_view.xyz;
-                vec3 n = normalize(passNormal_view.xyz);
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                //TODO: Bottom und Top vertauscht?
+                vec2 eigenvalues;
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator_2edge(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
 
-                // Compute curvature for all "edges" in the 4-neighborhood
-                vec2 eigenvalues = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop);
+                }
                 float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
                 if(isnan(mean_curv) || isinf(mean_curv))
                     discard;
@@ -1004,8 +1013,6 @@
 				axis[2] = normalize(cross(axis[0], _ca_));    
 				axis[1] = normalize(cross(axis[0], axis[2]));
 				
-				// mat3 transformMatrix = mat3(axis[0], axis[1], axis[2]);  
-                // transformMatrix = transpose(transformMatrix);
                 mat3 transformMatrix = mat3(axis[0][0], axis[1][0], axis[2][0],
                                             axis[0][1], axis[1][1], axis[2][1],
                                             axis[0][2], axis[1][2], axis[2][2]);
@@ -1135,24 +1142,30 @@
 
 
             void main() {
-                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
-                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-                if(passPosition_view == vec4(0.0))
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
                     discard;
 
-                vec3 p = passPosition_view.xyz;
-                vec3 n = normalize(passNormal_view.xyz);
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                //TODO: Bottom und Top vertauscht?
+                float curv;
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    curv = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz, p.xyz);
+                }
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    curv = CalcCurvature_ShapeOperator(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz, p.xyz);
 
-                // Compute curvature for all "edges" in the 4-neighborhood
-                float curv = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop, p);
+                }
 
                 if(isnan(curv) || isinf(curv))
                     discard;
@@ -1319,28 +1332,34 @@
 			}
 
             void main() {
-                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
-                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-                if(passPosition_view == vec4(0.0))
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
                     discard;
 
-                vec3 p = passPosition_view.xyz;
-                vec3 n = normalize(passNormal_view.xyz);
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                //TODO: Bottom und Top vertauscht?
+                float radial_curv;
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz, p.xyz);
+                }
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz, p.xyz);
 
-                // Compute curvature for all "edges" in the 4-neighborhood
-                float radial_curv = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop, p);
-                
+                }
+
                 if(isnan(radial_curv) || isinf(radial_curv))
                     discard;
-
+                
                 fragCurvature = vec4(vec3(radial_curv),1.0);
             }
                 
@@ -1496,24 +1515,30 @@
 
 
             void main() {
-                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
-                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-                if(passPosition_view == vec4(0.0))
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
                     discard;
 
-                vec3 p = passPosition_view.xyz;
-                vec3 n = normalize(passNormal_view.xyz);
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                //TODO: Bottom und Top vertauscht?
+                vec2 eigenvalues;
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
 
-                // Compute curvature for all "edges" in the 4-neighborhood
-                vec2 eigenvalues = CalcCurvature_ShapeOperator(p, pRight, pTop, n, nRight, nTop);
+                }
                 float gauss_curv = (eigenvalues.x * eigenvalues.y);
 
                 if(isnan(gauss_curv) || isinf(gauss_curv))
@@ -1666,29 +1691,34 @@
             //TODO: Fix all the prantl curvature (nan und inf)
 
             void main() {
-                vec4 passPosition_view = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
-                vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
-                if(passPosition_view == vec4(0.0))
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                vec4 n = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
+                if(p == vec4(0.0))
                     discard;
 
-                vec3 p = passPosition_view.xyz;
-                vec3 n = normalize(passNormal_view.xyz);
+                vec4 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                //TODO: Bottom und Top vertauscht?
+                vec2 eigenvalues;
+                if(pTop != vec4(0) && pRight!= vec4(0)){
+                    vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
+                    vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
-                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
+                }
+                else{
+                    vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
+                    vec4 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
+                    vec4 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
 
-                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-                vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                    eigenvalues = CalcCurvature_ShapeOperator_2edge(p.xyz, pLeft.xyz, pBottom.xyz, n.xyz, nLeft.xyz, nBottom.xyz);
 
-                // Compute curvature for all "edges" in the 4-neighborhood
-                vec2 eigenvalues = CalcCurvature_ShapeOperator_2edge(p, pRight, pTop, n, nRight, nTop);
-                float gauss_curv = eigenvalues.x *  eigenvalues.y;
+                }
+                float gauss_curv = (eigenvalues.x * eigenvalues.y);
 
                 if(isnan(gauss_curv) || isinf(gauss_curv))
                     discard;
-
                 fragCurvature = vec4(vec3(gauss_curv),1.0);
             }
                 
@@ -1727,9 +1757,9 @@
 
                 // TODO: use pixel 3D locations to calculate the derivative. Also smooth the result -> pull-push
                 vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
                 vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
                 float curvatureDx = dFdx(scaledCurvature); // / length(pixelPositionLeft - pixelPositionRight);
                 float curvatureDy = dFdy(scaledCurvature); // / length(pixelPositionTop - pixelPositionBottom);
