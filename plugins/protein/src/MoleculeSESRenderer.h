@@ -172,6 +172,7 @@ namespace protein {
          */
         void SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader);
         void Contours(vislib::graphics::gl::GLSLShader& Shader);
+        void extendContours();
 
         void displayPositions();
         void displayNormalizedPositions();
@@ -329,6 +330,10 @@ namespace protein {
         GLfloat depthDiff;
         megamol::core::param::ParamSlot whiteBackgroundParam;
         GLboolean whiteBackground;
+        megamol::core::param::ParamSlot extendContoursParam;
+        GLboolean extendContoursBool;
+        megamol::core::param::ParamSlot contourRadiusParam;
+        GLboolean contourRadius;
 
         bool drawSES;
         bool drawSAS;
@@ -391,6 +396,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader peronaMalikBlurShader;
         vislib::graphics::gl::GLSLShader depthBlurShader;
         vislib::graphics::gl::GLSLShader depthGaussBlurShader;
+        vislib::graphics::gl::GLSLShader extendContoursShader;
         ////////////
 
         // the bounding box of the protein
@@ -471,6 +477,7 @@ namespace protein {
 
         // FBOs and textures for postprocessing
         GLuint contourFBO;
+        GLuint extendContourFBO;
         GLuint curvatureFBO;
         GLuint positionFBO[2];
         GLuint normalFBO[2];
@@ -485,6 +492,7 @@ namespace protein {
         GLuint smoothPositionTexture[2];
         GLuint objPositionTexture;
         GLuint contourDepthRBO;
+        GLuint contourTexture;
 
         // boolean for pingpong blurring
         bool curv_horizontal;

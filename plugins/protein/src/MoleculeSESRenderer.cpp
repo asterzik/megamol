@@ -93,6 +93,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
                                       "with the depth sensitive blur shader?")
         , whiteBackgroundParam("white background", "White Background instead of the standard megamol blue.")
+        , extendContoursParam("extendContours", "extendContours")
+        , contourRadiusParam("contourRadius", "contourRadius")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -307,10 +309,19 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->whiteBackgroundParam.SetParameter(new param::BoolParam(this->whiteBackground));
     this->MakeSlotAvailable(&this->whiteBackgroundParam);
 
+    this->extendContoursBool = false;
+    this->extendContoursParam.SetParameter(new param::BoolParam(this->extendContoursBool));
+    this->MakeSlotAvailable(&this->extendContoursParam);
+
+    this->contourRadius = 2;
+    this->contourRadiusParam.SetParameter(new param::IntParam(this->contourRadius));
+    this->MakeSlotAvailable(&this->contourRadiusParam);
+
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
     this->contourFBO = 0;
+    this->extendContourFBO = 0;
     this->contourDepthRBO = 0;
     this->curvatureFBO = 0;
     this->positionFBO[0] = 0;
@@ -481,6 +492,8 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(
             this->perspectiveTestCaseShader, "testCase_perspective::vertex", "testCase_perspective::fragment"))
+        return false;
+    if (!this->loadShader(this->extendContoursShader, "contours::vertex", "distance::fragment"))
         return false;
 
     // // Load test case shader
@@ -916,6 +929,14 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->whiteBackground = this->whiteBackgroundParam.Param<param::BoolParam>()->Value();
         this->whiteBackgroundParam.ResetDirty();
     }
+    if (this->extendContoursParam.IsDirty()) {
+        this->extendContoursBool = this->extendContoursParam.Param<param::BoolParam>()->Value();
+        this->extendContoursParam.ResetDirty();
+    }
+    if (this->contourRadiusParam.IsDirty()) {
+        this->contourRadius = this->contourRadiusParam.Param<param::IntParam>()->Value();
+        this->contourRadiusParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -1169,11 +1190,16 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1f(Shader.ParameterLocation("near_plane"), near_plane);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    if (whiteBackground) {
-        glClearColor(1.0, 1.0, 1.0, 0.0);
+    if (!extendContoursBool) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 1);
+        if (whiteBackground) {
+            glClearColor(1.0, 1.0, 1.0, 0.0);
+        } else {
+            glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+        }
     } else {
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+        glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO);
+        glClearColor(0.0, 0.0, 0.0, 0.0);
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
@@ -1181,6 +1207,32 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     Shader.Disable();
+    if (extendContoursBool) {
+        extendContours();
+    }
+}
+void MoleculeSESRenderer::extendContours() {
+
+    glDisable(GL_DEPTH_TEST);
+    // auto shader = *contourShaderMap[this->currentContourMode];
+    extendContoursShader.Enable();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, contourTexture);
+    glUniform1i(extendContoursShader.ParameterLocation("contourTexture"), 0);
+    glUniform1i(extendContoursShader.ParameterLocation("whiteBackground"), this->whiteBackground);
+    glUniform1i(extendContoursShader.ParameterLocation("radius"), this->contourRadius);
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    // if (whiteBackground) {
+    //     glClearColor(1.0, 1.0, 1.0, 0.0);
+    // } else {
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    // }
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
+    extendContoursShader.Disable();
 }
 void MoleculeSESRenderer::displayPositions() {
 
@@ -1347,6 +1399,10 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &positionTexture);
         glDeleteTextures(1, &objPositionTexture);
     }
+    if (extendContourFBO) {
+        glDeleteFramebuffers(1, &extendContourFBO);
+        glDeleteTextures(1, &contourTexture);
+    }
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
         glDeleteTextures(1, &curvatureTexture);
@@ -1364,6 +1420,7 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(2, smoothCurvatureTexture);
     }
     glGenFramebuffers(1, &contourFBO);
+    glGenFramebuffers(1, &extendContourFBO);
     glGenFramebuffers(1, &curvatureFBO);
     glGenFramebuffers(2, positionFBO);
     glGenTextures(2, smoothPositionTexture);
@@ -1421,6 +1478,24 @@ void MoleculeSESRenderer::CreateFBO() {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
     }
+
+    // extend Contour FBO
+    glBindFramebuffer(GL_FRAMEBUFFER, this->extendContourFBO);
+
+    // texture for contours
+    glBindTexture(GL_TEXTURE_2D, this->contourTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, contourTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete extendContourFBO", this->ClassName());
+    }
+
     glBindFramebuffer(GL_FRAMEBUFFER, this->curvatureFBO);
 
     // texture for curvature
