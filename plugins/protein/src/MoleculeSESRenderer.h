@@ -332,8 +332,12 @@ namespace protein {
         GLboolean whiteBackground;
         megamol::core::param::ParamSlot extendContoursParam;
         GLboolean extendContoursBool;
-        megamol::core::param::ParamSlot contourRadiusParam;
-        GLboolean contourRadius;
+        megamol::core::param::ParamSlot dilation2RadiusParam;
+        GLboolean dilation2Radius;
+        megamol::core::param::ParamSlot dilation1RadiusParam;
+        GLboolean dilation1Radius;
+        megamol::core::param::ParamSlot erosionRadiusParam;
+        GLboolean erosionRadius;
 
         bool drawSES;
         bool drawSAS;
@@ -396,7 +400,9 @@ namespace protein {
         vislib::graphics::gl::GLSLShader peronaMalikBlurShader;
         vislib::graphics::gl::GLSLShader depthBlurShader;
         vislib::graphics::gl::GLSLShader depthGaussBlurShader;
-        vislib::graphics::gl::GLSLShader extendContoursShader;
+        vislib::graphics::gl::GLSLShader medianShader;
+        vislib::graphics::gl::GLSLShader dilationShader;
+        vislib::graphics::gl::GLSLShader erosionShader;
         ////////////
 
         // the bounding box of the protein
@@ -477,7 +483,7 @@ namespace protein {
 
         // FBOs and textures for postprocessing
         GLuint contourFBO;
-        GLuint extendContourFBO;
+        GLuint extendContourFBO[2];
         GLuint curvatureFBO;
         GLuint positionFBO[2];
         GLuint normalFBO[2];
@@ -492,7 +498,7 @@ namespace protein {
         GLuint smoothPositionTexture[2];
         GLuint objPositionTexture;
         GLuint contourDepthRBO;
-        GLuint contourTexture;
+        GLuint contourTexture[2];
 
         // boolean for pingpong blurring
         bool curv_horizontal;
