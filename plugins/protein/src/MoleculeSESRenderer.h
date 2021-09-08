@@ -484,6 +484,7 @@ namespace protein {
         // FBOs and textures for postprocessing
         GLuint contourFBO;
         GLuint extendContourFBO[2];
+        GLuint timestepsFBO[3];
         GLuint curvatureFBO;
         GLuint positionFBO[2];
         GLuint normalFBO[2];
@@ -496,6 +497,7 @@ namespace protein {
         GLuint smoothCurvatureTexture[2];
         GLuint positionTexture;
         GLuint smoothPositionTexture[2];
+        GLuint timestepsTexture[3];
         GLuint objPositionTexture;
         GLuint contourDepthRBO;
         GLuint contourTexture[2];

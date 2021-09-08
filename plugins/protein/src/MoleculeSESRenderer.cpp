@@ -333,6 +333,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->contourFBO = 0;
     this->extendContourFBO[0] = 0;
     this->extendContourFBO[1] = 0;
+    this->timestepsFBO[0] = 0;
+    this->timestepsFBO[1] = 1;
+    this->timestepsFBO[2] = 2;
     this->contourDepthRBO = 0;
     this->curvatureFBO = 0;
     this->positionFBO[0] = 0;
@@ -367,6 +370,10 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
         glDeleteTextures(1, &objPositionTexture);
+    }
+    if (timestepsFBO) {
+        glDeleteFramebuffers(3, timestepsFBO);
+        glDeleteTextures(3, timestepsTexture);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
@@ -1472,6 +1479,10 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteFramebuffers(2, extendContourFBO);
         glDeleteTextures(2, contourTexture);
     }
+    if (timestepsFBO) {
+        glDeleteFramebuffers(3, extendContourFBO);
+        glDeleteTextures(3, contourTexture);
+    }
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
         glDeleteTextures(1, &curvatureTexture);
@@ -1491,6 +1502,8 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenFramebuffers(1, &contourFBO);
     glGenFramebuffers(2, extendContourFBO);
     glGenTextures(2, contourTexture);
+    glGenFramebuffers(3, timestepsFBO);
+    glGenTextures(2, timestepsTexture);
     glGenFramebuffers(1, &curvatureFBO);
     glGenFramebuffers(2, positionFBO);
     glGenTextures(2, smoothPositionTexture);
@@ -1567,6 +1580,25 @@ void MoleculeSESRenderer::CreateFBO() {
             Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete extendContourFBO", this->ClassName());
         }
     }
+    // timesteps FBO
+    for (unsigned int i = 0; i < 3; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, this->timestepsFBO[i]);
+
+        // texture for contours
+        glBindTexture(GL_TEXTURE_2D, this->timestepsTexture[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, timestepsTexture[i], 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete timestepsFBO", this->ClassName());
+        }
+    }
+
 
     glBindFramebuffer(GL_FRAMEBUFFER, this->curvatureFBO);
 
