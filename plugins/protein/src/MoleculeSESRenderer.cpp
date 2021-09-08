@@ -371,6 +371,26 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
         glDeleteTextures(1, &positionTexture);
         glDeleteTextures(1, &objPositionTexture);
     }
+    if (extendContourFBO) {
+        glDeleteFramebuffers(2, extendContourFBO);
+        glDeleteTextures(2, contourTexture);
+    }
+    if (curvatureFBO) {
+        glDeleteFramebuffers(1, &curvatureFBO);
+        glDeleteTextures(1, &curvatureTexture);
+    }
+    if (positionFBO) {
+        glDeleteFramebuffers(2, positionFBO);
+        glDeleteTextures(2, smoothPositionTexture);
+    }
+    if (normalFBO) {
+        glDeleteFramebuffers(2, normalFBO);
+        glDeleteTextures(2, smoothNormalTexture);
+    }
+    if (smoothCurvFBO) {
+        glDeleteFramebuffers(2, smoothCurvFBO);
+        glDeleteTextures(2, smoothCurvatureTexture);
+    }
     if (timestepsFBO) {
         glDeleteFramebuffers(3, timestepsFBO);
         glDeleteTextures(3, timestepsTexture);
