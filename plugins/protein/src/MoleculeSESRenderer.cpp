@@ -97,6 +97,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , dilation2RadiusParam("dilation2Radius", "dilation2Radius")
         , dilation1RadiusParam("dilation1Radius", "dilation1Radius")
         , erosionRadiusParam("erosionRadius", "erosionRadius")
+        , smoothTimestepsParam("smoothTimesteps", "smoothTimesteps")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -327,6 +328,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->erosionRadiusParam.SetParameter(new param::IntParam(this->erosionRadius, 0));
     this->MakeSlotAvailable(&this->erosionRadiusParam);
 
+    this->smoothTimestepsBool = true;
+    this->smoothTimestepsParam.SetParameter(new param::BoolParam(this->smoothTimestepsBool));
+    this->MakeSlotAvailable(&this->smoothTimestepsParam);
+
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -334,8 +339,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->extendContourFBO[0] = 0;
     this->extendContourFBO[1] = 0;
     this->timestepsFBO[0] = 0;
-    this->timestepsFBO[1] = 1;
-    this->timestepsFBO[2] = 2;
+    this->timestepsFBO[1] = 0;
+    this->timestepsFBO[2] = 0;
     this->contourDepthRBO = 0;
     this->curvatureFBO = 0;
     this->positionFBO[0] = 0;
@@ -457,6 +462,7 @@ bool MoleculeSESRenderer::create(void) {
     if (!vislib::graphics::gl::GLSLShader::InitialiseExtensions())
         return false;
 
+    cur_timestep = 0;
     // glEnable( GL_NORMALIZE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -536,6 +542,8 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(this->erosionShader, "contours::vertex", "distance::erosion"))
         return false;
     if (!this->loadShader(this->medianShader, "contours::vertex", "distance::median"))
+        return false;
+    if (!this->loadShader(this->smoothTimestepsShader, "contours::vertex", "timesteps::fragment"))
         return false;
 
     // // Load test case shader
@@ -987,6 +995,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->erosionRadius = this->erosionRadiusParam.Param<param::IntParam>()->Value();
         this->erosionRadiusParam.ResetDirty();
     }
+    if (this->smoothTimestepsParam.IsDirty()) {
+        this->smoothTimestepsBool = this->smoothTimestepsParam.Param<param::BoolParam>()->Value();
+        this->smoothTimestepsParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -1240,15 +1252,19 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1f(Shader.ParameterLocation("near_plane"), near_plane);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    if (!extendContoursBool) {
+    if (!extendContoursBool && !smoothTimestepsBool) {
         glBindFramebuffer(GL_FRAMEBUFFER, 1);
         if (whiteBackground) {
             glClearColor(1.0, 1.0, 1.0, 0.0);
         } else {
             glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         }
-    } else {
+    } else if (extendContoursBool) {
         glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[0]);
+        glClearColor(0.0, 0.0, 0.0, 0.0);
+    } else {
+        auto test = cur_timestep % 3;
+        glBindFramebuffer(GL_FRAMEBUFFER, timestepsFBO[cur_timestep % 3]);
         glClearColor(0.0, 0.0, 0.0, 0.0);
     }
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1259,6 +1275,8 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     Shader.Disable();
     if (extendContoursBool) {
         extendContours();
+    } else if (smoothTimestepsBool) {
+        smoothTimesteps();
     }
 }
 void MoleculeSESRenderer::extendContours() {
@@ -1321,6 +1339,41 @@ void MoleculeSESRenderer::extendContours() {
     glUniform1i(dilationShader.ParameterLocation("contourTexture"), 0);
     glUniform1i(dilationShader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glUniform1i(dilationShader.ParameterLocation("radius"), this->dilation2Radius);
+    if (smoothTimestepsBool) {
+        glBindFramebuffer(GL_FRAMEBUFFER, timestepsFBO[cur_timestep % 3]);
+        glClearColor(0.0, 0.0, 0.0, 0.0);
+    } else {
+        glBindFramebuffer(GL_FRAMEBUFFER, 1);
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    }
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
+    dilationShader.Disable();
+    if (smoothTimestepsBool) {
+        smoothTimesteps();
+    }
+}
+void MoleculeSESRenderer::smoothTimesteps() {
+    if (cur_timestep < 2) {
+        cur_timestep++;
+        return;
+    }
+    smoothTimestepsShader.Enable();
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, timestepsTexture[(cur_timestep - 2) % 3]);
+    glUniform1i(smoothTimestepsShader.ParameterLocation("first"), 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, timestepsTexture[(cur_timestep - 1) % 3]);
+    glUniform1i(smoothTimestepsShader.ParameterLocation("second"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, timestepsTexture[cur_timestep % 3]);
+    glUniform1i(smoothTimestepsShader.ParameterLocation("third"), 2);
+
+    // glUniform1i(smoothTimestepsShader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1328,7 +1381,19 @@ void MoleculeSESRenderer::extendContours() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    dilationShader.Disable();
+    smoothTimestepsShader.Disable();
+    cur_timestep++;
+
+    passThroughShader.Enable();
+    glActiveTexture(GL_TEXTURE0);
+    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(0);
+    passThroughShader.Disable();
 }
 void MoleculeSESRenderer::displayPositions() {
 
@@ -1523,7 +1588,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenFramebuffers(2, extendContourFBO);
     glGenTextures(2, contourTexture);
     glGenFramebuffers(3, timestepsFBO);
-    glGenTextures(2, timestepsTexture);
+    glGenTextures(3, timestepsTexture);
     glGenFramebuffers(1, &curvatureFBO);
     glGenFramebuffers(2, positionFBO);
     glGenTextures(2, smoothPositionTexture);
@@ -1616,6 +1681,7 @@ void MoleculeSESRenderer::CreateFBO() {
 
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete timestepsFBO", this->ClassName());
+            std::cout << i << std::endl;
         }
     }
 

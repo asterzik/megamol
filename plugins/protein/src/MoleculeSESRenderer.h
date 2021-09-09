@@ -173,6 +173,7 @@ namespace protein {
         void SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader);
         void Contours(vislib::graphics::gl::GLSLShader& Shader);
         void extendContours();
+        void smoothTimesteps();
 
         void displayPositions();
         void displayNormalizedPositions();
@@ -333,11 +334,14 @@ namespace protein {
         megamol::core::param::ParamSlot extendContoursParam;
         GLboolean extendContoursBool;
         megamol::core::param::ParamSlot dilation2RadiusParam;
-        GLboolean dilation2Radius;
+        GLint dilation2Radius;
         megamol::core::param::ParamSlot dilation1RadiusParam;
-        GLboolean dilation1Radius;
+        GLint dilation1Radius;
         megamol::core::param::ParamSlot erosionRadiusParam;
-        GLboolean erosionRadius;
+        GLint erosionRadius;
+        megamol::core::param::ParamSlot smoothTimestepsParam;
+        GLboolean smoothTimestepsBool;
+        int cur_timestep;
 
         bool drawSES;
         bool drawSAS;
@@ -403,6 +407,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader medianShader;
         vislib::graphics::gl::GLSLShader dilationShader;
         vislib::graphics::gl::GLSLShader erosionShader;
+        vislib::graphics::gl::GLSLShader smoothTimestepsShader;
         ////////////
 
         // the bounding box of the protein
