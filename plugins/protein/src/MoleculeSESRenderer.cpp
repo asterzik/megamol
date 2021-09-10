@@ -541,6 +541,14 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->erosionShader, "contours::vertex", "distance::erosion"))
         return false;
+    if (!this->loadShader(this->dilation_v_Shader, "contours::vertex", "distance::dilation_vert"))
+        return false;
+    if (!this->loadShader(this->erosion_v_Shader, "contours::vertex", "distance::erosion_vert"))
+        return false;
+    if (!this->loadShader(this->dilation_h_Shader, "contours::vertex", "distance::dilation_hor"))
+        return false;
+    if (!this->loadShader(this->erosion_h_Shader, "contours::vertex", "distance::erosion_hor"))
+        return false;
     if (!this->loadShader(this->medianShader, "contours::vertex", "distance::median"))
         return false;
     if (!this->loadShader(this->smoothTimestepsShader, "contours::vertex", "timesteps::fragment"))
@@ -1284,7 +1292,7 @@ void MoleculeSESRenderer::extendContours() {
     glDisable(GL_DEPTH_TEST);
 
     // dilation
-    dilationShader.Enable();
+    dilation_v_Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
     glUniform1i(dilationShader.ParameterLocation("contourTexture"), 0);
@@ -1298,10 +1306,10 @@ void MoleculeSESRenderer::extendContours() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    dilationShader.Disable();
+    dilation_v_Shader.Disable();
 
     // erosion
-    erosionShader.Enable();
+    erosion_h_Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, contourTexture[1]);
     glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
@@ -1314,28 +1322,28 @@ void MoleculeSESRenderer::extendContours() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    erosionShader.Disable();
+    erosion_h_Shader.Disable();
 
-    // erosion
-    erosionShader.Enable();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
-    glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
-    glUniform1i(erosionShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    glUniform1i(erosionShader.ParameterLocation("radius"), this->erosionRadius);
-    glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[1]);
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glEnable(GL_DEPTH_TEST);
-    glBindVertexArray(0);
-    erosionShader.Disable();
+    // // erosion
+    // erosionShader.Enable();
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
+    // glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
+    // glUniform1i(erosionShader.ParameterLocation("whiteBackground"), this->whiteBackground);
+    // glUniform1i(erosionShader.ParameterLocation("radius"), this->erosionRadius);
+    // glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[1]);
+    // glClearColor(0, 0, 0, 0);
+    // glClear(GL_COLOR_BUFFER_BIT);
+    // glBindVertexArray(quadVAO);
+    // glDrawArrays(GL_TRIANGLES, 0, 6);
+    // glEnable(GL_DEPTH_TEST);
+    // glBindVertexArray(0);
+    // erosionShader.Disable();
 
     // dilation
     dilationShader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, contourTexture[1]);
+    glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
     glUniform1i(dilationShader.ParameterLocation("contourTexture"), 0);
     glUniform1i(dilationShader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glUniform1i(dilationShader.ParameterLocation("radius"), this->dilation2Radius);

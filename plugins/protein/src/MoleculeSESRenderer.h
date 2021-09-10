@@ -407,6 +407,10 @@ namespace protein {
         vislib::graphics::gl::GLSLShader medianShader;
         vislib::graphics::gl::GLSLShader dilationShader;
         vislib::graphics::gl::GLSLShader erosionShader;
+        vislib::graphics::gl::GLSLShader dilation_v_Shader;
+        vislib::graphics::gl::GLSLShader erosion_v_Shader;
+        vislib::graphics::gl::GLSLShader dilation_h_Shader;
+        vislib::graphics::gl::GLSLShader erosion_h_Shader;
         vislib::graphics::gl::GLSLShader smoothTimestepsShader;
         ////////////
 
