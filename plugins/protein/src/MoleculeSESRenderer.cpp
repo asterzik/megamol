@@ -147,7 +147,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
 
 
     // curvature modes
-    this->currentCurvatureMode = EvansCurvature;
+    this->currentCurvatureMode = ShadingGrad;
     param::EnumParam* cmp = new param::EnumParam(int(this->currentCurvatureMode));
     constexpr auto& curvature_entries = magic_enum::enum_entries<curvatureMode>();
     for (int i = 0; i < magic_enum::enum_count<curvatureMode>(); ++i) {
@@ -520,6 +520,8 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(this->prantlRadialShader, "contours::vertex", "contours::curvature::prantlradial"))
         return false;
     if (!this->loadShader(this->prantl2RadialShader, "contours::vertex", "contours::curvature::prantl2radial"))
+        return false;
+    if (!this->loadShader(this->shadingGradientShader, "contours::vertex", "contours::curvature::shadingGradient"))
         return false;
     if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
         return false;
@@ -2058,7 +2060,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
 
             if (testcase) {
                 float colors[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-                float vertices[12] = {10.328, 20.121, -4.012, 2, 8.233, 20.042, -0.768, 0.5, 8.13, 20.952, -7.128, 0.5};
+                float vertices[12] = {10.328, 20.121, -4.012, 10, 8.233, 20.042, -0.768, 2, 8.233, 20.042, -100, 10};
                 glColorPointer(3, GL_FLOAT, 0, colors);
                 glVertexPointer(4, GL_FLOAT, 0, vertices);
                 glDrawArrays(GL_POINTS, 0, 3);
