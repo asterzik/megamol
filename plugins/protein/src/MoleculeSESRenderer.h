@@ -413,6 +413,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader dilation_h_Shader;
         vislib::graphics::gl::GLSLShader erosion_h_Shader;
         vislib::graphics::gl::GLSLShader smoothTimestepsShader;
+        vislib::graphics::gl::GLSLShader normalDerivativeShader;
         ////////////
 
         // the bounding box of the protein
@@ -445,7 +446,8 @@ namespace protein {
             Prantl2Gaussian,
             PrantlRadial,
             Prantl2Radial,
-            ShadingGrad
+            ShadingGrad,
+            NormalDerivative
         };
         curvatureMode currentCurvatureMode;
         std::map<curvatureMode, vislib::graphics::gl::GLSLShader*> curvatureShaderMap = {
@@ -454,7 +456,7 @@ namespace protein {
             {PrantlMean, &this->prantlMeanShader}, {Prantl2Mean, &this->prantl2MeanShader},
             {PrantlGaussian, &this->prantlGaussianShader}, {Prantl2Gaussian, &this->prantl2GaussianShader},
             {PrantlRadial, &this->prantlRadialShader}, {Prantl2Radial, &this->prantl2RadialShader},
-            {ShadingGrad, &this->shadingGradientShader}};
+            {ShadingGrad, &this->shadingGradientShader}, {NormalDerivative, &this->normalDerivativeShader}};
         enum contourMode { Suggestive, SuggestiveAndCurvature, Shading, ShadingAndCurvature };
         std::map<contourMode, vislib::graphics::gl::GLSLShader*> contourShaderMap = {{Suggestive, &this->SC_Shader},
             {SuggestiveAndCurvature, &this->SC_Curvature_Shader}, {Shading, &this->C_Shader},

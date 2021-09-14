@@ -523,6 +523,8 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->shadingGradientShader, "contours::vertex", "contours::curvature::shadingGradient"))
         return false;
+    if (!this->loadShader(this->normalDerivativeShader, "contours::vertex", "contours::curvature::normalDerivative"))
+        return false;
     if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
         return false;
     if (!this->loadShader(this->normalizePositionsShader, "contours::vertex", "contours::normalizePositions"))

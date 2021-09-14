@@ -1737,6 +1737,28 @@
                 float dx = dFdx(shading);
                 float dy = dFdy(shading);
 
+                vec3 d3x = dFdx(pixelNormal);
+                vec3 d3y = dFdy(pixelNormal);
+
+                fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)), 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
+        <shader name="normalDerivative">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragNormal;
+
+            void main() {
+                vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
+
+                float dx = length(dFdx(pixelNormal));
+                float dy = length(dFdy(pixelNormal));
+
                 fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)), 1.0); 
             }
           -->
