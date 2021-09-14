@@ -1732,15 +1732,12 @@
                 vec3 pixelPosition = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0).xyz;
                 vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
 
-                float shading = dot(pixelNormal, -pixelPosition);
+                float shading = dot(pixelNormal, normalize(-pixelPosition));
 
                 float dx = dFdx(shading);
                 float dy = dFdy(shading);
 
-                vec3 d3x = dFdx(pixelNormal);
-                vec3 d3y = dFdy(pixelNormal);
-
-                fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)), 1.0); 
+                fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)/sqrt(2)), 1.0); 
             }
           -->
         </snippet>
