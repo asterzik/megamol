@@ -1772,6 +1772,39 @@
           -->
         </snippet>
       </shader>
+        <shader name="shadingGradient4N">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+            void main() {
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+
+                vec3 nLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz);
+                vec3 nRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz);
+                vec3 nTop = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz);
+                vec3 nBottom = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz);
+
+                float shadingLeft = dot(nLeft, normalize(-pLeft));
+                float shadingRight = dot(nRight, normalize(-pRight));
+                float shadingTop = dot(nTop, normalize(-pTop));
+                float shadingBottom = dot(nBottom, normalize(-pBottom));
+
+                float dx = 0.5 * (shadingRight - shadingLeft);
+                float dy = 0.5 * (shadingTop - shadingBottom);
+
+                fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)/sqrt(2)), 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
         <shader name="normalDerivative">
           <snippet type="version">330</snippet>
           <snippet type="string">
