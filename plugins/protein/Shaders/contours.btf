@@ -1161,7 +1161,7 @@
                 }
 
                 vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
-                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates
+                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates //TODO: is this correct
                 viewdir = normalize(viewdir);
                 vec2 proj_viewdir = (viewdir - (dot(viewdir,local_triangleNor[0]) * local_triangleNor[0])).xy; //project onto tangent plane
                 float cos = dot(normalize(proj_viewdir), normalize(eigenvec1));
@@ -1350,10 +1350,10 @@
                 }
 
                 vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
-                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates
-                vec2 proj_viewdir = (viewdir * (1.0 - dot(viewdir,local_triangleNor[0]))).xy; //project onto tangent plane
-                float cos2 = dot(proj_viewdir, eigenvec1);
-                float radial_curv = L1 * cos2 + L2 * (1- cos2);
+                viewdir = normalize(transformMatrix * viewdir); //transform viewdir into local coordinates
+                vec2 proj_viewdir = (viewdir - dot(viewdir,local_triangleNor[0])* local_triangleNor[0]).xy; //project onto tangent plane
+                float cos = dot(normalize(proj_viewdir), normalize(eigenvec1));
+                float radial_curv = L1 * cos * cos + L2 * (1- cos * cos);
 
 				return radial_curv;
 			}
