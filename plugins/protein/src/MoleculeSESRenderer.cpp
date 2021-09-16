@@ -96,7 +96,8 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , extendContoursParam("extendContours", "extendContours")
         , dilation2RadiusParam("dilation2Radius", "dilation2Radius")
         , dilation1RadiusParam("dilation1Radius", "dilation1Radius")
-        , erosionRadiusParam("erosionRadius", "erosionRadius")
+        , erosion1RadiusParam("erosion1Radius", "erosion1Radius")
+        , erosion2RadiusParam("erosion2Radius", "erosion2Radius")
         , smoothTimestepsParam("smoothTimesteps", "smoothTimesteps")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
@@ -324,9 +325,12 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->dilation1RadiusParam.SetParameter(new param::IntParam(this->dilation1Radius, 0));
     this->MakeSlotAvailable(&this->dilation1RadiusParam);
 
-    this->erosionRadius = 2;
-    this->erosionRadiusParam.SetParameter(new param::IntParam(this->erosionRadius, 0));
-    this->MakeSlotAvailable(&this->erosionRadiusParam);
+    this->erosion1Radius = 2;
+    this->erosion1RadiusParam.SetParameter(new param::IntParam(this->erosion1Radius, 0));
+    this->MakeSlotAvailable(&this->erosion1RadiusParam);
+    this->erosion2Radius = 2;
+    this->erosion2RadiusParam.SetParameter(new param::IntParam(this->erosion2Radius, 0));
+    this->MakeSlotAvailable(&this->erosion2RadiusParam);
 
     this->smoothTimestepsBool = true;
     this->smoothTimestepsParam.SetParameter(new param::BoolParam(this->smoothTimestepsBool));
@@ -543,19 +547,19 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(
             this->perspectiveTestCaseShader, "testCase_perspective::vertex", "testCase_perspective::fragment"))
         return false;
-    if (!this->loadShader(this->dilationShader, "contours::vertex", "distance::dilation"))
+    if (!this->loadShader(this->dilationShader, "contours::vertex", "morphology::dilation"))
         return false;
-    if (!this->loadShader(this->erosionShader, "contours::vertex", "distance::erosion"))
+    if (!this->loadShader(this->erosionShader, "contours::vertex", "morphology::erosion"))
         return false;
-    if (!this->loadShader(this->dilation_v_Shader, "contours::vertex", "distance::dilation_vert"))
+    if (!this->loadShader(this->dilation_v_Shader, "contours::vertex", "morphology::dilation_vert"))
         return false;
-    if (!this->loadShader(this->erosion_v_Shader, "contours::vertex", "distance::erosion_vert"))
+    if (!this->loadShader(this->erosion_v_Shader, "contours::vertex", "morphology::erosion_vert"))
         return false;
-    if (!this->loadShader(this->dilation_h_Shader, "contours::vertex", "distance::dilation_hor"))
+    if (!this->loadShader(this->dilation_h_Shader, "contours::vertex", "morphology::dilation_hor"))
         return false;
-    if (!this->loadShader(this->erosion_h_Shader, "contours::vertex", "distance::erosion_hor"))
+    if (!this->loadShader(this->erosion_h_Shader, "contours::vertex", "morphology::erosion_hor"))
         return false;
-    if (!this->loadShader(this->medianShader, "contours::vertex", "distance::median"))
+    if (!this->loadShader(this->medianShader, "contours::vertex", "morphology::median"))
         return false;
     if (!this->loadShader(this->smoothTimestepsShader, "contours::vertex", "timesteps::fragment"))
         return false;
@@ -1005,9 +1009,13 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->dilation1Radius = this->dilation1RadiusParam.Param<param::IntParam>()->Value();
         this->dilation1RadiusParam.ResetDirty();
     }
-    if (this->erosionRadiusParam.IsDirty()) {
-        this->erosionRadius = this->erosionRadiusParam.Param<param::IntParam>()->Value();
-        this->erosionRadiusParam.ResetDirty();
+    if (this->erosion1RadiusParam.IsDirty()) {
+        this->erosion1Radius = this->erosion1RadiusParam.Param<param::IntParam>()->Value();
+        this->erosion1RadiusParam.ResetDirty();
+    }
+    if (this->erosion2RadiusParam.IsDirty()) {
+        this->erosion2Radius = this->erosion2RadiusParam.Param<param::IntParam>()->Value();
+        this->erosion2RadiusParam.ResetDirty();
     }
     if (this->smoothTimestepsParam.IsDirty()) {
         this->smoothTimestepsBool = this->smoothTimestepsParam.Param<param::BoolParam>()->Value();
@@ -1298,7 +1306,7 @@ void MoleculeSESRenderer::extendContours() {
     glDisable(GL_DEPTH_TEST);
 
     // dilation
-    dilation_v_Shader.Enable();
+    dilationShader.Enable();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
     glUniform1i(dilationShader.ParameterLocation("contourTexture"), 0);
@@ -1312,15 +1320,15 @@ void MoleculeSESRenderer::extendContours() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    dilation_v_Shader.Disable();
+    dilationShader.Disable();
 
     // erosion
-    erosion_h_Shader.Enable();
+    erosionShader.Enable();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, contourTexture[1]);
     glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
     glUniform1i(erosionShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    glUniform1i(erosionShader.ParameterLocation("radius"), this->erosionRadius);
+    glUniform1i(erosionShader.ParameterLocation("radius"), this->erosion1Radius);
     glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[0]);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1328,28 +1336,28 @@ void MoleculeSESRenderer::extendContours() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
-    erosion_h_Shader.Disable();
+    erosionShader.Disable();
 
     // // erosion
-    // erosionShader.Enable();
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
-    // glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
-    // glUniform1i(erosionShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    // glUniform1i(erosionShader.ParameterLocation("radius"), this->erosionRadius);
-    // glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[1]);
-    // glClearColor(0, 0, 0, 0);
-    // glClear(GL_COLOR_BUFFER_BIT);
-    // glBindVertexArray(quadVAO);
-    // glDrawArrays(GL_TRIANGLES, 0, 6);
-    // glEnable(GL_DEPTH_TEST);
-    // glBindVertexArray(0);
-    // erosionShader.Disable();
+    erosionShader.Enable();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
+    glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
+    glUniform1i(erosionShader.ParameterLocation("whiteBackground"), this->whiteBackground);
+    glUniform1i(erosionShader.ParameterLocation("radius"), this->erosion2Radius);
+    glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[1]);
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
+    erosionShader.Disable();
 
     // dilation
     dilationShader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
+    glBindTexture(GL_TEXTURE_2D, contourTexture[1]);
     glUniform1i(dilationShader.ParameterLocation("contourTexture"), 0);
     glUniform1i(dilationShader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glUniform1i(dilationShader.ParameterLocation("radius"), this->dilation2Radius);

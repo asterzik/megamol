@@ -337,8 +337,10 @@ namespace protein {
         GLint dilation2Radius;
         megamol::core::param::ParamSlot dilation1RadiusParam;
         GLint dilation1Radius;
-        megamol::core::param::ParamSlot erosionRadiusParam;
-        GLint erosionRadius;
+        megamol::core::param::ParamSlot erosion1RadiusParam;
+        GLint erosion1Radius;
+        megamol::core::param::ParamSlot erosion2RadiusParam;
+        GLint erosion2Radius;
         megamol::core::param::ParamSlot smoothTimestepsParam;
         GLboolean smoothTimestepsBool;
         int cur_timestep;

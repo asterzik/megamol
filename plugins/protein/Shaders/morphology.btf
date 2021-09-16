@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<btf type="MegaMolGLSLShader" version="1.0" namespace="distance">
+<btf type="MegaMolGLSLShader" version="1.0" namespace="morphology">
     <include file="protein"/>
       <shader name="median">
         <snippet type="version">420</snippet>
@@ -82,15 +82,15 @@
                 bool found = true;
                 for(int x = -radius; x <= radius; x++){
                     for(int y = -radius; y <= radius; y++){
-                        // if(x*x + y*y > radius * radius){
-                        //     continue;
-                        // }
-                        // else{
+                        if(x*x + y*y > radius * radius){
+                            continue;
+                        }
+                        else{
                             cur = texelFetch(contourTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0);
                             if(cur.a == 0){
                                 found = false;
                                 break;
-                            // }
+                            }
                         }
                     }
                 }
