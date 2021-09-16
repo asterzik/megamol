@@ -425,11 +425,12 @@
                 vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
                 vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
                 if(normal == vec3(0.0) || position.a == 0){
-                    if(mod(gl_FragCoord.x,10) == 0)
-                    FragColor = vec4(1,0,0,1);
-                    else{
-                        FragColor = vec4(0,0,0,1);
-                    }
+                    // if(mod(gl_FragCoord.x,10) == 0)
+                    // FragColor = vec4(1,0,0,1);
+                    // else{
+                    //     FragColor = vec4(0,0,0,1);
+                    // }
+                    discard;
                 }
                 else{
                 // vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy; // Maximum and minimum value of depths
@@ -446,31 +447,27 @@
                     // curvature *= (position.z / near_plane);
                 }
                 col =dot(normal, lightdir);
-                // TODO: High values of curvature should apparently be clamped to 1/cutOff, such that small features are not missed
-                // if(position2.a == 0){
-                //     position2 = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0);
-                //     if(position2.a == 0){
-                //         position2  = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0);
-                //         if(position2.a==0){
-                //             position2 = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0);
-                //             if(position2.a == 0){
-                //                 discard;
-                //             }
-                //         }
-                //     }
-                // }
                 vec3 right = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).rgb;
                 vec3 left = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).rgb;
                 vec3 up = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).rgb;
                 vec3 down = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).rgb;
-                float viewSpaceWidth = (length(position.xyz - right) + length(position.xyz - left) + length(position.xyz - up) + length(position.xyz -down))/4;
+                float d1,d2,d3,d4;
+                d1 = length(position.xyz - right);
+                d2 = length(position.xyz - left);
+                d3 = length(position.xyz - up);
+                d4 = length(position.xyz - down);
+                // float viewSpaceWidth = min(min(d1,d2),min(d3,d4));
+                // float viewSpaceWidth = (length(position.xyz - right) + length(position.xyz - left) + length(position.xyz - up) + length(position.xyz -down))/4;
+                float viewSpaceWidth = 0.5*(min(d1,d2)+min(d3,d4));
+                // FragColor = vec4(vec3(viewSpaceWidth), 1.0);
                 float C = cutOff * viewSpaceWidth;
                 if(col > sqrt(C * abs(curvature) * (2 - C * abs(curvature)))){
-                    if(mod(gl_FragCoord.x,2) < 1)
-                    FragColor = vec4(1,0,0,1);
-                    else{
-                        FragColor = vec4(0,0,0,1);
-                    }
+                    // if(mod(gl_FragCoord.x,2) < 1)
+                    // FragColor = vec4(1,0,0,1);
+                    // else{
+                    //     FragColor = vec4(0,0,0,1);
+                    // }
+                    discard;
                 }
                 else{
                 if(whiteBackground){
