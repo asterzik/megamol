@@ -99,6 +99,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , erosion1RadiusParam("erosion1Radius", "erosion1Radius")
         , erosion2RadiusParam("erosion2Radius", "erosion2Radius")
         , smoothTimestepsParam("smoothTimesteps", "smoothTimesteps")
+        , overlayParam("overlay", "overlay")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -336,6 +337,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->smoothTimestepsParam.SetParameter(new param::BoolParam(this->smoothTimestepsBool));
     this->MakeSlotAvailable(&this->smoothTimestepsParam);
 
+    this->overlay = false;
+    this->overlayParam.SetParameter(new param::BoolParam(this->overlay));
+    this->MakeSlotAvailable(&this->overlayParam);
+
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -378,7 +383,7 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
-        glDeleteTextures(1, &objPositionTexture);
+        glDeleteTextures(1, &shadingTexture);
     }
     if (extendContourFBO) {
         glDeleteFramebuffers(2, extendContourFBO);
@@ -551,14 +556,14 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->erosionShader, "contours::vertex", "morphology::erosion"))
         return false;
-    if (!this->loadShader(this->dilation_v_Shader, "contours::vertex", "morphology::dilation_vert"))
-        return false;
-    if (!this->loadShader(this->erosion_v_Shader, "contours::vertex", "morphology::erosion_vert"))
-        return false;
-    if (!this->loadShader(this->dilation_h_Shader, "contours::vertex", "morphology::dilation_hor"))
-        return false;
-    if (!this->loadShader(this->erosion_h_Shader, "contours::vertex", "morphology::erosion_hor"))
-        return false;
+    // if (!this->loadShader(this->dilation_v_Shader, "contours::vertex", "morphology::dilation_vert"))
+    //     return false;
+    // if (!this->loadShader(this->erosion_v_Shader, "contours::vertex", "morphology::erosion_vert"))
+    //     return false;
+    // if (!this->loadShader(this->dilation_h_Shader, "contours::vertex", "morphology::dilation_hor"))
+    //     return false;
+    // if (!this->loadShader(this->erosion_h_Shader, "contours::vertex", "morphology::erosion_hor"))
+    //     return false;
     if (!this->loadShader(this->medianShader, "contours::vertex", "morphology::median"))
         return false;
     if (!this->loadShader(this->smoothTimestepsShader, "contours::vertex", "timesteps::fragment"))
@@ -1021,6 +1026,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->smoothTimestepsBool = this->smoothTimestepsParam.Param<param::BoolParam>()->Value();
         this->smoothTimestepsParam.ResetDirty();
     }
+    if (this->overlayParam.IsDirty()) {
+        this->overlay = this->overlayParam.Param<param::BoolParam>()->Value();
+        this->overlayParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -1265,8 +1274,8 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     }
     glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
-    glUniform1i(Shader.ParameterLocation("depthTexture"), 4);
+    glBindTexture(GL_TEXTURE_2D, shadingTexture);
+    glUniform1i(Shader.ParameterLocation("shadingTexture"), 4);
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
     glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
     glUniform1i(Shader.ParameterLocation("orthoproj"), this->orthoproj);
@@ -1274,6 +1283,7 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1f(Shader.ParameterLocation("near_plane"), near_plane);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
+    glUniform1i(Shader.ParameterLocation("overlay"), this->overlay);
     if (!extendContoursBool && !smoothTimestepsBool) {
         glBindFramebuffer(GL_FRAMEBUFFER, 1);
         if (whiteBackground) {
@@ -1580,7 +1590,7 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
-        glDeleteTextures(1, &objPositionTexture);
+        glDeleteTextures(1, &shadingTexture);
     }
     if (extendContourFBO) {
         glDeleteFramebuffers(2, extendContourFBO);
@@ -1621,7 +1631,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenTextures(1, &normalTexture);
     glGenTextures(1, &curvatureTexture);
     glGenTextures(1, &positionTexture);
-    glGenTextures(1, &objPositionTexture);
+    glGenTextures(1, &shadingTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
 
     // contour FBO
@@ -1648,13 +1658,13 @@ void MoleculeSESRenderer::CreateFBO() {
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // texture for object positions
-    glBindTexture(GL_TEXTURE_2D, this->objPositionTexture);
+    glBindTexture(GL_TEXTURE_2D, this->shadingTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, objPositionTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, shadingTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
     // Depth RBO
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
@@ -2854,7 +2864,7 @@ void MoleculeSESRenderer::deinitialise(void) {
         glDeleteRenderbuffers(1, &contourDepthRBO);
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
-        glDeleteTextures(1, &objPositionTexture);
+        glDeleteTextures(1, &shadingTexture);
     }
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);

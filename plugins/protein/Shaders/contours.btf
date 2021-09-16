@@ -367,11 +367,12 @@
 
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
-            uniform sampler2D depthTexture;
+            uniform sampler2D shadingTexture;
             uniform float cutOff;
             uniform int level_max;
             uniform int viewType;
             uniform bool whiteBackground;
+            uniform bool overlay;
 
             void main()
             {
@@ -389,13 +390,17 @@
                     lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
                 }
                 col = dot(normal, lightdir);
-                if(col > cutOff)
-                    discard;
-                if(whiteBackground){
-                    FragColor = vec4(vec3(0.0), 1.0);
+                if(col > cutOff){
+                    if(overlay) FragColor = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
+                    else discard;
                 }
                 else{
-                    FragColor = vec4(vec3(1.0), 1.0);
+                    if(whiteBackground || overlay){
+                        FragColor = vec4(vec3(0.0), 1.0);
+                    }
+                    else{
+                        FragColor = vec4(vec3(1.0), 1.0);
+                    }
                 }
 
             }
@@ -412,28 +417,23 @@
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
             uniform sampler2D curvatureTexture;
-            uniform sampler2D depthTexture;
+            uniform sampler2D shadingTexture;
             uniform int level_max;
             uniform float cutOff;
             uniform int viewType;
             
             uniform float near_plane;
             uniform bool whiteBackground;
+            uniform bool overlay;
 
             void main()
             {
                 vec4 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0);
                 vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
                 if(normal == vec3(0.0) || position.a == 0){
-                    // if(mod(gl_FragCoord.x,10) == 0)
-                    // FragColor = vec4(1,0,0,1);
-                    // else{
-                    //     FragColor = vec4(0,0,0,1);
-                    // }
                     discard;
                 }
                 else{
-                // vec2 depth = texelFetch(depthTexture,ivec2(0,0), level_max - 1).xy; // Maximum and minimum value of depths
                 vec3 lightdir;
                 float col, curvature;
                 curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
@@ -459,18 +459,13 @@
                 // float viewSpaceWidth = min(min(d1,d2),min(d3,d4));
                 // float viewSpaceWidth = (length(position.xyz - right) + length(position.xyz - left) + length(position.xyz - up) + length(position.xyz -down))/4;
                 float viewSpaceWidth = 0.5*(min(d1,d2)+min(d3,d4));
-                // FragColor = vec4(vec3(viewSpaceWidth), 1.0);
                 float C = cutOff * viewSpaceWidth;
                 if(col > sqrt(C * abs(curvature) * (2 - C * abs(curvature)))){
-                    // if(mod(gl_FragCoord.x,2) < 1)
-                    // FragColor = vec4(1,0,0,1);
-                    // else{
-                    //     FragColor = vec4(0,0,0,1);
-                    // }
-                    discard;
+                    if(overlay) FragColor = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
+                    else{ discard;}
                 }
                 else{
-                if(whiteBackground){
+                if(whiteBackground || overlay){
                     FragColor = vec4(vec3(0.0), 1.0);
                 }
                 else{

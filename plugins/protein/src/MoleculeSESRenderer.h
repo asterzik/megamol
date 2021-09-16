@@ -344,6 +344,8 @@ namespace protein {
         megamol::core::param::ParamSlot smoothTimestepsParam;
         GLboolean smoothTimestepsBool;
         int cur_timestep;
+        megamol::core::param::ParamSlot overlayParam;
+        GLboolean overlay;
 
         bool drawSES;
         bool drawSAS;
@@ -517,7 +519,7 @@ namespace protein {
         GLuint positionTexture;
         GLuint smoothPositionTexture[2];
         GLuint timestepsTexture[3];
-        GLuint objPositionTexture;
+        GLuint shadingTexture;
         GLuint contourDepthRBO;
         GLuint contourTexture[2];
 
