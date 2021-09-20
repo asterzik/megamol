@@ -604,7 +604,7 @@
             -->
             </snippet>
         </shader>
-        <shader name="nathanReed">
+        <shader name="normal_averaged">
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--

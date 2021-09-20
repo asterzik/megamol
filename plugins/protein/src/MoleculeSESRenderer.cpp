@@ -514,7 +514,7 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::curvature::normal"))
         return false;
-    if (!this->loadShader(this->nathanReedCurvatureShader, "contours::vertex", "contours::curvature::nathanReed"))
+    if (!this->loadShader(this->normalAveragedShader, "contours::vertex", "contours::curvature::normal_averaged"))
         return false;
     if (!this->loadShader(this->meanCurvatureShader, "contours::vertex", "contours::curvature::mean"))
         return false;

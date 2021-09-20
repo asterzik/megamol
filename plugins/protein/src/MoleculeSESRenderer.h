@@ -393,7 +393,7 @@ namespace protein {
         // shader for curvature calculation
         vislib::graphics::gl::GLSLShader curvatureShader;
         vislib::graphics::gl::GLSLShader normalCurvatureShader;
-        vislib::graphics::gl::GLSLShader nathanReedCurvatureShader;
+        vislib::graphics::gl::GLSLShader normalAveragedShader;
         vislib::graphics::gl::GLSLShader meanCurvatureShader;
         vislib::graphics::gl::GLSLShader prantlMeanShader;
         vislib::graphics::gl::GLSLShader prantl2MeanShader;
@@ -443,7 +443,7 @@ namespace protein {
         enum curvatureMode {
             EvansCurvature,
             NormalCurvature,
-            NathanReedCurvature,
+            NormalAveragedCurvature,
             MeanCurvature,
             PrantlMean,
             Prantl2Mean,
@@ -458,7 +458,7 @@ namespace protein {
         curvatureMode currentCurvatureMode;
         std::map<curvatureMode, vislib::graphics::gl::GLSLShader*> curvatureShaderMap = {
             {EvansCurvature, &this->curvatureShader}, {NormalCurvature, &this->normalCurvatureShader},
-            {NathanReedCurvature, &this->nathanReedCurvatureShader}, {MeanCurvature, &this->meanCurvatureShader},
+            {NormalAveragedCurvature, &this->normalAveragedShader}, {MeanCurvature, &this->meanCurvatureShader},
             {PrantlMean, &this->prantlMeanShader}, {Prantl2Mean, &this->prantl2MeanShader},
             {PrantlGaussian, &this->prantlGaussianShader}, {Prantl2Gaussian, &this->prantl2GaussianShader},
             {PrantlRadial, &this->prantlRadialShader}, {Prantl2Radial, &this->prantl2RadialShader},
