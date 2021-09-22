@@ -1591,6 +1591,7 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &normalTexture);
         glDeleteTextures(1, &positionTexture);
         glDeleteTextures(1, &shadingTexture);
+        glDeleteTextures(1, &exactCurvatureTexture);
     }
     if (extendContourFBO) {
         glDeleteFramebuffers(2, extendContourFBO);
@@ -1632,6 +1633,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenTextures(1, &curvatureTexture);
     glGenTextures(1, &positionTexture);
     glGenTextures(1, &shadingTexture);
+    glGenTextures(1, &exactCurvatureTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
 
     // contour FBO
@@ -1666,14 +1668,24 @@ void MoleculeSESRenderer::CreateFBO() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, shadingTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // texture for object positions
+    glBindTexture(GL_TEXTURE_2D, this->exactCurvatureTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, exactCurvatureTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
     // Depth RBO
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
 
-    GLuint attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-    glDrawBuffers(3, attachments);
+    GLuint attachments[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+    glDrawBuffers(4, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
