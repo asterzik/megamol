@@ -357,6 +357,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->timestepsFBO[2] = 0;
     this->contourDepthRBO = 0;
     this->curvatureFBO = 0;
+    this->curvDiffFBO = 0;
     this->positionFBO[0] = 0;
     this->positionFBO[1] = 0;
     this->normalFBO[0] = 0;
@@ -397,6 +398,10 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
         glDeleteTextures(1, &curvatureTexture);
+    }
+    if (curvDiffFBO) {
+        glDeleteFramebuffers(1, &curvDiffFBO);
+        glDeleteTextures(1, &curvDiffTexture);
     }
     if (positionFBO) {
         glDeleteFramebuffers(2, positionFBO);
@@ -1580,17 +1585,32 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
         glBindTexture(GL_TEXTURE_2D, exactCurvatureTexture);
         glUniform1i(curvatureDiffShader.ParameterLocation("approxTexture"), 0);
         glUniform1i(curvatureDiffShader.ParameterLocation("exactTexture"), 1);
+        glActiveTexture(GL_TEXTURE0);
+        if (smoothCurvature) {
+            glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
+        } else {
+            glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, curvDiffFBO);
+        glClearColor(0.0, 0.0, 0.0, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindVertexArray(quadVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glEnable(GL_DEPTH_TEST);
+        glBindVertexArray(0);
 
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, curvDiffTexture);
     } else {
-        this->passThroughShader.Enable();
-        glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        if (smoothCurvature) {
+            glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
+        } else {
+            glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+        }
     }
-    glActiveTexture(GL_TEXTURE0);
-    if (smoothCurvature) {
-        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
-    } else {
-        glBindTexture(GL_TEXTURE_2D, curvatureTexture);
-    }
+    this->passThroughShader.Enable();
+    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     if (curvatureDiff) {
         glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -1641,9 +1661,15 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteFramebuffers(2, smoothCurvFBO);
         glDeleteTextures(2, smoothCurvatureTexture);
     }
+    if (curvDiffFBO) {
+        glDeleteFramebuffers(1, &curvDiffFBO);
+        glDeleteTextures(1, &curvDiffTexture);
+    }
+    glGenFramebuffers(1, &curvDiffFBO);
     glGenFramebuffers(1, &contourFBO);
     glGenFramebuffers(2, extendContourFBO);
     glGenTextures(2, contourTexture);
+    glGenTextures(1, &curvDiffTexture);
     glGenFramebuffers(3, timestepsFBO);
     glGenTextures(3, timestepsTexture);
     glGenFramebuffers(1, &curvatureFBO);
@@ -1768,6 +1794,22 @@ void MoleculeSESRenderer::CreateFBO() {
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete curvatureFBO", this->ClassName());
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, this->curvDiffFBO);
+
+    // texture for curvature
+    glBindTexture(GL_TEXTURE_2D, this->curvDiffTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, curvDiffTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete curvDiffFBO", this->ClassName());
     }
 
 
@@ -2905,6 +2947,10 @@ void MoleculeSESRenderer::deinitialise(void) {
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
         glDeleteTextures(1, &curvatureTexture);
+    }
+    if (curvDiffFBO) {
+        glDeleteFramebuffers(1, &curvDiffFBO);
+        glDeleteTextures(1, &curvDiffTexture);
     }
     if (positionFBO) {
         glDeleteFramebuffers(2, positionFBO);

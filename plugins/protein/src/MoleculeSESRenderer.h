@@ -506,6 +506,7 @@ namespace protein {
         std::vector<vislib::Array<float>> sphereColors;
 
         // FBOs and textures for postprocessing
+        GLuint curvDiffFBO;
         GLuint contourFBO;
         GLuint extendContourFBO[2];
         GLuint timestepsFBO[3];
@@ -524,6 +525,7 @@ namespace protein {
         GLuint timestepsTexture[3];
         GLuint shadingTexture;
         GLuint exactCurvatureTexture;
+        GLuint curvDiffTexture;
         GLuint contourDepthRBO;
         GLuint contourTexture[2];
 

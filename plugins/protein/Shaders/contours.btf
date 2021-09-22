@@ -52,7 +52,7 @@
                 if(exact.a == 0)
                     discard;
                 vec4 approx = texelFetch(approxTexture, ivec2(gl_FragCoord.xy), 0);
-                FragColor = vec4(exact.x - approx.x, approx.x - exact.x, 0, 1);
+                FragColor = vec4(vec3(length((exact - approx).xyz)), 1.0);
             }
             -->
             </snippet>
