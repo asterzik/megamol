@@ -37,6 +37,26 @@
             -->
             </snippet>
         </shader>
+      <shader name="curvatureDiff">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            out vec4 FragColor;
+            in vec2 TexCoords;
+            uniform sampler2D exactTexture;
+            uniform sampler2D approxTexture;
+
+            void main()
+            { 
+                vec4 exact = texelFetch(exactTexture, ivec2(gl_FragCoord.xy), 0);
+                if(exact.a == 0)
+                    discard;
+                vec4 approx = texelFetch(approxTexture, ivec2(gl_FragCoord.xy), 0);
+                FragColor = vec4(exact.x - approx.x, approx.x - exact.x, 0, 1);
+            }
+            -->
+            </snippet>
+        </shader>
       <shader name="normalizePositions">
         <snippet type="version">330</snippet>
         <snippet type="string">

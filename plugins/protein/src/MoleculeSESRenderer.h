@@ -346,6 +346,8 @@ namespace protein {
         int cur_timestep;
         megamol::core::param::ParamSlot overlayParam;
         GLboolean overlay;
+        megamol::core::param::ParamSlot curvatureDiffParam;
+        GLboolean curvatureDiff;
 
         bool drawSES;
         bool drawSAS;
@@ -405,6 +407,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader shadingGradient4NShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
+        vislib::graphics::gl::GLSLShader curvatureDiffShader;
         vislib::graphics::gl::GLSLShader normalizePositionsShader;
         vislib::graphics::gl::GLSLShader gaussianBlurShader;
         vislib::graphics::gl::GLSLShader peronaMalikBlurShader;

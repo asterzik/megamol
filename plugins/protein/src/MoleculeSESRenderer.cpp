@@ -100,6 +100,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , erosion2RadiusParam("erosion2Radius", "erosion2Radius")
         , smoothTimestepsParam("smoothTimesteps", "smoothTimesteps")
         , overlayParam("overlay", "overlay")
+        , curvatureDiffParam("curvatureDiff", "curvatureDiff")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -341,6 +342,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->overlayParam.SetParameter(new param::BoolParam(this->overlay));
     this->MakeSlotAvailable(&this->overlayParam);
 
+    this->curvatureDiff = false;
+    this->curvatureDiffParam.SetParameter(new param::BoolParam(this->curvatureDiff));
+    this->MakeSlotAvailable(&this->curvatureDiffParam);
+
     // fill rainbow color table
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
@@ -537,6 +542,8 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(this->normalDerivativeShader, "contours::vertex", "contours::curvature::normalDerivative"))
         return false;
     if (!this->loadShader(this->passThroughShader, "contours::vertex", "contours::passThrough"))
+        return false;
+    if (!this->loadShader(this->curvatureDiffShader, "contours::vertex", "contours::curvatureDiff"))
         return false;
     if (!this->loadShader(this->normalizePositionsShader, "contours::vertex", "contours::normalizePositions"))
         return false;
@@ -749,18 +756,19 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     if (virtualViewportChanged) {
         // TODO: All this stuff should only be created if necessary
-        normalPyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(), "pullpush::pullNormal",
-            "pullpush::pushNormal");
-        positionPyramid.create("fragPosition", this->width, this->height, this->GetCoreInstance(),
-            "pullpush::pullPosition", "pullpush::pushPosition");
+        // normalPyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(),
+        // "pullpush::pullNormal",
+        //     "pullpush::pushNormal");
+        // positionPyramid.create("fragPosition", this->width, this->height, this->GetCoreInstance(),
+        //     "pullpush::pullPosition", "pullpush::pushPosition");
         depthPyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
         heightPyramid.create("fragMaxY", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxY");
         widthPyramid.create("fragMaxX", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxX");
-        SCpyramid.create(
-            "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC", "pullpush::pushSC");
-        curvaturePyramid.create("fragCurvature", this->width, this->height, this->GetCoreInstance(),
-            "pullpush::pullCurvature", "pullpush::pushCurvature");
+        // SCpyramid.create(
+        //     "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC", "pullpush::pushSC");
+        // curvaturePyramid.create("fragCurvature", this->width, this->height, this->GetCoreInstance(),
+        //     "pullpush::pullCurvature", "pullpush::pushCurvature");
         this->CreateQuadBuffers();
         this->CreateFBO();
     }
@@ -1030,6 +1038,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->overlay = this->overlayParam.Param<param::BoolParam>()->Value();
         this->overlayParam.ResetDirty();
     }
+    if (this->curvatureDiffParam.IsDirty()) {
+        this->curvatureDiff = this->curvatureDiffParam.Param<param::BoolParam>()->Value();
+        this->curvatureDiffParam.ResetDirty();
+    }
     if (recomputeColors) {
         this->preComputationDone = false;
     }
@@ -1242,7 +1254,6 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
 }
 void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
 
-    calculateTextureBBX();
     calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
     if (smoothCurvature) {
         SmoothCurvature(*blurShaderMap[this->currentBlurMode]);
@@ -1563,19 +1574,32 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
     }
 
     glDisable(GL_DEPTH_TEST);
-    this->passThroughShader.Enable();
+    if (curvatureDiff) {
+        this->curvatureDiffShader.Enable();
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, exactCurvatureTexture);
+        glUniform1i(curvatureDiffShader.ParameterLocation("approxTexture"), 0);
+        glUniform1i(curvatureDiffShader.ParameterLocation("exactTexture"), 1);
+
+    } else {
+        this->passThroughShader.Enable();
+        glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
+    }
     glActiveTexture(GL_TEXTURE0);
     if (smoothCurvature) {
         glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, curvatureTexture);
     }
-    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    if (this->whiteBackground) {
-        glClearColor(1.0, 1.0, 1.0, 1.0);
+    if (curvatureDiff) {
+        glClearColor(0.0, 0.0, 0.0, 1.0);
     } else {
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+        if (this->whiteBackground) {
+            glClearColor(1.0, 1.0, 1.0, 1.0);
+        } else {
+            glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+        }
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
