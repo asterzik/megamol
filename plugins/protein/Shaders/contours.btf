@@ -52,7 +52,7 @@
                 if(exact.a == 0)
                     discard;
                 vec4 approx = texelFetch(approxTexture, ivec2(gl_FragCoord.xy), 0);
-                FragColor = vec4(vec3(length((exact - approx).xyz)), 1.0);
+                FragColor = vec4(exact.x - approx.x, approx.x - exact.x, 0, 1.0);
             }
             -->
             </snippet>
@@ -538,7 +538,7 @@
                 if(isnan(curvature))
                     discard;
 
-                fragCurvature = vec4(vec3(curvature), 1.0);
+                fragCurvature = vec4(vec3(-curvature), 1.0);
             }
             -->
             </snippet>
