@@ -66,6 +66,8 @@
             uniform sampler2D screenTexture;
             uniform sampler2D widthTexture;
             uniform int level_max;
+            
+            //colormap code from: https://github.com/kbinani/colormap-shaders/blob/master/shaders/glsl/IDL_CB-PiYG.frag
             float colormap_red(float x) {
                 if (x < 0.09843078255653381) {
                     return 5.57627692307694E+02 * x + 1.42135384615385E+02;
