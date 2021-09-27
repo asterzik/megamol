@@ -2160,7 +2160,7 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
 
             if (testcase) {
                 float colors[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-                float vertices[12] = {10.328, 20.121, -4.012, 10, 16, 20, -4, 5, 8.233, 20.042, -100, 10};
+                float vertices[12] = {10.328, 20.121, -4.012, 12, 20, 20, -4, 4, 8.233, 20.042, -100, 12};
                 glColorPointer(3, GL_FLOAT, 0, colors);
                 glVertexPointer(4, GL_FLOAT, 0, vertices);
                 glDrawArrays(GL_POINTS, 0, 3);
