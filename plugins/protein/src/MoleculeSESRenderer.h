@@ -422,6 +422,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader erosion_h_Shader;
         vislib::graphics::gl::GLSLShader smoothTimestepsShader;
         vislib::graphics::gl::GLSLShader normalDerivativeShader;
+        vislib::graphics::gl::GLSLShader colormapShader;
         ////////////
 
         // the bounding box of the protein

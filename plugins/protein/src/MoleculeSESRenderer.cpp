@@ -550,6 +550,8 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->curvatureDiffShader, "contours::vertex", "contours::curvatureDiff"))
         return false;
+    if (!this->loadShader(this->colormapShader, "contours::vertex", "contours::colormap"))
+        return false;
     if (!this->loadShader(this->normalizePositionsShader, "contours::vertex", "contours::normalizePositions"))
         return false;
     if (!this->loadShader(this->gaussianBlurShader, "contours::vertex", "contours::postprocessing::blur"))
@@ -1592,34 +1594,49 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
             glBindTexture(GL_TEXTURE_2D, curvatureTexture);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, curvDiffFBO);
-        glClearColor(0.0, 0.0, 0.0, 1.0);
+        glClearColor(0.0, 0.0, 0.0, 0.0);
         glClear(GL_COLOR_BUFFER_BIT);
         glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glEnable(GL_DEPTH_TEST);
         glBindVertexArray(0);
 
-        glActiveTexture(GL_TEXTURE0);
+        glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, curvDiffTexture);
-    } else {
+        widthPyramid.pullShaderProgram.Enable();
+        glUniform1i(widthPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
+
+        widthPyramid.clear();
+        widthPyramid.pull();
+
+        this->bbx_levelMax = widthPyramid.getMipmapNumber();
+
+        this->colormapShader.Enable();
+        glUniform1i(colormapShader.ParameterLocation("screenTexture"), 1);
         glActiveTexture(GL_TEXTURE0);
-        if (smoothCurvature) {
-            glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
-        } else {
-            glBindTexture(GL_TEXTURE_2D, curvatureTexture);
-        }
+        glBindTexture(GL_TEXTURE_2D, widthPyramid.get("fragMaxX"));
+        glUniform1i(colormapShader.ParameterLocation("widthTexture"), 0);
+        glUniform1i(colormapShader.ParameterLocation("level_max"), this->bbx_levelMax);
+        glBindFramebuffer(GL_FRAMEBUFFER, curvatureFBO);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindVertexArray(quadVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glEnable(GL_DEPTH_TEST);
+        glBindVertexArray(0);
     }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+    if (smoothCurvature && !curvatureDiff) {
+        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
+    }
+
     this->passThroughShader.Enable();
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    if (curvatureDiff) {
-        glClearColor(0.0, 0.0, 0.0, 1.0);
+    if (curvatureDiff || this->whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 1.0);
     } else {
-        if (this->whiteBackground) {
-            glClearColor(1.0, 1.0, 1.0, 1.0);
-        } else {
-            glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        }
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
