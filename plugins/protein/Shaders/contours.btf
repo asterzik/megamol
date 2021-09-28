@@ -121,7 +121,10 @@
                 float maximum = 1;
                 float minimum = -maximum;//width.y;
                 float scaled = (color.x - minimum)/(maximum - minimum);
-                FragColor = colormap(scaled);
+                if(scaled > 1)
+                    FragColor = vec4(1,0.5,0,1);
+                else
+                    FragColor = colormap(scaled);
             }
             -->
             </snippet>
@@ -589,21 +592,14 @@
 
                 vec3 n = normalize(passNormal_view.xyz);
 
-                vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
-                vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-
                 // Compute curvature
                 vec3 dx = dFdx(n);
-                    dx /= length(pixelPositionLeft - pixelPositionRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
                 vec3 dy = dFdy(n);
-                    dy /= length(pixelPositionTop - pixelPositionBottom);
                 vec3 xneg = n - dx;//Das hier sind dann quasi die neuen ein bisschen verschobenen Normalen aber äquivalente Abstände für alle fragment shader läufe
                 vec3 xpos = n + dx;
                 vec3 yneg = n - dy;
                 vec3 ypos = n + dy;
-                float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x);
+                float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) * 4 / length(passPosition_view.xyz);
                 if(isnan(curvature))
                     discard;
 
