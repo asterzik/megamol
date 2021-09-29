@@ -638,8 +638,10 @@
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
                 vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
-                vec3 dx = dFdx(n) / length(pLeft - pRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
-                vec3 dy = dFdy(n) / length(pTop - pBottom);
+                vec3 dx = 2 * dFdx(n) / length(pLeft - pRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
+                vec3 dy =  2 * dFdy(n) / length(pTop - pBottom);
+                // vec3 dx = dFdx(n);
+                // vec3 dy = dFdy(n); 
                 
                 float curvature = (-(dx.x + dy.y)/n.z + (n.x * dx.z + n.y * dy.z) / (n.z * n.z)) / -2;
                 if(isnan(curvature)) //This happens at the silhouette of the molecule, because for the calculation of dFdx or dFdy, neighbouring pixels are vec4(0).
