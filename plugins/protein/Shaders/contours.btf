@@ -582,6 +582,8 @@
 
             uniform sampler2D tex_fragPosition;
             uniform sampler2D tex_fragNormal;
+            uniform sampler2D depthTexture;
+            uniform int level_max;
 
 
             void main() {
@@ -589,6 +591,7 @@
                 vec4 passNormal_view = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0);
                 if(passPosition_view == vec4(0.0))
                     discard;
+                vec2 depth = texelFetch(depthTexture, ivec2(0,0), level_max - 1).xy;
 
                 vec3 n = normalize(passNormal_view.xyz);
 
@@ -599,15 +602,16 @@
                 vec3 xpos = n + dx;
                 vec3 yneg = n - dy;
                 vec3 ypos = n + dy;
-                float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) * 4 / length(passPosition_view.xyz);
+                float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) * 4 / length(passPosition_view.xyz) *depth.x;
                 if(isnan(curvature))
                     discard;
 
-                fragCurvature = vec4(vec3(-curvature), 1.0);
+                fragCurvature = vec4(vec3(curvature), 1.0);
             }
             -->
             </snippet>
         </shader>
+
 
         <shader name="mean">
           <snippet type="version">330</snippet>

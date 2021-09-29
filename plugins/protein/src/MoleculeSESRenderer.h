@@ -369,6 +369,7 @@ namespace protein {
 
         // BBX pyramids
         Pyramid depthPyramid;  // Calculation of maximum view-space depth
+        Pyramid depth2Pyramid; // Calculation of maximum view-space depth
         Pyramid heightPyramid; // Calculation of maximum view-space height
         Pyramid widthPyramid;  // Calculation of maximum view-space width
 

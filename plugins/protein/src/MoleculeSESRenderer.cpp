@@ -772,6 +772,8 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
         heightPyramid.create("fragMaxY", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxY");
         widthPyramid.create("fragMaxX", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxX");
+        depth2Pyramid.create(
+            "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth2");
         // SCpyramid.create(
         //     "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC", "pullpush::pushSC");
         // curvaturePyramid.create("fragCurvature", this->width, this->height, this->GetCoreInstance(),
@@ -1544,6 +1546,19 @@ void MoleculeSESRenderer::displayNormals() {
 void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& Shader) {
 
     glDisable(GL_DEPTH_TEST);
+    if (currentCurvatureMode == EvansCurvature) {
+        depth2Pyramid.pullShaderProgram.Enable();
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, positionTexture);
+        glUniform1i(depth2Pyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
+        depth2Pyramid.clear();
+        depth2Pyramid.pull();
+        Shader.Enable();
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, depth2Pyramid.get("fragMaxDepth"));
+        glUniform1i(Shader.ParameterLocation("depthTexture"), 2);
+        glUniform1i(Shader.ParameterLocation("level_max"), depth2Pyramid.getMipmapNumber());
+    }
 
     Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
@@ -2176,11 +2191,16 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             // set vertex and color pointers and draw them
 
             if (testcase) {
-                float colors[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-                float vertices[12] = {10, 20, -4, 12, 20, 20, -4, 4, -80, 20, -4, 12};
+                float colors[12] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+                float vertices[16] = {10, 20, -4, 12, 20, 20, -4, 4, -80, 20, -4, 20, -10, 20, -4, 1};
                 glColorPointer(3, GL_FLOAT, 0, colors);
                 glVertexPointer(4, GL_FLOAT, 0, vertices);
-                glDrawArrays(GL_POINTS, 0, 3);
+                glDrawArrays(GL_POINTS, 0, 4);
+                // float colors[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+                // float vertices[12] = {10, 20, -4, 12, 20, 20, -4, 4, -80, 20, -4, 12};
+                // glColorPointer(3, GL_FLOAT, 0, colors);
+                // glVertexPointer(4, GL_FLOAT, 0, vertices);
+                // glDrawArrays(GL_POINTS, 0, 3);
             } else {
                 glColorPointer(3, GL_FLOAT, 0, this->sphereColors[cntRS].PeekElements());
                 glVertexPointer(4, GL_FLOAT, 0, this->sphereVertexArray[cntRS].PeekElements());
