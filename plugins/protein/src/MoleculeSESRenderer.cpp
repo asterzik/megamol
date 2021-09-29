@@ -2191,16 +2191,16 @@ void MoleculeSESRenderer::RenderSESGpuRaycasting(const MolecularDataCall* mol) {
             // set vertex and color pointers and draw them
 
             if (testcase) {
-                float colors[12] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-                float vertices[16] = {10, 20, -4, 12, 20, 20, -4, 4, -80, 20, -4, 20, -10, 20, -4, 1};
-                glColorPointer(3, GL_FLOAT, 0, colors);
-                glVertexPointer(4, GL_FLOAT, 0, vertices);
-                glDrawArrays(GL_POINTS, 0, 4);
-                // float colors[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-                // float vertices[12] = {10, 20, -4, 12, 20, 20, -4, 4, -80, 20, -4, 12};
+                // float colors[12] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+                // float vertices[16] = {10, 20, -4, 12, 20, 20, -4, 4, -80, 20, -4, 20, -10, 20, -4, 1};
                 // glColorPointer(3, GL_FLOAT, 0, colors);
                 // glVertexPointer(4, GL_FLOAT, 0, vertices);
-                // glDrawArrays(GL_POINTS, 0, 3);
+                // glDrawArrays(GL_POINTS, 0, 4);
+                float colors[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+                float vertices[12] = {10, 20, -4, 12, 20, 20, -4, 4, -80, 20, -4, 12};
+                glColorPointer(3, GL_FLOAT, 0, colors);
+                glVertexPointer(4, GL_FLOAT, 0, vertices);
+                glDrawArrays(GL_POINTS, 0, 3);
             } else {
                 glColorPointer(3, GL_FLOAT, 0, this->sphereColors[cntRS].PeekElements());
                 glVertexPointer(4, GL_FLOAT, 0, this->sphereVertexArray[cntRS].PeekElements());
