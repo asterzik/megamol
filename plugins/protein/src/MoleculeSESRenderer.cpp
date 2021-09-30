@@ -1627,7 +1627,7 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
         this->bbx_levelMax = widthPyramid.getMipmapNumber();
 
         this->colormapShader.Enable();
-        glUniform1i(colormapShader.ParameterLocation("screenTexture"), 1);
+        glUniform1i(colormapShader.ParameterLocation("curvDiffTexture"), 1);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, widthPyramid.get("fragMaxX"));
         glUniform1i(colormapShader.ParameterLocation("widthTexture"), 0);

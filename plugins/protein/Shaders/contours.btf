@@ -63,7 +63,7 @@
         <!--
             out vec4 FragColor;
             in vec2 TexCoords;
-            uniform sampler2D screenTexture;
+            uniform sampler2D curvDiffTexture;
             uniform sampler2D widthTexture;
             uniform int level_max;
             
@@ -114,7 +114,7 @@
             }
             void main()
             { 
-                vec4 color = texelFetch(screenTexture, ivec2(gl_FragCoord.xy), 0);
+                vec4 color = texelFetch(curvDiffTexture, ivec2(gl_FragCoord.xy), 0);
                 if(color.a == 0)
                     discard;
                 vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
