@@ -648,10 +648,6 @@
                     discard;
 
                 fragCurvature = vec4(vec3(curvature), 1.0);
-                // if(length(pLeft-pRight) < 0.1)
-                //     fragCurvature = vec4(vec3(0.8118, 0.8, 0.0275), 1.0);
-                // if(length(pTop-pBottom) < 0.1)
-                //     fragCurvature = vec4(vec3(0.9451, 0.298, 0.7843), 1.0);
             }
             -->
             </snippet>
@@ -682,10 +678,10 @@
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
                 vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
-                float curvatureLeft = dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
-                float curvatureTop = dot(n , p - pTop) / (length(pTop - p) * length(pTop - p));
-                float curvatureRight = dot(n, p - pRight) / (length(pRight - p) * length(pRight - p));
-                float curvatureBottom = dot(n, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+                float curvatureLeft = 2 * dot(n, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
+                float curvatureTop = 2 * dot(n , p - pTop) / (length(pTop - p) * length(pTop - p));
+                float curvatureRight = 2 * dot(n, p - pRight) / (length(pRight - p) * length(pRight - p));
+                float curvatureBottom = 2 * dot(n, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
 
                 float curvature = (curvatureLeft + curvatureTop + curvatureRight + curvatureBottom) / 4;
                 fragCurvature = vec4(vec3(curvature), 1.0);
@@ -722,18 +718,16 @@
                 vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
                 vec3 nLeft = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+                vec3 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
                 vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
                 // Compute curvature for all "edges" in the 4-neighborhood
-                float curvatureLeft = dot(n - nLeft, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
-                float curvatureTop = dot(n- nTop, p - pTop) / (length(pTop - p) * length(pTop - p));
-                float curvatureRight = dot(n -nRight, p - pRight) / (length(pRight - p) * length(pRight - p));
-                float curvatureBottom = dot(n -nBottom, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
-
-                float curvature = (curvatureLeft + curvatureTop + curvatureRight + curvatureBottom) / 4;
-
+                float curvature =  dot(n - nLeft, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
+                curvature +=  dot(n- nTop, p - pTop) / (length(pTop - p) * length(pTop - p));
+                curvature +=  dot(n -nRight, p - pRight) / (length(pRight - p) * length(pRight - p));
+                curvature +=  dot(n -nBottom, p - pBottom) / (length(pBottom - p) * length(pBottom - p));
+                curvature /= 4;
                 fragCurvature = vec4(vec3(curvature), 1.0);
             }
             -->
