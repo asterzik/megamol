@@ -1841,8 +1841,12 @@
             uniform sampler2D tex_fragNormal;
 
             void main() {
-                vec3 pixelPosition = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0).xyz;
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+                vec3 pixelPosition = p.xyz;
                 vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
+
 
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
                 vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
@@ -1869,6 +1873,10 @@
             uniform sampler2D tex_fragNormal;
 
             void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
                 vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
@@ -1902,6 +1910,10 @@
             uniform sampler2D tex_fragNormal;
 
             void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
                 vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
@@ -1935,6 +1947,10 @@
             uniform sampler2D tex_fragPosition;
 
             void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+                    
                 vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
 
                 vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
