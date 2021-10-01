@@ -118,7 +118,7 @@
                 if(color.a == 0)
                     discard;
                 vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
-                float maximum = 1;
+                float maximum = 0.5;
                 float minimum = -maximum;//width.y;
                 float scaled = (color.x - minimum)/(maximum - minimum);
                 if(scaled > 1)
@@ -1844,10 +1844,15 @@
                 vec3 pixelPosition = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0).xyz;
                 vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
 
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
+
                 float shading = dot(pixelNormal, normalize(-pixelPosition));
 
-                float dx = dFdx(shading);
-                float dy = dFdy(shading);
+                float dx = 2 * dFdx(shading) / length(pLeft - pRight);
+                float dy =  2 * dFdy(shading) / length(pTop - pBottom);
 
                 fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)/sqrt(2)), 1.0); 
             }
@@ -1879,8 +1884,8 @@
                 float shadingTop = dot(nTop, normalize(-pTop));
                 float shadingBottom = dot(nBottom, normalize(-pBottom));
 
-                float dx = 0.5 * (shadingRight - shadingLeft);
-                float dy = 0.5 * (shadingTop - shadingBottom);
+                float dx = (shadingRight - shadingLeft) / length(pLeft - pRight);
+                float dy = (shadingTop - shadingBottom) / length(pTop - pBottom);
 
                 fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)/sqrt(2)), 1.0); 
             }
@@ -1894,12 +1899,18 @@
             out vec4 fragCurvature;
 
             uniform sampler2D tex_fragNormal;
+            uniform sampler2D tex_fragPosition;
 
             void main() {
                 vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
 
-                float dx = length(dFdx(pixelNormal));
-                float dy = length(dFdy(pixelNormal));
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+
+                float dx = length(dFdx(pixelNormal)) / length(pLeft - pRight);
+                float dy = length(dFdy(pixelNormal)) / length(pTop - pBottom);
 
                 fragCurvature = vec4(vec3(sqrt(dx*dx + dy*dy)), 1.0); 
             }
