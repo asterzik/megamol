@@ -3040,157 +3040,56 @@ vislib::math::Vector<float, 3> MoleculeSESRenderer::GetProteinAtomColor(unsigned
         return vislib::math::Vector<float, 3>(0.5f, 0.5f, 0.5f);
 }
 void MoleculeSESRenderer::Cylinder() {
-    // std::vector<float> vertices;
-    // float radius = 0.001;
-    // float height = 0.3;
-    // int steps = 2;
+    std::vector<float> vertices;
+    float radius = 0.2;
+    float height = 0.3;
+    int steps = 100;
 
-    // for (int i = 0; i < steps; i++) {
-    //     float theta = 2 * 3.14 * i / steps;
-    //     glm::vec3 position = glm::vec3(radius * sin(theta), radius * cos(theta), -height / 2);
-    //     glm::vec3 normal = normalize(position - glm::vec3(0, 0, -height / 2));
-    //     vertices.push_back(position.x);
-    //     vertices.push_back(position.y);
-    //     vertices.push_back(position.z);
-    //     vertices.push_back(normal.x);
-    //     vertices.push_back(normal.y);
-    //     vertices.push_back(normal.z);
-    //     vertices.push_back(position.x);
-    //     vertices.push_back(position.y);
-    //     vertices.push_back(-position.z);
-    //     vertices.push_back(normal.x);
-    //     vertices.push_back(normal.y);
-    //     vertices.push_back(-normal.z);
-    // }
-    float vertices_cube[] = {
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-
-        -0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-
-        -0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-        -0.5f,
-        -0.5f,
-
-        -0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        0.5f,
-        -0.5f,
-        0.5f,
-        -0.5f,
-    };
+    for (int i = 0; i < steps; i++) {
+        float theta = 2 * 3.14159 * i / (steps + 1);
+        glm::vec3 position = glm::vec3(radius * sin(theta), radius * cos(theta), -height / 2);
+        glm::vec3 normal = normalize(position - glm::vec3(0, 0, -height / 2));
+        vertices.push_back(position.x);
+        vertices.push_back(position.y);
+        vertices.push_back(position.z);
+        vertices.push_back(normal.x);
+        vertices.push_back(normal.y);
+        vertices.push_back(normal.z);
+        vertices.push_back(position.x);
+        vertices.push_back(position.y);
+        vertices.push_back(-position.z);
+        vertices.push_back(normal.x);
+        vertices.push_back(normal.y);
+        vertices.push_back(-normal.z);
+    }
+    glm::vec3 position = glm::vec3(radius * sin(0), radius * cos(0), -height / 2);
+    glm::vec3 normal = normalize(position - glm::vec3(0, 0, -height / 2));
+    vertices.push_back(position.x);
+    vertices.push_back(position.y);
+    vertices.push_back(position.z);
+    vertices.push_back(normal.x);
+    vertices.push_back(normal.y);
+    vertices.push_back(normal.z);
+    vertices.push_back(position.x);
+    vertices.push_back(position.y);
+    vertices.push_back(-position.z);
+    vertices.push_back(normal.x);
+    vertices.push_back(normal.y);
+    vertices.push_back(-normal.z);
     unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices.data()), vertices.data(), GL_STATIC_DRAW);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_cube), vertices_cube, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, (steps + 1) * 2 * 6 * sizeof(float), &vertices.data()[0], GL_STATIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, 36 * 3 * sizeof(float), &vertices_cube2[0], GL_STATIC_DRAW);
     glBindVertexArray(VAO);
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
-    // glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
-    // glEnableVertexAttribArray(1);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    // glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     glEnable(GL_DEPTH_TEST);
 
@@ -3213,8 +3112,7 @@ void MoleculeSESRenderer::Cylinder() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(VAO);
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    // glDrawArrays(GL_TRIANGLE_STRIP, 0, steps * 12);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, (steps + 1) * 12);
     glBindVertexArray(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
