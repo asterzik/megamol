@@ -86,7 +86,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , OrthoProjParam("orthographic projection",
               "Was orthographic projection used for the data generation? Other possibility perspective.")
         , TestCaseParam("testcase", "Use the test case? Otherwise real data.")
-        , CylinderParam("cylinder", "Use the test case? Otherwise real data.")
+        , CylinderParam("cylinder", "Use the cylinder test case.")
         , cutOffParam("cut off point for contours",
               "Curvature Contours: How big can the dot product between normal and "
               "viewdir get, such that the point is still considered a contour?")
@@ -291,6 +291,10 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->testcase = false;
     this->TestCaseParam.SetParameter(new param::BoolParam(this->testcase));
     this->MakeSlotAvailable(&this->TestCaseParam);
+
+    this->cylinderBool = false;
+    this->CylinderParam.SetParameter(new param::BoolParam(this->cylinderBool));
+    this->MakeSlotAvailable(&this->CylinderParam);
 
     this->cutOff = 0.15f;
     this->cutOffParam.SetParameter(new param::FloatParam(this->cutOff));
@@ -654,6 +658,7 @@ bool MoleculeSESRenderer::GetExtents(view::CallRender3DGL& call) {
     return true;
 }
 
+
 bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
 #pragma region // Set up camera variables
@@ -781,7 +786,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         depth2Pyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth2");
         // SCpyramid.create(
-        //     "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC", "pullpush::pushSC");
+        //     "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC","pullpush::pushSC");
         // curvaturePyramid.create("fragCurvature", this->width, this->height, this->GetCoreInstance(),
         //     "pullpush::pullCurvature", "pullpush::pushCurvature");
         this->CreateQuadBuffers();
@@ -819,7 +824,9 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     // }
     float* bfactors = mol->AtomBFactors();
 
-    if (testcase && orthoproj)
+    if (testcase && cylinderBool)
+        this->Cylinder();
+    else if (testcase && orthoproj)
         this->RenderTestCase();
     else
         this->RenderSESGpuRaycasting(mol);
@@ -867,7 +874,6 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 #pragma endregion // do some matrix stuff
 
     glActiveTexture(GL_TEXTURE0);
-
     return true;
 }
 
@@ -1000,6 +1006,10 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
     if (this->TestCaseParam.IsDirty()) {
         this->testcase = this->TestCaseParam.Param<param::BoolParam>()->Value();
         this->TestCaseParam.ResetDirty();
+    }
+    if (this->CylinderParam.IsDirty()) {
+        this->cylinderBool = this->CylinderParam.Param<param::BoolParam>()->Value();
+        this->CylinderParam.ResetDirty();
     }
     if (this->cutOffParam.IsDirty()) {
         this->cutOff = this->cutOffParam.Param<param::FloatParam>()->Value();
