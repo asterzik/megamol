@@ -178,6 +178,7 @@ namespace protein {
         void displayPositions();
         void displayNormalizedPositions();
         void displayNormals();
+        void Cylinder();
 
         /**
          * Postprocessing: Calculate Suggestive Contours from curvature information
@@ -318,6 +319,8 @@ namespace protein {
         GLboolean orthoproj;
         megamol::core::param::ParamSlot TestCaseParam;
         GLboolean testcase;
+        megamol::core::param::ParamSlot CylinderParam;
+        GLboolean cylinderBool;
         megamol::core::param::ParamSlot cutOffParam;
         GLfloat cutOff;
         megamol::core::param::ParamSlot blurParam;
@@ -333,14 +336,14 @@ namespace protein {
         GLboolean whiteBackground;
         megamol::core::param::ParamSlot extendContoursParam;
         GLboolean extendContoursBool;
-        megamol::core::param::ParamSlot dilation2RadiusParam;
-        GLint dilation2Radius;
-        megamol::core::param::ParamSlot dilation1RadiusParam;
-        GLint dilation1Radius;
-        megamol::core::param::ParamSlot erosion1RadiusParam;
-        GLint erosion1Radius;
-        megamol::core::param::ParamSlot erosion2RadiusParam;
-        GLint erosion2Radius;
+        // megamol::core::param::ParamSlot dilation2RadiusParam;
+        // GLint dilation2Radius;
+        // megamol::core::param::ParamSlot dilation1RadiusParam;
+        // GLint dilation1Radius;
+        // megamol::core::param::ParamSlot erosion1RadiusParam;
+        // GLint erosion1Radius;
+        // megamol::core::param::ParamSlot erosion2RadiusParam;
+        // GLint erosion2Radius;
         megamol::core::param::ParamSlot smoothTimestepsParam;
         GLboolean smoothTimestepsBool;
         int cur_timestep;
@@ -409,6 +412,7 @@ namespace protein {
         vislib::graphics::gl::GLSLShader acosShadingGradient4NShader;
         // pass through Shader sampling from a texture at mipmap level 0
         vislib::graphics::gl::GLSLShader passThroughShader;
+        vislib::graphics::gl::GLSLShader cylinderShader;
         vislib::graphics::gl::GLSLShader curvatureDiffShader;
         vislib::graphics::gl::GLSLShader normalizePositionsShader;
         vislib::graphics::gl::GLSLShader gaussianBlurShader;

@@ -18,6 +18,48 @@
             -->
             </snippet>
         </shader>
+      <shader name="cylinderVertex">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            layout (location = 0) in vec3 aPos;
+            // layout (location = 1) in vec3 aNormal;
+
+            out vec3 pos;
+            // out vec3 normal;
+
+            uniform mat4 mvp;
+
+            void main()
+            {
+                pos = aPos;
+                // normal = aNormal;
+                gl_Position = mvp * vec4(aPos, 1.0);
+            }  
+            -->
+            </snippet>
+        </shader>
+      <shader name="cylinderFragment">
+        <snippet type="version">330</snippet>
+        <snippet type="string">
+        <!--
+            layout (location = 0) out vec4 FragNormal;
+            layout (location = 1) out vec4 FragPosition;
+            layout (location = 2) out vec4 FragShading;
+            layout (location = 3) out vec4 FragCurvature;
+            in vec3 pos;
+            // in vec3 normal;
+
+            void main()
+            { 
+                FragNormal = vec4(1, 0, 0, 1);
+                FragPosition= vec4(pos, 1);
+                FragShading= vec4(1, 1, 0, 1);
+                FragCurvature= vec4(0.0863, 0.5137, 0.2157, 1.0);
+            }
+            -->
+            </snippet>
+        </shader>
 
       <shader name="passThrough">
         <snippet type="version">330</snippet>
