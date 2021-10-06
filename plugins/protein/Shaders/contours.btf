@@ -188,13 +188,11 @@
                 if(color.a == 0)
                     discard;
                 vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
-                float maximum = 1;
+                float maximum = 0.5;
                 float minimum = -maximum;//width.y;
                 float scaled = (color.x - minimum)/(maximum - minimum);
-                if(scaled > 1)
+                if(scaled > 1 || scaled < 0)
                     FragColor = vec4(0.0,0.0,0.0, 1.0);
-                else if(scaled < 0)
-                    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
                 else
                     FragColor = colormap(scaled);
             }
@@ -1489,7 +1487,7 @@
                 //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
                 vec2 eigenvec1;
 
-                if(tmp_gpu.y ==0 ){
+                if(tmp_gpu.y !=0 ){
                     eigenvec1.x = L1 - tmp_gpu.z;
                     eigenvec1.y = tmp_gpu.y;
                 }
