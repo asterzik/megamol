@@ -3134,6 +3134,8 @@ void MoleculeSESRenderer::Cylinder() {
     glUniform1f(cylinderShader.ParameterLocation("kappa1"), 1 / radius);
     glUniform1f(cylinderShader.ParameterLocation("kappa2"), 0);
     glUniform3f(cylinderShader.ParameterLocation("centreline"), 0, 0, 1);
+    bool circle = false;
+    glUniform1f(cylinderShader.ParameterLocation("circle"), circle);
     glm::mat4 mvp = proj * view * model;
     glm::mat4 mv = view * model;
     glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(view * model)));
@@ -3161,13 +3163,8 @@ void MoleculeSESRenderer::Cylinder() {
 
     glEnable(GL_DEPTH_TEST);
 
-    cylinderShader.Enable();
-    glUniform1f(cylinderShader.ParameterLocation("kappa1"), 0);
-    glUniform1f(cylinderShader.ParameterLocation("kappa2"), 0);
-
-    glUniformMatrix4fv(cylinderShader.ParameterLocation("mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
-    glUniformMatrix4fv(cylinderShader.ParameterLocation("mv"), 1, GL_FALSE, glm::value_ptr(mv));
-    glUniformMatrix3fv(cylinderShader.ParameterLocation("normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    circle = true;
+    glUniform1f(cylinderShader.ParameterLocation("circle"), circle);
     glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
     // glClearColor(1.0, 1.0, 1.0, 1.0);
     // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

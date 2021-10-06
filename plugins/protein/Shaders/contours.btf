@@ -35,7 +35,7 @@
             void main()
             {
                 pos = vec3(mv * vec4(aPos, 1.0));
-                normal = normalMatrix * aNormal;
+                normal = normalize(normalMatrix * aNormal);
                 gl_Position = mvp * vec4(aPos, 1.0);
             }  
             -->
@@ -52,8 +52,10 @@
             in vec3 pos;
             in vec3 normal;
             uniform float kappa1;
-            uniform float kappa2;
             uniform vec3 centreline;
+            // uniform mat4 mv;
+            uniform mat3 normalMatrix;
+            uniform bool circle;
 
 
             void main()
@@ -61,7 +63,27 @@
                 FragNormal = vec4( normal, 1);
                 FragPosition = vec4(pos, 1);
                 FragShading = vec4(1, 1, 0, 1);
-                FragCurvature = vec4(kappa1, kappa2, 0, 1.0);
+                if(circle)
+                    FragCurvature = vec4(vec3(0), 1.0);
+                else{
+                   vec3 viewdir = normalize(-pos);
+                   vec3 n = normalize(normal);
+                   // project viewdir into tangent plane
+                   vec3 proj_viewdir = viewdir - n * dot(viewdir, n);
+                   // get first principal curvature direction
+
+                   vec3 t_centreline = normalMatrix * centreline;
+                   vec3 dir_kappa1 = cross(normalize(t_centreline), n);
+
+                   //Calculate radial curvature with Eulers theorem
+                   float cos_theta = dot(normalize(dir_kappa1), normalize(proj_viewdir));
+                   //Only first term because kappa2 = 0
+                   float radial_curvature = kappa1 * cos_theta * cos_theta;
+                   FragCurvature = vec4(vec3(radial_curvature), 1.0);
+                }
+
+
+
             }
             -->
             </snippet>
@@ -166,7 +188,7 @@
                 if(color.a == 0)
                     discard;
                 vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
-                float maximum = 0.1;
+                float maximum = 1;
                 float minimum = -maximum;//width.y;
                 float scaled = (color.x - minimum)/(maximum - minimum);
                 if(scaled > 1)
@@ -1278,7 +1300,7 @@
                 //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
                 vec2 eigenvec1;
 
-                if(tmp_gpu.y ==0 ){
+                if(tmp_gpu.y !=0 ){
                     eigenvec1.x = L1 - tmp_gpu.z;
                     eigenvec1.y = tmp_gpu.y;
                 }
@@ -1290,7 +1312,7 @@
                 vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
                 viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates //TODO: is this correct
                 viewdir = normalize(viewdir);
-                vec2 proj_viewdir = (viewdir - (dot(viewdir,local_triangleNor[0]) * local_triangleNor[0])).xy; //project onto tangent plane
+                vec2 proj_viewdir = (viewdir - (dot(viewdir,normalize(local_triangleNor[0])) * normalize(local_triangleNor[0]))).xy; //project onto tangent plane
                 float cos = dot(normalize(proj_viewdir), normalize(eigenvec1));
                 float radial_curv = L1 * cos * cos + L2 * (1- cos * cos);
 
