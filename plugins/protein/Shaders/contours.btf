@@ -23,17 +23,19 @@
         <snippet type="string">
         <!--
             layout (location = 0) in vec3 aPos;
-            // layout (location = 1) in vec3 aNormal;
+            layout (location = 1) in vec3 aNormal;
 
             out vec3 pos;
-            // out vec3 normal;
+            out vec3 normal;
 
             uniform mat4 mvp;
+            uniform mat4 mv;
+            uniform mat3 normalMatrix;
 
             void main()
             {
-                pos = aPos;
-                // normal = aNormal;
+                pos = vec3(mv * vec4(aPos, 1.0));
+                normal = normalMatrix * aNormal;
                 gl_Position = mvp * vec4(aPos, 1.0);
             }  
             -->
@@ -48,14 +50,18 @@
             layout (location = 2) out vec4 FragShading;
             layout (location = 3) out vec4 FragCurvature;
             in vec3 pos;
-            // in vec3 normal;
+            in vec3 normal;
+            uniform float kappa1;
+            uniform float kappa2;
+            uniform vec3 centreline;
+
 
             void main()
             { 
-                FragNormal = vec4(1, 0, 0, 1);
-                FragPosition= vec4(pos, 1);
-                FragShading= vec4(1, 1, 0, 1);
-                FragCurvature= vec4(0.0863, 0.5137, 0.2157, 1.0);
+                FragNormal = vec4( normal, 1);
+                FragPosition = vec4(pos, 1);
+                FragShading = vec4(1, 1, 0, 1);
+                FragCurvature = vec4(kappa1, kappa2, 0, 1.0);
             }
             -->
             </snippet>

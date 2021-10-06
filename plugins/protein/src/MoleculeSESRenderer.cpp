@@ -3041,29 +3041,57 @@ vislib::math::Vector<float, 3> MoleculeSESRenderer::GetProteinAtomColor(unsigned
 }
 void MoleculeSESRenderer::Cylinder() {
     std::vector<float> vertices;
-    float radius = 0.2;
-    float height = 0.3;
+    std::vector<float> circle_vertices;
+    float radius = 0.5;
+    float height = 0.7;
     int steps = 100;
+    circle_vertices.push_back(0);
+    circle_vertices.push_back(0);
+    circle_vertices.push_back(height / 2);
+
+    circle_vertices.push_back(0);
+    circle_vertices.push_back(0);
+    circle_vertices.push_back(1);
 
     for (int i = 0; i < steps; i++) {
-        float theta = 2 * 3.14159 * i / (steps + 1);
+        float theta = 2 * 3.14159 * i / (steps);
         glm::vec3 position = glm::vec3(radius * sin(theta), radius * cos(theta), -height / 2);
         glm::vec3 normal = normalize(position - glm::vec3(0, 0, -height / 2));
+        circle_vertices.push_back(position.x);
+        circle_vertices.push_back(position.y);
+        circle_vertices.push_back(height / 2);
+
+        circle_vertices.push_back(0);
+        circle_vertices.push_back(0);
+        circle_vertices.push_back(1);
+
         vertices.push_back(position.x);
         vertices.push_back(position.y);
         vertices.push_back(position.z);
+
         vertices.push_back(normal.x);
         vertices.push_back(normal.y);
         vertices.push_back(normal.z);
+
         vertices.push_back(position.x);
         vertices.push_back(position.y);
         vertices.push_back(-position.z);
+
         vertices.push_back(normal.x);
         vertices.push_back(normal.y);
         vertices.push_back(-normal.z);
     }
     glm::vec3 position = glm::vec3(radius * sin(0), radius * cos(0), -height / 2);
     glm::vec3 normal = normalize(position - glm::vec3(0, 0, -height / 2));
+
+    circle_vertices.push_back(position.x);
+    circle_vertices.push_back(position.y);
+    circle_vertices.push_back(height / 2);
+
+    circle_vertices.push_back(0);
+    circle_vertices.push_back(0);
+    circle_vertices.push_back(1);
+
     vertices.push_back(position.x);
     vertices.push_back(position.y);
     vertices.push_back(position.z);
@@ -3076,9 +3104,11 @@ void MoleculeSESRenderer::Cylinder() {
     vertices.push_back(normal.x);
     vertices.push_back(normal.y);
     vertices.push_back(-normal.z);
-    unsigned int VBO, VAO;
+    unsigned int VBO, circleVBO, VAO, circleVAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
+    glGenVertexArrays(1, &circleVAO);
+    glGenBuffers(1, &circleVBO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, (steps + 1) * 2 * 6 * sizeof(float), &vertices.data()[0], GL_STATIC_DRAW);
@@ -3101,18 +3131,49 @@ void MoleculeSESRenderer::Cylinder() {
     glm::mat4 view = glm::mat4(1.0f);
     glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, -3.0f);
     view = glm::translate(view, viewPos);
-    // glUniform1f(cylinderShader.ParameterLocation("kappa1"), 1 / radius);
-    // glUniform1f(cylinderShader.ParameterLocation("kappa2"), 0);
-    // glUniform3f(cylinderShader.ParameterLocation("centreline"), 0, 0, 1);
+    glUniform1f(cylinderShader.ParameterLocation("kappa1"), 1 / radius);
+    glUniform1f(cylinderShader.ParameterLocation("kappa2"), 0);
+    glUniform3f(cylinderShader.ParameterLocation("centreline"), 0, 0, 1);
     glm::mat4 mvp = proj * view * model;
+    glm::mat4 mv = view * model;
+    glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(view * model)));
 
     glUniformMatrix4fv(cylinderShader.ParameterLocation("mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
+    glUniformMatrix4fv(cylinderShader.ParameterLocation("mv"), 1, GL_FALSE, glm::value_ptr(mv));
+    glUniformMatrix3fv(cylinderShader.ParameterLocation("normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
     glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
     glClearColor(1.0, 1.0, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(VAO);
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, (steps + 1) * 12);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, (steps + 1) * 2);
+
+    // Circle Top
+
+    glBindBuffer(GL_ARRAY_BUFFER, circleVBO);
+    glBufferData(GL_ARRAY_BUFFER, (steps + 2) * 6 * sizeof(float), &circle_vertices.data()[0], GL_STATIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, 36 * 3 * sizeof(float), &vertices_cube2[0], GL_STATIC_DRAW);
+    glBindVertexArray(circleVAO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glEnable(GL_DEPTH_TEST);
+
+    cylinderShader.Enable();
+    glUniform1f(cylinderShader.ParameterLocation("kappa1"), 0);
+    glUniform1f(cylinderShader.ParameterLocation("kappa2"), 0);
+
+    glUniformMatrix4fv(cylinderShader.ParameterLocation("mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
+    glUniformMatrix4fv(cylinderShader.ParameterLocation("mv"), 1, GL_FALSE, glm::value_ptr(mv));
+    glUniformMatrix3fv(cylinderShader.ParameterLocation("normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
+    // glClearColor(1.0, 1.0, 1.0, 1.0);
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBindVertexArray(circleVAO);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, (steps + 2));
     glBindVertexArray(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
