@@ -1821,6 +1821,37 @@
           -->
         </snippet>
       </shader>
+
+        <shader name="normalPartial">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragNormal;
+            uniform sampler2D tex_fragPosition;
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+                    
+                vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+
+                float dx = dFdx(pixelNormal.x);
+                dx *= 2 / length(pLeft - pRight);
+                float dy = dFdy(pixelNormal.y);
+                dy *= 2  / length(pTop - pBottom);
+                fragCurvature = vec4(vec3((dx + dy)/2), 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
         
         <shader name="fragment">
           <snippet type="version">330</snippet>
