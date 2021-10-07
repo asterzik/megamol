@@ -403,8 +403,6 @@ namespace protein {
         vislib::graphics::gl::GLSLShader meanCurvatureShader;
         vislib::graphics::gl::GLSLShader prantlMeanShader;
         vislib::graphics::gl::GLSLShader prantl2MeanShader;
-        vislib::graphics::gl::GLSLShader prantlGaussianShader;
-        vislib::graphics::gl::GLSLShader prantl2GaussianShader;
         vislib::graphics::gl::GLSLShader prantlRadialShader;
         vislib::graphics::gl::GLSLShader prantl2RadialShader;
         vislib::graphics::gl::GLSLShader shadingGradientShader;
@@ -457,8 +455,6 @@ namespace protein {
             MeanCurvature,
             PrantlMean,
             Prantl2Mean,
-            PrantlGaussian,
-            Prantl2Gaussian,
             PrantlRadial,
             Prantl2Radial,
             ShadingGrad,
@@ -471,7 +467,7 @@ namespace protein {
             {EvansCurvature, &this->curvatureShader}, {NormalCurvature, &this->normalCurvatureShader},
             {NormalAveragedCurvature, &this->normalAveragedShader}, {MeanCurvature, &this->meanCurvatureShader},
             {PrantlMean, &this->prantlMeanShader}, {Prantl2Mean, &this->prantl2MeanShader},
-            {PrantlGaussian, &this->prantlGaussianShader}, {Prantl2Gaussian, &this->prantl2GaussianShader},
+
             {PrantlRadial, &this->prantlRadialShader}, {Prantl2Radial, &this->prantl2RadialShader},
             {ShadingGrad, &this->shadingGradientShader}, {ShadingGrad4N, &this->shadingGradient4NShader},
             {AcosShadingGrad4N, &this->acosShadingGradient4NShader}, {NormalDerivative, &this->normalDerivativeShader}};
