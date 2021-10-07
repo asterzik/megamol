@@ -405,10 +405,9 @@ namespace protein {
         vislib::graphics::gl::GLSLShader prantl2MeanShader;
         vislib::graphics::gl::GLSLShader prantlRadialShader;
         vislib::graphics::gl::GLSLShader prantl2RadialShader;
-        vislib::graphics::gl::GLSLShader shadingGradientShader;
-        vislib::graphics::gl::GLSLShader shadingGradient4NShader;
-        vislib::graphics::gl::GLSLShader acosShadingGradient4NShader;
-        vislib::graphics::gl::GLSLShader acosSobelShader;
+        vislib::graphics::gl::GLSLShader shadingGradShader;
+        vislib::graphics::gl::GLSLShader shadingGrad4NShader;
+        vislib::graphics::gl::GLSLShader sobelShader;
         vislib::graphics::gl::GLSLShader normalDerivativeShader;
         vislib::graphics::gl::GLSLShader normalPartialShader;
         // pass through Shader sampling from a texture at mipmap level 0
@@ -461,8 +460,7 @@ namespace protein {
             Prantl2Radial,
             ShadingGrad,
             ShadingGrad4N,
-            AcosShadingGrad4N,
-            AcosSobel,
+            Sobel,
             NormalDerivative,
             NormalPartial
         };
@@ -472,9 +470,9 @@ namespace protein {
             {NormalAveragedCurvature, &this->normalAveragedShader}, {MeanCurvature, &this->meanCurvatureShader},
             {PrantlMean, &this->prantlMeanShader}, {Prantl2Mean, &this->prantl2MeanShader},
             {PrantlRadial, &this->prantlRadialShader}, {Prantl2Radial, &this->prantl2RadialShader},
-            {ShadingGrad, &this->shadingGradientShader}, {ShadingGrad4N, &this->shadingGradient4NShader},
-            {AcosShadingGrad4N, &this->acosShadingGradient4NShader}, {AcosSobel, &this->acosSobelShader},
-            {NormalDerivative, &this->normalDerivativeShader}, {NormalPartial, &this->normalPartialShader}};
+            {ShadingGrad, &this->shadingGradShader}, {ShadingGrad4N, &this->shadingGrad4NShader},
+            {Sobel, &this->sobelShader}, {NormalDerivative, &this->normalDerivativeShader},
+            {NormalPartial, &this->normalPartialShader}};
         enum contourMode { Suggestive, SuggestiveAndCurvature, Shading, ShadingAndCurvature };
         std::map<contourMode, vislib::graphics::gl::GLSLShader*> contourShaderMap = {{Suggestive, &this->SC_Shader},
             {SuggestiveAndCurvature, &this->SC_Curvature_Shader}, {Shading, &this->C_Shader},

@@ -541,14 +541,11 @@ bool MoleculeSESRenderer::create(void) {
         return false;
     if (!this->loadShader(this->prantl2RadialShader, "contours::vertex", "contours::curvature::prantl2radial"))
         return false;
-    if (!this->loadShader(this->shadingGradientShader, "contours::vertex", "contours::curvature::shadingGradient"))
+    if (!this->loadShader(this->shadingGradShader, "contours::vertex", "contours::curvature::shadingGrad"))
         return false;
-    if (!this->loadShader(this->shadingGradient4NShader, "contours::vertex", "contours::curvature::shadingGradient4N"))
+    if (!this->loadShader(this->shadingGrad4NShader, "contours::vertex", "contours::curvature::shadingGrad4N"))
         return false;
-    if (!this->loadShader(
-            this->acosShadingGradient4NShader, "contours::vertex", "contours::curvature::acosShadingGradient4N"))
-        return false;
-    if (!this->loadShader(this->acosSobelShader, "contours::vertex", "contours::curvature::acosSobel"))
+    if (!this->loadShader(this->sobelShader, "contours::vertex", "contours::curvature::Sobel"))
         return false;
     if (!this->loadShader(this->normalDerivativeShader, "contours::vertex", "contours::curvature::normalDerivative"))
         return false;
