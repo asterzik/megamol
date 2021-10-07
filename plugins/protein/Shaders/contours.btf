@@ -1793,6 +1793,55 @@
           -->
         </snippet>
       </shader>
+        <shader name="acosSobel">
+          <snippet type="version">330</snippet>
+          <snippet type="string">
+            <!--
+            out vec4 fragCurvature;
+
+            uniform sampler2D tex_fragPosition;
+            uniform sampler2D tex_fragNormal;
+
+            void main() {
+                vec4 p = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0);
+                if(p.a == 0)
+                    discard;
+
+                vec3 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz;
+                vec3 pTopLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(-1,1), 0).xyz;
+                vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz;
+                vec3 pTopRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,1), 0).xyz;
+                vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
+                vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
+                vec3 pBottomLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(1,1), 0).xyz;
+                vec3 pBottomRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(1,-1), 0).xyz;
+
+                vec3 nLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz);
+                vec3 nTopLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(-1,1), 0).xyz);
+                vec3 nRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz);
+                vec3 nTopRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,1), 0).xyz);
+                vec3 nTop = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz);
+                vec3 nBottom = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz);
+                vec3 nBottomLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,1), 0).xyz);
+                vec3 nBottomRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,-1), 0).xyz);
+
+                float sLeft = acos(dot(nLeft, normalize(-pLeft)));
+                float sTopLeft = acos(dot(nTopLeft, normalize(-pTopLeft)));
+                float sRight = acos(dot(nRight, normalize(-pRight)));
+                float sTopRight = acos(dot(nTopRight, normalize(-pTopRight)));
+                float sTop = acos(dot(nTop, normalize(-pTop)));
+                float sBottom = acos(dot(nBottom, normalize(-pBottom)));
+                float sBottomLeft = acos(dot(nBottomLeft, normalize(-pBottomLeft)));
+                float sBottomRight = acos(dot(nBottomRight, normalize(-pBottomRight)));
+
+                float Gx = (sTopLeft - sTopRight + 2 * sLeft - 2 * sRight + sBottomLeft - sBottomRight) * 2 / length(pLeft - pRight) / 8;
+                float Gy = (sTopLeft +  2* sTop +  sTopRight - 2 * sBottom - sBottomLeft - sBottomRight) *  2  / length(pTop - pBottom) / 8;
+
+                fragCurvature = vec4(vec3(sqrt(Gx*Gx + Gy*Gy)), 1.0); 
+            }
+          -->
+        </snippet>
+      </shader>
         <shader name="normalDerivative">
           <snippet type="version">330</snippet>
           <snippet type="string">

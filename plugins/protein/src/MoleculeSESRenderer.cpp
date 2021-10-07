@@ -548,7 +548,7 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(
             this->acosShadingGradient4NShader, "contours::vertex", "contours::curvature::acosShadingGradient4N"))
         return false;
-    if (!this->loadShader(this->acosSobelShader, "contours::vertex", "contours::curvature::acosShadingGradient4N"))
+    if (!this->loadShader(this->acosSobelShader, "contours::vertex", "contours::curvature::acosSobel"))
         return false;
     if (!this->loadShader(this->normalDerivativeShader, "contours::vertex", "contours::curvature::normalDerivative"))
         return false;
