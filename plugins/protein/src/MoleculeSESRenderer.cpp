@@ -1622,8 +1622,6 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
             glBindTexture(GL_TEXTURE_2D, curvatureTexture);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, curvDiffFBO);
-        glClearColor(0.0, 0.0, 0.0, 0.0);
-        glClear(GL_COLOR_BUFFER_BIT);
         glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glEnable(GL_DEPTH_TEST);
@@ -1646,6 +1644,7 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
         glUniform1i(colormapShader.ParameterLocation("widthTexture"), 0);
         glUniform1i(colormapShader.ParameterLocation("level_max"), this->bbx_levelMax);
         glBindFramebuffer(GL_FRAMEBUFFER, curvatureFBO);
+        glClearColor(1.0, 1.0, 1.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
         glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -3141,7 +3140,7 @@ void MoleculeSESRenderer::Cylinder() {
     glUniformMatrix4fv(cylinderShader.ParameterLocation("mv"), 1, GL_FALSE, glm::value_ptr(mv));
     glUniformMatrix3fv(cylinderShader.ParameterLocation("normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
     glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
-    glClearColor(1.0, 1.0, 1.0, 1.0);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(VAO);
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

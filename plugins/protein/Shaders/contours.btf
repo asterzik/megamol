@@ -332,7 +332,7 @@
                 if(color.a == 0)
                     discard;
                 vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
-                float maximum = 0.3;
+                float maximum = 1.0;
                 float minimum = -maximum;//width.y;
                 float scaled = (color.x - minimum)/(maximum - minimum);
                 if(scaled > 1 || scaled < 0)
@@ -1860,6 +1860,7 @@
                 float dy = dFdy(pixelNormal.y);
                 dy *= 2  / length(pTop - pBottom);
                 fragCurvature = vec4(vec3(dx + dy) / 2, 1.0); 
+                // fragCurvature = vec4(vec3(dx), 1.0); 
             }
           -->
         </snippet>
