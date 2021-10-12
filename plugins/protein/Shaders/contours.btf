@@ -331,7 +331,7 @@
                 vec4 color = texelFetch(curvDiffTexture, ivec2(gl_FragCoord.xy), 0);
                 if(color.a == 0)
                     discard;
-                vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
+                // vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
                 float maximum = 1.0;
                 float minimum = -maximum;//width.y;
                 float scaled = (color.x - minimum)/(maximum - minimum);
