@@ -62,12 +62,16 @@
             { 
                 FragNormal = vec4( normal, 1);
                 FragPosition = vec4(pos, 1);
-                FragShading = vec4(1, 1, 0, 1);
-                if(circle)
+                vec3 viewdir = normalize(-pos);
+                vec3 n = normalize(normal);
+
+                // FragShading = vec4(dot(n, viewdir) *  vec3(174/255.0, 59/255.0, 50/255.0), 0.);
+                if(circle){
                     FragCurvature = vec4(vec3(0), 1.0);
+                    FragShading = vec4(0.95, 0.95, 0.95, 1);
+                }
                 else{
-                   vec3 viewdir = normalize(-pos);
-                   vec3 n = normalize(normal);
+                    FragShading = vec4(0.9, 0.9, 0.9, 1);
                    // project viewdir into tangent plane
                    vec3 proj_viewdir = viewdir - n * dot(viewdir, n);
                    // get first principal curvature direction
