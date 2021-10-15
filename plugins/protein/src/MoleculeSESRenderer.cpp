@@ -265,7 +265,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     // // Suggestive Contours parameters
 
     this->SCRadius = 3;
-    this->SCRadiusParam.SetParameter(new param::IntParam(this->SCRadius, 1, 10));
+    this->SCRadiusParam.SetParameter(new param::IntParam(this->SCRadius, 1, 20));
     this->MakeSlotAvailable(&this->SCRadiusParam);
 
     this->SCNeighbourThreshold = 0.2f; // percentage s in original  SC paper //  in original paper 0.2
@@ -1243,6 +1243,8 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
     glUniform1f(Shader.ParameterLocation("cutOff"), this->cutOff);
     glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
+    glUniform1i(Shader.ParameterLocation("width"), this->width);
+    glUniform1i(Shader.ParameterLocation("height"), this->height);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!pos_horizontal]);
@@ -1317,6 +1319,8 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
     glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glUniform1i(Shader.ParameterLocation("overlay"), this->overlay);
+    glUniform1i(Shader.ParameterLocation("width"), this->width);
+    glUniform1i(Shader.ParameterLocation("height"), this->height);
     if (!extendContoursBool && !smoothTimestepsBool) {
         glBindFramebuffer(GL_FRAMEBUFFER, 1);
         if (whiteBackground) {

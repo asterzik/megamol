@@ -515,7 +515,8 @@
                 }
 
                 if(!whiteBackground)
-                    col = 1.0 - col; //invert color because background is dark
+                    col = 1.0; //invert color because background is dark
+                else col = 0;
 
                 FragColor = vec4(col, col, col, 1.0);
             }
@@ -531,141 +532,151 @@
             out vec4 FragColor;
             in vec2 TexCoords;
 
-            uniform sampler2D normalTexture;
-            uniform sampler2D positionTexture;
-            uniform sampler2D curvatureTexture;
+            uniform int width;
+            uniform int height;
 
-            //parameter
-            uniform int radius;
-            uniform float neighbourThreshold; //percentage s in original  SC paper //  in original paper 0.2
-            uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
-            uniform float cutOff;
-            uniform bool medianFilter;
-            uniform bool circularNeighborhood;
-            uniform bool whiteBackground;
+
+            // uniform sampler2D normalTexture;
+            // uniform sampler2D positionTexture;
+            // uniform sampler2D curvatureTexture;
+
+            // //parameter
+            // uniform int radius;
+            // uniform float neighbourThreshold; //percentage s in original  SC paper //  in original paper 0.2
+            // uniform float intensityDiffThreshold; //threshold d in original SC paper // in original paper 0.25
+            // uniform float cutOff;
+            // uniform bool medianFilter;
+            // uniform bool circularNeighborhood;
+            // uniform bool whiteBackground;
 
             void main()
             {
-                vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
-                if(normal == vec3(0.0)){
-                    discard;
-                }
-                vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
-                float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
-                // vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                vec3 lightdir =vec3(0.0, 0.0, 1.0); 
-                float col = dot(normal, lightdir);
-                col /= sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature)));
+                // vec3 normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                // if(normal == vec3(0.0)){
+                //     discard;
+                // }
+                // vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
+                // float curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
+                // // vec3 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
+                // vec3 lightdir =vec3(0.0, 0.0, 1.0); 
+                // float col = dot(normal, lightdir);
+                // col /= sqrt(cutOff * abs(curvature) * (2 - cutOff * abs(curvature)));
 
-                int darker = 0; //How many values are darker than the current pixel?
-                float maxIntensity = col;
+                // int darker = 0; //How many values are darker than the current pixel?
+                // float maxIntensity = col;
                 
-                float filterValues[100]; //Use biggest number as OpenGL does not allow variable sized arrays
-                filterValues[0] = col;    //collects all values for median filtering. 
-                                            //Incoming values are grayscale therefore r component is sufficient
+                // float filterValues[100]; //Use biggest number as OpenGL does not allow variable sized arrays
+                // filterValues[0] = col;    //collects all values for median filtering. 
+                //                             //Incoming values are grayscale therefore r component is sufficient
 
                  
-                // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
-                // Discard all points that are not part of the circle
-                // Collect data and save all intensities to filterValues
-                int idx = 1;
-                int total = 1;
-                vec3 cur_normal;
-                vec3 cur_position;
-                float cur_curvature;
-                float cur;
-                for(int x = 0; x <= radius; x++){
-                    for(int y = 0; y <= radius; y++){
-                        if(x == 0 && y == 0)
-                            continue;
-                        else if(circularNeighborhood && x*x + y*y > radius * radius){
-                            continue;
-                        }
-                        else{
-                            ++total;
-                            cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
-                            cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
-                            cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).z;
-                            cur = dot(cur_normal, lightdir);
-                            cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
-                            if(cur <= col)
-                                ++darker;
-                            if(cur > maxIntensity)
-                                maxIntensity = cur;
-                            filterValues[idx] = cur;
-                            idx++;
+                // // Loop over square with size radius * radius (use symmetry so only 1/4 needs to be tested).
+                // // Discard all points that are not part of the circle
+                // // Collect data and save all intensities to filterValues
+                // int idx = 1;
+                // int total = 1;
+                // vec3 cur_normal;
+                // vec3 cur_position;
+                // float cur_curvature;
+                // float cur;
+                // for(int x = 0; x <= radius; x++){
+                //     for(int y = 0; y <= radius; y++){
+                //         if(x == 0 && y == 0)
+                //             continue;
+                //         else if(circularNeighborhood && x*x + y*y > radius * radius){
+                //             continue;
+                //         }
+                //         else{
+                //             ++total;
+                //             cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
+                //             cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).rgb;
+                //             cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,y), 0).z;
+                //             cur = dot(cur_normal, lightdir);
+                //             cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
+                //             if(cur <= col)
+                //                 ++darker;
+                //             if(cur > maxIntensity)
+                //                 maxIntensity = cur;
+                //             filterValues[idx] = cur;
+                //             idx++;
 
-                            if(x != 0){
-                                ++total;
-                                cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
-                                cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
-                                cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).z;
-                                cur = dot(cur_normal, lightdir);
-                                cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
-                                if(cur <= col)
-                                    ++darker;
-                                if(cur > maxIntensity)
-                                    maxIntensity = cur;
-                                filterValues[idx] = cur;
-                                idx++;
+                //             if(x != 0){
+                //                 ++total;
+                //                 cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
+                //                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).rgb;
+                //                 cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,y), 0).z;
+                //                 cur = dot(cur_normal, lightdir);
+                //                 cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
+                //                 if(cur <= col)
+                //                     ++darker;
+                //                 if(cur > maxIntensity)
+                //                     maxIntensity = cur;
+                //                 filterValues[idx] = cur;
+                //                 idx++;
                                 
-                                if(y != 0){
-                                    ++total;
-                                    cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
-                                    cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
-                                    cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).z;
-                                    cur = dot(cur_normal, lightdir);
-                                    cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
-                                    if(cur <= col)
-                                        ++darker;
-                                    if(cur > maxIntensity)
-                                        maxIntensity = cur;
-                                    filterValues[idx] = cur;
-                                    idx++;
-                                }
-                            }
+                //                 if(y != 0){
+                //                     ++total;
+                //                     cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
+                //                     cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).rgb;
+                //                     cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(-x,-y), 0).z;
+                //                     cur = dot(cur_normal, lightdir);
+                //                     cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
+                //                     if(cur <= col)
+                //                         ++darker;
+                //                     if(cur > maxIntensity)
+                //                         maxIntensity = cur;
+                //                     filterValues[idx] = cur;
+                //                     idx++;
+                //                 }
+                //             }
 
-                            if(y!= 0){
-                                ++total;
-                                cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
-                                cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
-                                cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).z;
-                                cur = dot(cur_normal, lightdir);
-                                cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
-                                if(cur <= col)
-                                    ++darker;
-                                if(cur > maxIntensity)
-                                    maxIntensity = cur;
-                                filterValues[idx] = cur;
-                                idx++;
-                            }
+                //             if(y!= 0){
+                //                 ++total;
+                //                 cur_normal = texelFetch(normalTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
+                //                 cur_position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).rgb;
+                //                 cur_curvature = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(x,-y), 0).z;
+                //                 cur = dot(cur_normal, lightdir);
+                //                 cur /= sqrt(cutOff * abs(cur_curvature) * (2 - cutOff * abs(cur_curvature)));
+                //                 if(cur <= col)
+                //                     ++darker;
+                //                 if(cur > maxIntensity)
+                //                     maxIntensity = cur;
+                //                 filterValues[idx] = cur;
+                //                 idx++;
+                //             }
 
-                        }
-                    }
-                }
-                if(darker > neighbourThreshold * total){
-                    discard;
-                }
-                if(maxIntensity - col <= intensityDiffThreshold){
-                    discard;
-                }
-                // //Median filtering
-                if(medianFilter){
-                    for(int n = total-1; n > 0; n = n - 1){
-                        for(int i = 0; i < n; ++i){
-                            float minimum = min(filterValues[i], filterValues[i+1]);
-                            filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
-                            filterValues[i] = minimum;
-                        }
-                    }
-                    // assign col to the median
-                    col = filterValues[int(floor(total * 1.0 / 2.0))];
-                }
+                //         }
+                //     }
+                // }
+                // if(darker > neighbourThreshold * total){
+                //     discard;
+                // }
+                // if(maxIntensity - col <= intensityDiffThreshold){
+                //     discard;
+                // }
+                // // //Median filtering
+                // if(medianFilter){
+                //     for(int n = total-1; n > 0; n = n - 1){
+                //         for(int i = 0; i < n; ++i){
+                //             float minimum = min(filterValues[i], filterValues[i+1]);
+                //             filterValues[i+1] = max(filterValues[i], filterValues[i+1]);
+                //             filterValues[i] = minimum;
+                //         }
+                //     }
+                //     // assign col to the median
+                //     col = filterValues[int(floor(total * 1.0 / 2.0))];
+                // }
 
-                if(!whiteBackground)
-                    col = 1.0 - col; //invert color because background is dark
+                // if(!whiteBackground)
+                //     col = 1.0 - col; //invert color because background is dark
 
-                FragColor = vec4(col, col, col, 1.0);
+                // FragColor = vec4(col, col, col, 1.0);
+
+                // float value = (gl_FragCoord.x * gl_FragCoord.x + gl_FragCoord.y * gl_FragCoord.y) / 100;
+                // float x = gl_FragCoord.x / width - 0.5;
+                // float y = gl_FragCoord.y / height - 0.5;
+                // float value = x*x + y*y;
+                // FragColor = vec4(value, value, value, 1.0);
             }
           -->
         </snippet>
@@ -733,6 +744,8 @@
             uniform int level_max;
             uniform float cutOff;
             uniform int viewType;
+            uniform int height;
+            uniform int width;
             
             uniform float near_plane;
             uniform bool whiteBackground;
@@ -771,7 +784,20 @@
                 // float viewSpaceWidth = min(min(d1,d2),min(d3,d4));
                 // float viewSpaceWidth = (length(position.xyz - right) + length(position.xyz - left) + length(position.xyz - up) + length(position.xyz -down))/4;
                 float viewSpaceWidth = 0.5*(min(d1,d2)+min(d3,d4));
-                float C = cutOff * viewSpaceWidth;
+
+                // vary c using some scalar field
+
+                float x = (gl_FragCoord.x - width/2) / height;
+                float y = gl_FragCoord.y / height - 0.5;
+                float value = sqrt(x*x + y*y);
+                value *= 5;
+                float C = pow(3, floor(value)) *  viewSpaceWidth;
+
+                // or use the parameter "cutOff"
+
+                // float C = cutOff * viewSpaceWidth;
+
+                
                 if(col > sqrt(C * abs(curvature) * (2 - C * abs(curvature)))){
                     if(overlay) FragColor = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
                     else{ discard;}
@@ -779,6 +805,7 @@
                 else{
                 if(whiteBackground || overlay){
                     FragColor = vec4(vec3(0.0), 1.0);
+                    // FragColor = vec4(1.0,mod(value, 2),0,1);
                 }
                 else{
                     FragColor = vec4(vec3(1.0), 1.0);
