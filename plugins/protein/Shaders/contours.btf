@@ -1859,7 +1859,7 @@
 
                 float dx =2 *  length(dFdx(pixelNormal)) / length(pLeft - pRight);
                 float dy = 2 *length(dFdy(pixelNormal)) / length(pTop - pBottom);
-                fragCurvature = vec4(vec3(dx), 1.0); 
+                fragCurvature = vec4(vec3((dx + dy)/2), 1.0); 
             }
           -->
         </snippet>
