@@ -392,6 +392,7 @@
 
             uniform sampler2D normalTexture;
             uniform sampler2D positionTexture;
+            uniform sampler2D shadingTexture;
 
             //parameter
             uniform int radius;
@@ -400,6 +401,7 @@
             uniform bool medianFilter;
             uniform bool circularNeighborhood;
             uniform bool whiteBackground;
+            uniform bool overlay;
 
             void main()
             {
@@ -408,6 +410,8 @@
                 if(normal == vec3(0.0)){
                     discard;
                 }
+                vec4 shading = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
+                FragColor = shading;
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 lightdir;
                     lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
@@ -494,12 +498,6 @@
                         }
                     }
                 }
-                if(darker > neighbourThreshold * total){
-                    discard;
-                }
-                if(maxIntensity - col <= intensityDiffThreshold){
-                    discard;
-                }
 
                 // //Median filtering
                 if(medianFilter){
@@ -518,7 +516,20 @@
                     col = 1.0; //invert color because background is dark
                 else col = 0;
 
-                FragColor = vec4(col, col, col, 1.0);
+                if(!overlay){
+                    if(darker > neighbourThreshold * total){
+                        discard;
+                    }
+                    if(maxIntensity - col <= intensityDiffThreshold){
+                        discard;
+                    }
+                    FragColor = vec4(col, col, col, 1.0);
+                    }
+                else{
+                    if((darker <= neighbourThreshold * total) && (maxIntensity - col > intensityDiffThreshold))
+                        FragColor = vec4(col, col, col, 1.0);
+                }
+
             }
           -->
         </snippet>
@@ -787,15 +798,15 @@
 
                 // vary c using some scalar field
 
-                float x = (gl_FragCoord.x - width/2) / height;
-                float y = gl_FragCoord.y / height - 0.5;
-                float value = sqrt(x*x + y*y);
-                value *= 5;
-                float C = pow(3, floor(value)) *  viewSpaceWidth;
+                // float x = (gl_FragCoord.x - width/2) / height;
+                // float y = gl_FragCoord.y / height - 0.5;
+                // float value = sqrt(x*x + y*y);
+                // value *= 5;
+                // float C = pow(3, floor(value)) *  viewSpaceWidth;
 
                 // or use the parameter "cutOff"
 
-                // float C = cutOff * viewSpaceWidth;
+                float C = cutOff * viewSpaceWidth;
 
                 
                 if(col > sqrt(C * abs(curvature) * (2 - C * abs(curvature)))){

@@ -1232,7 +1232,7 @@ void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shad
 void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader) {
 
 
-    calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
+    // calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
     glDisable(GL_DEPTH_TEST);
     Shader.Enable();
     glUniform1i(Shader.ParameterLocation("radius"), this->SCRadius);
@@ -1245,6 +1245,8 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glUniform1i(Shader.ParameterLocation("width"), this->width);
     glUniform1i(Shader.ParameterLocation("height"), this->height);
+    glUniform1i(Shader.ParameterLocation("overlay"), this->overlay);
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glActiveTexture(GL_TEXTURE1);
     if (smoothNormals) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!pos_horizontal]);
@@ -1259,11 +1261,13 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
     glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, curvatureTexture);
-    glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
+    // glActiveTexture(GL_TEXTURE3);
+    // glBindTexture(GL_TEXTURE_2D, curvatureTexture);
+    // glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, shadingTexture);
+    glUniform1i(Shader.ParameterLocation("shadingTexture"), 4);
     glGetError();
-    glBindFramebuffer(GL_FRAMEBUFFER, 1);
     if (this->whiteBackground) {
         glClearColor(1.0, 1.0, 1.0, 1.0);
     } else {
