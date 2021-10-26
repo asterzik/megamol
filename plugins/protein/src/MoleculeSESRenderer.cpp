@@ -1315,6 +1315,9 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, shadingTexture);
     glUniform1i(Shader.ParameterLocation("shadingTexture"), 4);
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, colourTexture);
+    glUniform1i(Shader.ParameterLocation("colourTexture"), 5);
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
     glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
     glUniform1i(Shader.ParameterLocation("orthoproj"), this->orthoproj);
@@ -1697,6 +1700,7 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &positionTexture);
         glDeleteTextures(1, &shadingTexture);
         glDeleteTextures(1, &exactCurvatureTexture);
+        glDeleteTextures(1, &colourTexture);
     }
     if (extendContourFBO) {
         glDeleteFramebuffers(2, extendContourFBO);
@@ -1745,6 +1749,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glGenTextures(1, &positionTexture);
     glGenTextures(1, &shadingTexture);
     glGenTextures(1, &exactCurvatureTexture);
+    glGenTextures(1, &colourTexture);
     glGenRenderbuffers(1, &contourDepthRBO);
 
     // contour FBO
@@ -1780,7 +1785,7 @@ void MoleculeSESRenderer::CreateFBO() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, shadingTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // texture for object positions
+    // texture for curvature
     glBindTexture(GL_TEXTURE_2D, this->exactCurvatureTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1789,14 +1794,26 @@ void MoleculeSESRenderer::CreateFBO() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, exactCurvatureTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // texture for color
+    glBindTexture(GL_TEXTURE_2D, this->colourTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, colourTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
     // Depth RBO
     glBindRenderbuffer(GL_RENDERBUFFER, contourDepthRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, this->width, this->height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, contourDepthRBO);
 
-    GLuint attachments[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
-    glDrawBuffers(4, attachments);
+    GLuint attachments[5] = {
+        GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4};
+    glDrawBuffers(5, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());

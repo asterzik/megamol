@@ -752,6 +752,7 @@
             uniform sampler2D positionTexture;
             uniform sampler2D curvatureTexture;
             uniform sampler2D shadingTexture;
+            uniform sampler2D colourTexture;
             uniform int level_max;
             uniform float cutOff;
             uniform int viewType;
@@ -804,9 +805,28 @@
                 // value *= 5;
                 // float C = pow(3, floor(value)) *  viewSpaceWidth;
 
+                // vary c according to atom type:
+                vec3 colour = texelFetch(colourTexture, ivec2(gl_FragCoord.xy), 0).rgb;  
+                float c_width;
+                if(colour.x > 0.5){
+                    if(colour.y < 0.5) //oxygen
+                        c_width = 10;
+                    else if(colour.z < 0.3) //sulphur
+                        c_width = 1;
+                    else
+                        c_width = 1; //hydrogen
+                }
+                else{
+                    if(colour.z > 0.5) //nitrogen
+                        c_width = 1;
+                    else //carbon
+                        c_width = 1;
+                }
+                float C = c_width * viewSpaceWidth;
+
                 // or use the parameter "cutOff"
 
-                float C = cutOff * viewSpaceWidth;
+                // float C = cutOff * viewSpaceWidth;
 
                 
                 if(col > sqrt(C * abs(curvature) * (2 - C * abs(curvature)))){

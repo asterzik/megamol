@@ -531,6 +531,7 @@ namespace protein {
         GLuint timestepsTexture[3];
         GLuint shadingTexture;
         GLuint exactCurvatureTexture;
+        GLuint colourTexture;
         GLuint curvDiffTexture;
         GLuint contourDepthRBO;
         GLuint contourTexture[2];
