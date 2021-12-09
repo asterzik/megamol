@@ -265,15 +265,15 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->MakeSlotAvailable(&this->depthDiffParam);
 
     this->numBlur = 1;
-    this->numBlurParam.SetParameter(new param::FloatParam(this->numBlur, 1.0));
+    this->numBlurParam.SetParameter(new param::FloatParam(this->numBlur, 0.0));
     this->MakeSlotAvailable(&this->numBlurParam);
 
     this->numPosBlur = 1;
-    this->numPosBlurParam.SetParameter(new param::FloatParam(this->numPosBlur, 1.0));
+    this->numPosBlurParam.SetParameter(new param::FloatParam(this->numPosBlur, 0.0));
     this->MakeSlotAvailable(&this->numPosBlurParam);
 
     this->numCurvBlur = 3;
-    this->numCurvBlurParam.SetParameter(new param::FloatParam(this->numCurvBlur, 1.0));
+    this->numCurvBlurParam.SetParameter(new param::FloatParam(this->numCurvBlur, 0.0));
     this->MakeSlotAvailable(&this->numCurvBlurParam);
 
     this->whiteBackground = false;
