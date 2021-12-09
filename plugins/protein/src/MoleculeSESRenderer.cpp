@@ -86,8 +86,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
                                       "with the depth sensitive blur shader?")
         , whiteBackgroundParam("white background", "White Background instead of the standard megamol blue.")
-        , extendContoursParam("extendContours", "extendContours")
-        , smoothTimestepsParam("smoothTimesteps", "smoothTimesteps")
         , overlayParam("overlay", "overlay")
         , curvatureDiffParam("curvatureDiff", "curvatureDiff")
         , computeSesPerMolecule(false) {
@@ -280,29 +278,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->whiteBackgroundParam.SetParameter(new param::BoolParam(this->whiteBackground));
     this->MakeSlotAvailable(&this->whiteBackgroundParam);
 
-    this->extendContoursBool = false;
-    this->extendContoursParam.SetParameter(new param::BoolParam(this->extendContoursBool));
-    this->MakeSlotAvailable(&this->extendContoursParam);
-
-    // this->dilation2Radius = 4;
-    // this->dilation2RadiusParam.SetParameter(new param::IntParam(this->dilation2Radius));
-    // this->MakeSlotAvailable(&this->dilation2RadiusParam);
-
-    // this->dilation1Radius = 3;
-    // this->dilation1RadiusParam.SetParameter(new param::IntParam(this->dilation1Radius, 0));
-    // this->MakeSlotAvailable(&this->dilation1RadiusParam);
-
-    // this->erosion1Radius = 2;
-    // this->erosion1RadiusParam.SetParameter(new param::IntParam(this->erosion1Radius, 0));
-    // this->MakeSlotAvailable(&this->erosion1RadiusParam);
-    // this->erosion2Radius = 2;
-    // this->erosion2RadiusParam.SetParameter(new param::IntParam(this->erosion2Radius, 0));
-    // this->MakeSlotAvailable(&this->erosion2RadiusParam);
-
-    this->smoothTimestepsBool = true;
-    this->smoothTimestepsParam.SetParameter(new param::BoolParam(this->smoothTimestepsBool));
-    this->MakeSlotAvailable(&this->smoothTimestepsParam);
-
     this->overlay = false;
     this->overlayParam.SetParameter(new param::BoolParam(this->overlay));
     this->MakeSlotAvailable(&this->overlayParam);
@@ -446,7 +421,6 @@ bool MoleculeSESRenderer::create(void) {
     if (!vislib::graphics::gl::GLSLShader::InitialiseExtensions())
         return false;
 
-    cur_timestep = 0;
     // glEnable( GL_NORMALIZE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -968,30 +942,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->whiteBackground = this->whiteBackgroundParam.Param<param::BoolParam>()->Value();
         this->whiteBackgroundParam.ResetDirty();
     }
-    if (this->extendContoursParam.IsDirty()) {
-        this->extendContoursBool = this->extendContoursParam.Param<param::BoolParam>()->Value();
-        this->extendContoursParam.ResetDirty();
-    }
-    // if (this->dilation2RadiusParam.IsDirty()) {
-    //     this->dilation2Radius = this->dilation2RadiusParam.Param<param::IntParam>()->Value();
-    //     this->dilation2RadiusParam.ResetDirty();
-    // }
-    // if (this->dilation1RadiusParam.IsDirty()) {
-    //     this->dilation1Radius = this->dilation1RadiusParam.Param<param::IntParam>()->Value();
-    //     this->dilation1RadiusParam.ResetDirty();
-    // }
-    // if (this->erosion1RadiusParam.IsDirty()) {
-    //     this->erosion1Radius = this->erosion1RadiusParam.Param<param::IntParam>()->Value();
-    //     this->erosion1RadiusParam.ResetDirty();
-    // }
-    // if (this->erosion2RadiusParam.IsDirty()) {
-    //     this->erosion2Radius = this->erosion2RadiusParam.Param<param::IntParam>()->Value();
-    //     this->erosion2RadiusParam.ResetDirty();
-    // }
-    if (this->smoothTimestepsParam.IsDirty()) {
-        this->smoothTimestepsBool = this->smoothTimestepsParam.Param<param::BoolParam>()->Value();
-        this->smoothTimestepsParam.ResetDirty();
-    }
     if (this->overlayParam.IsDirty()) {
         this->overlay = this->overlayParam.Param<param::BoolParam>()->Value();
         this->overlayParam.ResetDirty();
@@ -1264,20 +1214,11 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glUniform1i(Shader.ParameterLocation("overlay"), this->overlay);
     glUniform1i(Shader.ParameterLocation("width"), this->width);
     glUniform1i(Shader.ParameterLocation("height"), this->height);
-    if (!extendContoursBool && !smoothTimestepsBool) {
-        glBindFramebuffer(GL_FRAMEBUFFER, 1);
-        if (whiteBackground) {
-            glClearColor(1.0, 1.0, 1.0, 0.0);
-        } else {
-            glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        }
-    } else if (extendContoursBool) {
-        glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[0]);
-        glClearColor(0.0, 0.0, 0.0, 0.0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 1);
+    if (whiteBackground) {
+        glClearColor(1.0, 1.0, 1.0, 0.0);
     } else {
-        auto test = cur_timestep % 3;
-        glBindFramebuffer(GL_FRAMEBUFFER, timestepsFBO[cur_timestep % 3]);
-        glClearColor(0.0, 0.0, 0.0, 0.0);
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
@@ -1303,127 +1244,6 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     Shader.Disable();
-    if (extendContoursBool) {
-        extendContours();
-    } else if (smoothTimestepsBool) {
-        smoothTimesteps();
-    }
-}
-void MoleculeSESRenderer::extendContours() {
-
-    // glDisable(GL_DEPTH_TEST);
-
-    // // dilation
-    // dilationShader.Enable();
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
-    // glUniform1i(dilationShader.ParameterLocation("contourTexture"), 0);
-    // glUniform1i(dilationShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    // glUniform1i(dilationShader.ParameterLocation("radius"), this->dilation1Radius);
-    // glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[1]);
-    // glClearColor(0, 0, 0, 0);
-    // // glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-    // glClear(GL_COLOR_BUFFER_BIT);
-    // glBindVertexArray(quadVAO);
-    // glDrawArrays(GL_TRIANGLES, 0, 6);
-    // glEnable(GL_DEPTH_TEST);
-    // glBindVertexArray(0);
-    // dilationShader.Disable();
-
-    // // erosion
-    // erosionShader.Enable();
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, contourTexture[1]);
-    // glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
-    // glUniform1i(erosionShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    // glUniform1i(erosionShader.ParameterLocation("radius"), this->erosion1Radius);
-    // glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[0]);
-    // glClearColor(0, 0, 0, 0);
-    // glClear(GL_COLOR_BUFFER_BIT);
-    // glBindVertexArray(quadVAO);
-    // glDrawArrays(GL_TRIANGLES, 0, 6);
-    // glEnable(GL_DEPTH_TEST);
-    // glBindVertexArray(0);
-    // erosionShader.Disable();
-
-    // // // erosion
-    // erosionShader.Enable();
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, contourTexture[0]);
-    // glUniform1i(erosionShader.ParameterLocation("contourTexture"), 0);
-    // glUniform1i(erosionShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    // glUniform1i(erosionShader.ParameterLocation("radius"), this->erosion2Radius);
-    // glBindFramebuffer(GL_FRAMEBUFFER, extendContourFBO[1]);
-    // glClearColor(0, 0, 0, 0);
-    // glClear(GL_COLOR_BUFFER_BIT);
-    // glBindVertexArray(quadVAO);
-    // glDrawArrays(GL_TRIANGLES, 0, 6);
-    // glEnable(GL_DEPTH_TEST);
-    // glBindVertexArray(0);
-    // erosionShader.Disable();
-
-    // // dilation
-    // dilationShader.Enable();
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, contourTexture[1]);
-    // glUniform1i(dilationShader.ParameterLocation("contourTexture"), 0);
-    // glUniform1i(dilationShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    // glUniform1i(dilationShader.ParameterLocation("radius"), this->dilation2Radius);
-    // if (smoothTimestepsBool) {
-    //     glBindFramebuffer(GL_FRAMEBUFFER, timestepsFBO[cur_timestep % 3]);
-    //     glClearColor(0.0, 0.0, 0.0, 0.0);
-    // } else {
-    //     glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    //     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-    // }
-    // glClear(GL_COLOR_BUFFER_BIT);
-    // glBindVertexArray(quadVAO);
-    // glDrawArrays(GL_TRIANGLES, 0, 6);
-    // glEnable(GL_DEPTH_TEST);
-    // glBindVertexArray(0);
-    // dilationShader.Disable();
-    // if (smoothTimestepsBool) {
-    //     smoothTimesteps();
-    // }
-}
-void MoleculeSESRenderer::smoothTimesteps() {
-    if (cur_timestep < 2) {
-        cur_timestep++;
-        return;
-    }
-    smoothTimestepsShader.Enable();
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, timestepsTexture[(cur_timestep - 2) % 3]);
-    glUniform1i(smoothTimestepsShader.ParameterLocation("first"), 0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, timestepsTexture[(cur_timestep - 1) % 3]);
-    glUniform1i(smoothTimestepsShader.ParameterLocation("second"), 1);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, timestepsTexture[cur_timestep % 3]);
-    glUniform1i(smoothTimestepsShader.ParameterLocation("third"), 2);
-
-    // glUniform1i(smoothTimestepsShader.ParameterLocation("whiteBackground"), this->whiteBackground);
-    glBindFramebuffer(GL_FRAMEBUFFER, 1);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glEnable(GL_DEPTH_TEST);
-    glBindVertexArray(0);
-    smoothTimestepsShader.Disable();
-    cur_timestep++;
-
-    passThroughShader.Enable();
-    glActiveTexture(GL_TEXTURE0);
-    glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glEnable(GL_DEPTH_TEST);
-    glActiveTexture(GL_TEXTURE0);
-    glBindVertexArray(0);
-    passThroughShader.Disable();
 }
 void MoleculeSESRenderer::displayPositions() {
 

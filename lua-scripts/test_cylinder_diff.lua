@@ -34,8 +34,6 @@ mmSetParamValue("::MoleculeSESRenderer_1::# normal blurring iterations",[=[10.00
 mmSetParamValue("::MoleculeSESRenderer_1::# position blurring iterations",[=[10.000000]=])
 mmSetParamValue("::MoleculeSESRenderer_1::# curvature blurring iterations",[=[10.000000]=])
 mmSetParamValue("::MoleculeSESRenderer_1::white background",[=[true]=])
-mmSetParamValue("::MoleculeSESRenderer_1::extendContours",[=[false]=])
-mmSetParamValue("::MoleculeSESRenderer_1::smoothTimesteps",[=[false]=])
 mmSetParamValue("::MoleculeSESRenderer_1::overlay",[=[true]=])
 mmSetParamValue("::MoleculeSESRenderer_1::curvatureDiff",[=[true]=])
 mmSetParamValue("::MoleculeSESRenderer_1::drawSES",[=[true]=])
