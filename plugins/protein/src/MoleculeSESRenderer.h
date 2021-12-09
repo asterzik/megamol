@@ -290,20 +290,6 @@ namespace protein {
         /** Parameter to toggle offscreen rendering */
         megamol::core::param::ParamSlot offscreenRenderingParam;
         megamol::core::param::ParamSlot probeRadiusSlot;
-        /** Pyramid Parameters */
-        // megamol::core::param::ParamSlot pyramidWeightsParam;
-        // GLfloat pyramidWeight;
-        megamol::core::param::ParamSlot smoothNormalsParam;
-        GLboolean smoothNormals;
-        megamol::core::param::ParamSlot smoothCurvatureParam;
-        GLboolean smoothCurvature;
-        megamol::core::param::ParamSlot smoothPositionsParam;
-        GLboolean smoothPositions;
-        // megamol::core::param::ParamSlot pyramidLayersParam;
-        // GLint pyramidLayers;
-        // megamol::core::param::ParamSlot pyramidGammaParam;
-        // GLfloat pyramidGamma;
-        /** Suggestive Contours Parametes */
         megamol::core::param::ParamSlot SCRadiusParam;
         GLint SCRadius;
         megamol::core::param::ParamSlot SCNeighbourThresholdParam;
