@@ -1345,7 +1345,25 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
+
+
+    // GLuint64 startTime, stopTime;
+    // unsigned int queryID[2];
+    // glGenQueries(2, queryID);
+    // glQueryCounter(queryID[0], GL_TIMESTAMP);
+
     glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // glQueryCounter(queryID[1], GL_TIMESTAMP);
+    // GLint stopTimerAvailable = 0;
+    // while (!stopTimerAvailable) {
+    //     glGetQueryObjectiv(queryID[1], GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
+    // }
+
+    // glGetQueryObjectui64v(queryID[0], GL_QUERY_RESULT, &startTime);
+    // glGetQueryObjectui64v(queryID[1], GL_QUERY_RESULT, &stopTime);
+
+    // printf("Time spent on the GPU for drawing the contours: %f ms\n", (stopTime - startTime) / 1000000.0);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     Shader.Disable();
@@ -1584,6 +1602,12 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
         glUniform1i(Shader.ParameterLocation("level_max"), depth2Pyramid.getMipmapNumber());
     }
 
+
+    // GLuint64 elapsed_time;
+    // GLuint query;
+    // glGenQueries(1, &query);
+    // glFinish();
+    // glBeginQuery(GL_TIME_ELAPSED, query);
     Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
     if (smoothPositions) {
@@ -1606,10 +1630,22 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
+
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(0);
+    // glFinish();
+    // glEndQuery(GL_TIME_ELAPSED);
+
+    // GLint stopTimerAvailable = 0;
+    // while (!stopTimerAvailable) {
+    //     glGetQueryObjectiv(query, GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
+    // }
+
+    // glGetQueryObjectui64v(query, GL_QUERY_RESULT, &elapsed_time);
+
+    // printf("Time spent on the GPU for computing the curvature: %f ms\n", elapsed_time / 1000000.0);
 }
 
 void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shader) {
@@ -1687,7 +1723,22 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
+    // GLuint64 startTime, stopTime;
+    // unsigned int queryID[2];
+    // glGenQueries(2, queryID);
+    // glQueryCounter(queryID[0], GL_TIMESTAMP);
+
     glDrawArrays(GL_TRIANGLES, 0, 6);
+    // glQueryCounter(queryID[1], GL_TIMESTAMP);
+    // GLint stopTimerAvailable = 0;
+    // while (!stopTimerAvailable) {
+    //     glGetQueryObjectiv(queryID[1], GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
+    // }
+
+    // glGetQueryObjectui64v(queryID[0], GL_QUERY_RESULT, &startTime);
+    // glGetQueryObjectui64v(queryID[1], GL_QUERY_RESULT, &stopTime);
+
+    // printf("Time spent on the GPU for pass through: %f ms\n", (stopTime - startTime) / 1000000.0);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
 }
