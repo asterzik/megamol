@@ -689,10 +689,12 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     float* bfactors = mol->AtomBFactors();
 
 
+    if (testcase && cylinderBool)
+        this->Cylinder();
+    else
+        this->RenderSESGpuRaycasting(mol);
     if (offscreenRendering) {
 
-        if (testcase && cylinderBool)
-            this->Cylinder();
 
         if (this->numPosBlur > 0) {
             this->SmoothPositions(*blurShaderMap[currentBlurMode]);
@@ -717,8 +719,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         }
         // stop rendering to frame buffer object
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    } else
-        this->RenderSESGpuRaycasting(mol);
+    }
 
     glPopMatrix();
 
@@ -1270,6 +1271,8 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
     glActiveTexture(GL_TEXTURE1);
     if (curvatureDiff)
         glBindTexture(GL_TEXTURE_2D, curvDiffTexture);
+    else if (numCurvBlur > 0)
+        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
     else
         glBindTexture(GL_TEXTURE_2D, curvatureTexture);
 
@@ -1292,9 +1295,6 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
         glBindTexture(GL_TEXTURE_2D, curvatureTexture);
     else
         glBindTexture(GL_TEXTURE_2D, curvDiffTexture);
-    if (this->numCurvBlur > 0 && !curvatureDiff) {
-        glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
-    }
 
     // This unfortunately seems to be necessary to make MegaMol display the data right. I don't know why... :(
     this->passThroughShader.Enable();
