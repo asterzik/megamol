@@ -53,7 +53,6 @@
             in vec3 normal;
             uniform float kappa1;
             uniform vec3 centreline;
-            // uniform mat4 mv;
             uniform mat3 normalMatrix;
             uniform bool circle;
 
@@ -65,7 +64,6 @@
                 vec3 viewdir = normalize(-pos);
                 vec3 n = normalize(normal);
 
-                // FragShading = vec4(dot(n, viewdir) *  vec3(174/255.0, 59/255.0, 50/255.0), 0.);
                 if(circle){
                     FragCurvature = vec4(vec3(0), 1.0);
                     FragShading = vec4(0.95, 0.95, 0.95, 1);
@@ -74,13 +72,14 @@
                     FragShading = vec4(0.9, 0.9, 0.9, 1);
                    // project viewdir into tangent plane
                    vec3 proj_viewdir = viewdir - n * dot(viewdir, n);
-                   // get first principal curvature direction
 
+                   // get first principal curvature direction
                    vec3 t_centreline = normalMatrix * centreline;
                    vec3 dir_kappa1 = cross(normalize(t_centreline), n);
 
                    //Calculate radial curvature with Eulers theorem
                    float cos_theta = dot(normalize(dir_kappa1), normalize(proj_viewdir));
+
                    //Only first term because kappa2 = 0
                    float radial_curvature = kappa1 * cos_theta * cos_theta;
                    FragCurvature = vec4(vec3(radial_curvature), 1.0);
@@ -335,9 +334,8 @@
                 vec4 color = texelFetch(curvDiffTexture, ivec2(gl_FragCoord.xy), 0);
                 if(color.a == 0)
                     discard;
-                // vec2 width = texelFetch(widthTexture, ivec2(0,0), level_max - 1).xy;
                 float maximum = 1.0;
-                float minimum = -maximum;//width.y;
+                float minimum = -maximum;
                 float scaled = (color.x - minimum)/(maximum - minimum);
                 if(scaled > 1 || scaled < 0)
                     FragColor = vec4(0.0,0.0,0.0, 1.0);
@@ -612,6 +610,8 @@
                 curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
                 lightdir = normalize(vec3(0.0, 0.0, 0.0) - position.xyz); 
                 col =dot(normal, lightdir);
+                
+                //Approximate the view-space width to transform the line-width controlling parameter from view space to screen space
                 vec3 right = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).rgb;
                 vec3 left = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).rgb;
                 vec3 up = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).rgb;
@@ -621,8 +621,6 @@
                 d2 = length(position.xyz - left);
                 d3 = length(position.xyz - up);
                 d4 = length(position.xyz - down);
-                // float viewSpaceWidth = min(min(d1,d2),min(d3,d4));
-                // float viewSpaceWidth = (length(position.xyz - right) + length(position.xyz - left) + length(position.xyz - up) + length(position.xyz -down))/4;
                 float viewSpaceWidth = 0.5*(min(d1,d2)+min(d3,d4));
 
                 // vary c using some scalar field
@@ -687,7 +685,6 @@
                 else{
                 if(whiteBackground || overlay){
                     FragColor = vec4(vec3(0.0), 1.0);
-                    // FragColor = vec4(1.0,mod(value, 2),0,1);
                 }
                 else{
                     FragColor = vec4(vec3(1.0), 1.0);
@@ -706,6 +703,7 @@
           <snippet type="string">
             <!--
 
+            //From http://www.madebyevan.com/shaders/curvature/
 
             out vec4 fragCurvature;
 
@@ -724,10 +722,9 @@
 
                 vec3 n = normalize(passNormal_view.xyz);
 
-                // Compute curvature
                 vec3 dx = dFdx(n);
                 vec3 dy = dFdy(n);
-                vec3 xneg = n - dx;//Das hier sind dann quasi die neuen ein bisschen verschobenen Normalen aber äquivalente Abstände für alle fragment shader läufe
+                vec3 xneg = n - dx; 
                 vec3 xpos = n + dx;
                 vec3 yneg = n - dy;
                 vec3 ypos = n + dy;
@@ -746,6 +743,7 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
+            // Compare to https://doi.org/10.1145/1531326.1531331
 
 
             out vec4 fragCurvature;
@@ -767,10 +765,8 @@
                 vec3 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
                 vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
-                vec3 dx = 2 * dFdx(n) / length(pLeft - pRight); // Das ist zur Normalisierung, da man nicht weiß wie weit die einzelnen Pixel im view space tatsächlich auseinander liegen und man schlussendlich in jedem fragemnt shader Lauf gleiche Abstände haben möchte
+                vec3 dx = 2 * dFdx(n) / length(pLeft - pRight); //Normalize to have equivalent view space width
                 vec3 dy =  2 * dFdy(n) / length(pTop - pBottom);
-                // vec3 dx = dFdx(n);
-                // vec3 dy = dFdy(n); 
                 
                 float curvature = (-(dx.x + dy.y)/n.z + (n.x * dx.z + n.y * dy.z) / (n.z * n.z)) / -2;
                 if(isnan(curvature)) //This happens at the silhouette of the molecule, because for the calculation of dFdx or dFdy, neighbouring pixels are vec4(0).
@@ -851,7 +847,6 @@
                 vec3 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
                 vec3 nBottom = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
 
-                // Compute curvature for all "edges" in the 4-neighborhood
                 float curvature =  dot(n - nLeft, p - pLeft) / (length(p-pLeft) * length(p-pLeft));
                 curvature +=  dot(n- nTop, p - pTop) / (length(pTop - p) * length(pTop - p));
                 curvature +=  dot(n -nRight, p - pRight) / (length(pRight - p) * length(pRight - p));
@@ -866,6 +861,7 @@
           <snippet type="version">420</snippet>
           <snippet type="string">
             <!--
+            // Source http://graphics.zcu.cz/sscurvature.html
 			#define TRIANGLE_VERTICES  3
 
 
@@ -1017,12 +1013,14 @@
                 vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                 vec2 eigenvalues;
+                //As a default use upper Right Triangle for the Shape operator approximation
                 if(pTop != vec4(0) && pRight!= vec4(0)){
                     vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
                     vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                     eigenvalues = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
                 }
+                //If the upper right triangle is across a silhouette, use lower left
                 else{
                     vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
                     vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
@@ -1034,7 +1032,6 @@
                 }
                 float mean_curv = 0.5 * (eigenvalues.x + eigenvalues.y);
 
-                //TODO: If the effects of this discarding are really bothering, one could in an additional shader pass use the curvature of a neighbouring pixel for the nan and inf values.
                 if(isnan(mean_curv) || isinf(mean_curv))
                     discard;
                 fragCurvature = vec4(vec3(mean_curv),1.0);
@@ -1048,6 +1045,7 @@
           <snippet type="version">420</snippet>
           <snippet type="string">
             <!--
+            //Source: http://graphics.zcu.cz/sscurvature.html
 			#define TRIANGLE_VERTICES  3
 
 
@@ -1175,11 +1173,6 @@
 				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
 				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
 
-
-				// float gauss = L1 * L2;
-	
-				// float mean = 0.5 * (L1 + L2);
-
 				return vec2(L1, L2);
 			}
 
@@ -1193,12 +1186,14 @@
                 vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                 vec2 eigenvalues;
+                //As a default use upper Right Triangle for the Shape operator approximation
                 if(pTop != vec4(0) && pRight!= vec4(0)){
                     vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
                     vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                     eigenvalues = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
                 }
+                //If the upper right triangle is across a silhouette, use lower left
                 else{
                     vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
                     vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
@@ -1222,6 +1217,7 @@
           <snippet type="version">420</snippet>
           <snippet type="string">
             <!--
+            //Source: http://graphics.zcu.cz/sscurvature.html
 			#define TRIANGLE_VERTICES  3
 
 
@@ -1354,6 +1350,7 @@
 				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
 				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
 
+                //Compute maximum principal curvature direction (eigenvector) according to:
                 //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
                 vec2 eigenvec1;
 
@@ -1367,10 +1364,11 @@
                 }
 
                 vec3 viewdir = normalize(vec3(0.0, 0.0, 0.0) - a); 
-                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates //TODO: is this correct
+                viewdir = transformMatrix * viewdir; //transform viewdir into local coordinates 
                 viewdir = normalize(viewdir);
                 vec2 proj_viewdir = (viewdir - (dot(viewdir,normalize(local_triangleNor[0])) * normalize(local_triangleNor[0]))).xy; //project onto tangent plane
                 float cos = dot(normalize(proj_viewdir), normalize(eigenvec1));
+                //Use eulers theorem to compute radial curvature
                 float radial_curv = L1 * cos * cos + L2 * (1- cos * cos);
 
 				return radial_curv;
@@ -1387,12 +1385,14 @@
                 vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                 float curv;
+                //As a default use upper Right Triangle for the Shape operator approximation
                 if(pTop != vec4(0) && pRight!= vec4(0)){
                     vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
                     vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                     curv = CalcCurvature_ShapeOperator(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
                 }
+                //If the upper right triangle is across a silhouette, use lower left
                 else{
                     vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
                     vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
@@ -1542,7 +1542,8 @@
 
 				float L1 = ((tmp_gpu.x + tmp_gpu.z) + sqrtD) * 0.5;
 				float L2 = ((tmp_gpu.x + tmp_gpu.z) - sqrtD) * 0.5;
-                //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
+
+                //Calculate maximum principal curvature direction (eigenvalue) according to:
                 //https://people.math.harvard.edu/~knill/teaching/math21b2004/exhibits/2dmatrices/index.html
                 vec2 eigenvec1;
 
@@ -1559,6 +1560,7 @@
                 viewdir = normalize(transformMatrix * viewdir); //transform viewdir into local coordinates
                 vec2 proj_viewdir = (viewdir - dot(viewdir,local_triangleNor[0])* local_triangleNor[0]).xy; //project onto tangent plane
                 float cos = dot(normalize(proj_viewdir), normalize(eigenvec1));
+                //use eulers theorem to compute the radial curvature
                 float radial_curv = L1 * cos * cos + L2 * (1- cos * cos);
 
 				return radial_curv;
@@ -1574,12 +1576,14 @@
                 vec4 pRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                 float radial_curv;
+                //As a default use upper Right Triangle for the Shape operator approximation
                 if(pTop != vec4(0) && pRight!= vec4(0)){
                     vec4 nTop = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(0,1)), 0);
                     vec4 nRight = texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy + vec2(1,0)), 0);
 
                     radial_curv = CalcCurvature_ShapeOperator_2edge(p.xyz, pRight.xyz, pTop.xyz, n.xyz, nRight.xyz, nTop.xyz);
                 }
+                //If the upper right triangle is across a silhouette, use lower left
                 else{
                     vec4 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0);
                     vec4 pLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0);
@@ -1605,6 +1609,7 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
+            //Calculate the gradient of the arccosine of the shading as a curvature approximation
             out vec4 fragCurvature;
 
             uniform sampler2D tex_fragPosition;
@@ -1637,6 +1642,8 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
+            //Calculate the gradient of the arccosine of the shading as a curvature approximation.
+            //Use the 4-neighborhood
             out vec4 fragCurvature;
 
             uniform sampler2D tex_fragPosition;
@@ -1674,6 +1681,8 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
+            //Calculate the gradient of the arccosine of the shading as a curvature approximation.
+            //Use the Sobel Operator
             out vec4 fragCurvature;
 
             uniform sampler2D tex_fragPosition;
@@ -1723,6 +1732,7 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
+            //Calculate the magnitude of the derivative of the normals to approximate the mean curvature
             out vec4 fragCurvature;
 
             uniform sampler2D tex_fragNormal;
@@ -1740,10 +1750,13 @@
                 vec3 pTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz;
                 vec3 pBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).xyz;
 
+                //Use built-in shader functions
+
                 // float dx =2 *  length(dFdx(pixelNormal)) / length(pLeft - pRight);
                 // float dy = 2 *length(dFdy(pixelNormal)) / length(pTop - pBottom);
                 // fragCurvature = vec4(vec3((dx + dy)/2), 1.0); 
 
+                //Or use the 4-neighborhood
                 vec3 nLeft = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) - ivec2(1,0), 0).xyz);
                 vec3 nRight = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(1,0), 0).xyz);
                 vec3 nTop = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).xyz);
@@ -1766,6 +1779,7 @@
           <snippet type="version">330</snippet>
           <snippet type="string">
             <!--
+            //Calculate the partial derivative of the normals to approximate the mean curvature
             out vec4 fragCurvature;
 
             uniform sampler2D tex_fragNormal;
@@ -1788,72 +1802,6 @@
                 float dy = dFdy(pixelNormal.y);
                 dy *= 2  / length(pTop - pBottom);
                 fragCurvature = vec4(vec3(dx + dy) / 2, 1.0); 
-                // fragCurvature = vec4(vec3(dx), 1.0); 
-            }
-          -->
-        </snippet>
-      </shader>
-        
-        <shader name="fragment">
-          <snippet type="version">330</snippet>
-          <snippet type="string">
-            <!--
-            out vec4 fragCurvature;
-
-            uniform sampler2D tex_fragPosition;
-            uniform sampler2D tex_fragCurvature;
-            uniform sampler2D tex_fragNormal;
-
-            vec4 showZerocrossing(float curvature, float curvatureDxy) {
-                if(abs(curvature) <= 0.01 * curvatureDxy) {
-                    return vec4(0);
-                }
-                return vec4(1);
-            }
-
-            void main() {
-                vec3 pixelPosition = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy), 0).xyz;
-                vec3 pixelNormal = normalize(texelFetch(tex_fragNormal, ivec2(gl_FragCoord.xy), 0).xyz);
-                vec4 curvature = texelFetch(tex_fragCurvature, ivec2(gl_FragCoord.xy), 0);
-
-                // if (curvature.xyz == vec3(1, 0, 0)) { // "Maske"
-                //     fragCurvature=vec4(1);
-                // }
-
-                float f = 1.0;//0.01;
-                float scaledCurvature = curvature.x * f;
-
-                // TODO: use pixel 3D locations to calculate the derivative. Also smooth the result -> pull-push
-                vec3 pixelPositionLeft = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(-1,0)), 0).xyz;
-                vec3 pixelPositionTop = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,1)), 0).xyz;
-                vec3 pixelPositionRight = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(1,0)), 0).xyz;
-                vec3 pixelPositionBottom = texelFetch(tex_fragPosition, ivec2(gl_FragCoord.xy + vec2(0,-1)), 0).xyz;
-
-                float curvatureDx = dFdx(scaledCurvature); // / length(pixelPositionLeft - pixelPositionRight);
-                float curvatureDy = dFdy(scaledCurvature); // / length(pixelPositionTop - pixelPositionBottom);
-                vec2 curvatureDirection = (vec2(curvatureDx, curvatureDy));
-
-                // create local coordinate system at the pixel position
-                vec3 h = normalize(vec3(-1));
-                vec3 U = cross(pixelNormal, h);
-                vec3 V = cross(h, U);
-
-                // project the view vector into the local system
-                vec3 v = normalize(-pixelPosition);
-                vec2 vProjected = vec2(dot(U,v), dot (V,v));
-
-                float isSuggestiveContour = sign(dot(vProjected, curvatureDirection));
-
-                if (scaledCurvature >= 0) {
-                    fragCurvature = vec4(1) - vec4(scaledCurvature, 0, 0, 0);
-                } else {
-                    fragCurvature = vec4(1) - vec4(0, -scaledCurvature, 0, 0);
-                }
-
-                if(isSuggestiveContour > 0) {
-                    fragCurvature *= showZerocrossing(scaledCurvature, length(curvatureDirection));
-                }
-
             }
           -->
         </snippet>

@@ -82,8 +82,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , depthDiffParam("depthDiff", " How big is the z-Position difference of two pixels allowed to be for blurring "
                                       "with the depth sensitive blur shader?")
         , whiteBackgroundParam("white background", "White Background instead of the standard megamol blue.")
-        , overlayParam("overlay", "overlay")
-        , curvatureDiffParam("curvatureDiff", "curvatureDiff")
+        , overlayParam("overlay", "Overlay the contours onto the shaded image")
+        , curvatureDiffParam(
+              "curvatureDiff", "Display the difference between the exact (analytical) and the approximated curvature")
         , computeSesPerMolecule(false) {
 #pragma region // Set parameters
 
@@ -220,7 +221,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCDiffThresholdParam.SetParameter(new param::FloatParam(this->SCDiffThreshold, 0.0, 1.0));
     this->MakeSlotAvailable(&this->SCDiffThresholdParam);
 
-    this->SCMedianFilter = false;
+    this->SCMedianFilter = false; // Apply the median filter in the SC generation?
     this->SCMedianFilterParam.SetParameter(new param::BoolParam(this->SCMedianFilter));
     this->MakeSlotAvailable(&this->SCMedianFilterParam);
 
@@ -272,11 +273,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     Color::MakeRainbowColorTable(100, this->rainbowColors);
 
     this->contourFBO = 0;
-    this->extendContourFBO[0] = 0;
-    this->extendContourFBO[1] = 0;
-    this->timestepsFBO[0] = 0;
-    this->timestepsFBO[1] = 0;
-    this->timestepsFBO[2] = 0;
     this->contourDepthRBO = 0;
     this->curvatureFBO = 0;
     this->curvDiffFBO = 0;
@@ -481,25 +477,6 @@ bool MoleculeSESRenderer::create(void) {
     if (!this->loadShader(this->depthBlurShader, "contours::vertex", "contours::postprocessing::depthBlur"))
         return false;
     if (!this->loadShader(this->depthGaussBlurShader, "contours::vertex", "contours::postprocessing::gauss-depth-blur"))
-        return false;
-    if (!this->loadShader(
-            this->perspectiveTestCaseShader, "testCase_perspective::vertex", "testCase_perspective::fragment"))
-        return false;
-    if (!this->loadShader(this->dilationShader, "contours::vertex", "morphology::dilation"))
-        return false;
-    if (!this->loadShader(this->erosionShader, "contours::vertex", "morphology::erosion"))
-        return false;
-    // if (!this->loadShader(this->dilation_v_Shader, "contours::vertex", "morphology::dilation_vert"))
-    //     return false;
-    // if (!this->loadShader(this->erosion_v_Shader, "contours::vertex", "morphology::erosion_vert"))
-    //     return false;
-    // if (!this->loadShader(this->dilation_h_Shader, "contours::vertex", "morphology::dilation_hor"))
-    //     return false;
-    // if (!this->loadShader(this->erosion_h_Shader, "contours::vertex", "morphology::erosion_hor"))
-    //     return false;
-    if (!this->loadShader(this->medianShader, "contours::vertex", "morphology::median"))
-        return false;
-    if (!this->loadShader(this->smoothTimestepsShader, "contours::vertex", "timesteps::fragment"))
         return false;
 
     // // Load test case shader
