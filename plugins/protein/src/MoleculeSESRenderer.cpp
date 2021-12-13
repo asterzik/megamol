@@ -309,10 +309,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
         glDeleteTextures(1, &positionTexture);
         glDeleteTextures(1, &shadingTexture);
     }
-    if (extendContourFBO) {
-        glDeleteFramebuffers(2, extendContourFBO);
-        glDeleteTextures(2, contourTexture);
-    }
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
         glDeleteTextures(1, &curvatureTexture);
@@ -332,10 +328,6 @@ MoleculeSESRenderer::~MoleculeSESRenderer(void) {
     if (smoothCurvFBO) {
         glDeleteFramebuffers(2, smoothCurvFBO);
         glDeleteTextures(2, smoothCurvatureTexture);
-    }
-    if (timestepsFBO) {
-        glDeleteFramebuffers(3, timestepsFBO);
-        glDeleteTextures(3, timestepsTexture);
     }
     // delete singularity texture
     for (unsigned int i = 0; i < singularityTexture.size(); ++i)
@@ -659,22 +651,12 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
     }
 
     if (virtualViewportChanged) {
-        // TODO: All this stuff should only be created if necessary
-        // normalPyramid.create("fragNormal", this->width, this->height, this->GetCoreInstance(),
-        // "pullpush::pullNormal",
-        //     "pullpush::pushNormal");
-        // positionPyramid.create("fragPosition", this->width, this->height, this->GetCoreInstance(),
-        //     "pullpush::pullPosition", "pullpush::pushPosition");
         depthPyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth");
         heightPyramid.create("fragMaxY", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxY");
         widthPyramid.create("fragMaxX", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxX");
         depth2Pyramid.create(
             "fragMaxDepth", this->width, this->height, this->GetCoreInstance(), "pullpush::pullMaxDepth2");
-        // SCpyramid.create(
-        //     "outData", this->width, this->height, this->GetCoreInstance(), "pullpush::pullSC","pullpush::pushSC");
-        // curvaturePyramid.create("fragCurvature", this->width, this->height, this->GetCoreInstance(),
-        //     "pullpush::pullCurvature", "pullpush::pushCurvature");
         this->CreateQuadBuffers();
         this->CreateFBO();
     }
@@ -704,18 +686,13 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    // if (!protein::computeRMSF(mol)) {
-    //     std::cout << "Computation of RMSF failed!" << std::endl;
-    //     return false;
-    // }
     float* bfactors = mol->AtomBFactors();
 
-    if (testcase && cylinderBool)
-        this->Cylinder();
-    else
-        this->RenderSESGpuRaycasting(mol);
 
     if (offscreenRendering) {
+
+        if (testcase && cylinderBool)
+            this->Cylinder();
 
         if (this->numPosBlur > 0) {
             this->SmoothPositions(*blurShaderMap[currentBlurMode]);
@@ -740,7 +717,8 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         }
         // stop rendering to frame buffer object
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
+    } else
+        this->RenderSESGpuRaycasting(mol);
 
     glPopMatrix();
 
@@ -943,6 +921,7 @@ void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader
 
     normal_horizontal = true;
     bool first_iteration = true;
+    // Smooth in horizontal direction first, then vertical
     for (unsigned int i = 0; i < this->numNormBlur; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, normalFBO[normal_horizontal]);
         glUniform1i(Shader.ParameterLocation("horizontal"), normal_horizontal);
@@ -972,6 +951,7 @@ void MoleculeSESRenderer::SmoothCurvature(vislib::graphics::gl::GLSLShader& Shad
 
     curv_horizontal = true;
     bool first_iteration = true;
+    // Smooth in horizontal direction first, then vertical
     for (unsigned int i = 0; i < this->numCurvBlur; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, smoothCurvFBO[curv_horizontal]);
         glUniform1i(Shader.ParameterLocation("horizontal"), curv_horizontal);
@@ -990,9 +970,6 @@ void MoleculeSESRenderer::SmoothCurvature(vislib::graphics::gl::GLSLShader& Shad
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shader) {
-    /*
-     * Execute Pull-Push algorithm for smoothing
-     */
     glDisable(GL_DEPTH_TEST);
     Shader.Enable();
     glActiveTexture(GL_TEXTURE1);
@@ -1003,6 +980,7 @@ void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shad
 
     pos_horizontal = true;
     bool first_iteration = true;
+    // Smooth in horizontal direction first, then vertical
     for (unsigned int i = 0; i < this->numPosBlur; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, positionFBO[pos_horizontal]);
         glUniform1i(Shader.ParameterLocation("horizontal"), pos_horizontal);
@@ -1023,8 +1001,6 @@ void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shad
 
 void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader) {
 
-
-    // calculateCurvature(*curvatureShaderMap[this->currentCurvatureMode]);
     glDisable(GL_DEPTH_TEST);
     Shader.Enable();
     glUniform1i(Shader.ParameterLocation("radius"), this->SCRadius);
@@ -1052,9 +1028,6 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
     glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
-    // glActiveTexture(GL_TEXTURE3);
-    // glBindTexture(GL_TEXTURE_2D, curvatureTexture);
-    // glUniform1i(Shader.ParameterLocation("curvatureTexture"), 3);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, shadingTexture);
     glUniform1i(Shader.ParameterLocation("shadingTexture"), 4);
@@ -1173,7 +1146,6 @@ void MoleculeSESRenderer::displayNormalizedPositions() {
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
-    // glBindTexture(GL_TEXTURE_2D, *cur_positionTexture);
     glUniform1i(normalizePositionsShader.ParameterLocation("positionTexture"), 0);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, widthPyramid.get("fragMaxX"));
@@ -1224,7 +1196,8 @@ void MoleculeSESRenderer::displayNormals() {
 void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& Shader) {
 
     glDisable(GL_DEPTH_TEST);
-    if (currentCurvatureMode == EvansCurvature) {
+    // Wallace Curvature needs special treatment because a maximum depth value needs to be known
+    if (currentCurvatureMode == WallaceCurvature) {
         depth2Pyramid.pullShaderProgram.Enable();
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, positionTexture);
@@ -1252,7 +1225,6 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
-    // glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(Shader.ParameterLocation("tex_fragNormal"), 1);
     glGetError();
 
@@ -1276,6 +1248,8 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
 
     glDisable(GL_DEPTH_TEST);
     if (curvatureDiff) {
+        // display the difference between exact and approximated curvature if wanted
+        // Only possible if the exact curvature is known
         this->curvatureDiffShader.Enable();
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, exactCurvatureTexture);
@@ -1299,12 +1273,13 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
     else
         glBindTexture(GL_TEXTURE_2D, curvatureTexture);
 
+    // Use a colour map to display the data
     this->colormapShader.Enable();
     glUniform1i(colormapShader.ParameterLocation("curvDiffTexture"), 1);
     if (curvatureDiff)
-        glBindFramebuffer(GL_FRAMEBUFFER, curvatureFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, curvatureFBO); // This is free to receive new data
     else
-        glBindFramebuffer(GL_FRAMEBUFFER, curvDiffFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, curvDiffFBO); // In this case, this FBO is free
     glClearColor(1.0, 1.0, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
@@ -1321,6 +1296,7 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
         glBindTexture(GL_TEXTURE_2D, smoothCurvatureTexture[!curv_horizontal]);
     }
 
+    // This unfortunately seems to be necessary to make MegaMol display the data right. I don't know why... :(
     this->passThroughShader.Enable();
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
@@ -1346,14 +1322,6 @@ void MoleculeSESRenderer::CreateFBO() {
         glDeleteTextures(1, &exactCurvatureTexture);
         glDeleteTextures(1, &colourTexture);
     }
-    if (extendContourFBO) {
-        glDeleteFramebuffers(2, extendContourFBO);
-        glDeleteTextures(2, contourTexture);
-    }
-    if (timestepsFBO) {
-        glDeleteFramebuffers(3, extendContourFBO);
-        glDeleteTextures(3, contourTexture);
-    }
     if (curvatureFBO) {
         glDeleteFramebuffers(1, &curvatureFBO);
         glDeleteTextures(1, &curvatureTexture);
@@ -1376,11 +1344,8 @@ void MoleculeSESRenderer::CreateFBO() {
     }
     glGenFramebuffers(1, &curvDiffFBO);
     glGenFramebuffers(1, &contourFBO);
-    glGenFramebuffers(2, extendContourFBO);
     glGenTextures(2, contourTexture);
     glGenTextures(1, &curvDiffTexture);
-    glGenFramebuffers(3, timestepsFBO);
-    glGenTextures(3, timestepsTexture);
     glGenFramebuffers(1, &curvatureFBO);
     glGenFramebuffers(2, positionFBO);
     glGenTextures(2, smoothPositionTexture);
@@ -1462,45 +1427,6 @@ void MoleculeSESRenderer::CreateFBO() {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete contourFBO", this->ClassName());
     }
-
-    // extend Contour FBO
-    for (unsigned int i = 0; i < 2; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, this->extendContourFBO[i]);
-
-        // texture for contours
-        glBindTexture(GL_TEXTURE_2D, this->contourTexture[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, contourTexture[i], 0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete extendContourFBO", this->ClassName());
-        }
-    }
-    // timesteps FBO
-    for (unsigned int i = 0; i < 3; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, this->timestepsFBO[i]);
-
-        // texture for contours
-        glBindTexture(GL_TEXTURE_2D, this->timestepsTexture[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->width, this->height, 0, GL_RGBA, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, timestepsTexture[i], 0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            Log::DefaultLog.WriteMsg(Log::LEVEL_ERROR, "%: Unable to complete timestepsFBO", this->ClassName());
-            std::cout << i << std::endl;
-        }
-    }
-
 
     glBindFramebuffer(GL_FRAMEBUFFER, this->curvatureFBO);
 
@@ -2713,6 +2639,9 @@ vislib::math::Vector<float, 3> MoleculeSESRenderer::GetProteinAtomColor(unsigned
     else
         return vislib::math::Vector<float, 3>(0.5f, 0.5f, 0.5f);
 }
+
+
+// Create a cylinder model for testing purposes
 void MoleculeSESRenderer::Cylinder() {
     std::vector<float> vertices;
     std::vector<float> circle_vertices;
@@ -2786,12 +2715,9 @@ void MoleculeSESRenderer::Cylinder() {
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, (steps + 1) * 2 * 6 * sizeof(float), &vertices.data()[0], GL_STATIC_DRAW);
-    // glBufferData(GL_ARRAY_BUFFER, 36 * 3 * sizeof(float), &vertices_cube2[0], GL_STATIC_DRAW);
     glBindVertexArray(VAO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
-    // glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
@@ -2821,7 +2747,6 @@ void MoleculeSESRenderer::Cylinder() {
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(VAO);
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, (steps + 1) * 2);
 
     // Circle Top
@@ -2840,10 +2765,7 @@ void MoleculeSESRenderer::Cylinder() {
     circle = true;
     glUniform1f(cylinderShader.ParameterLocation("circle"), circle);
     glBindFramebuffer(GL_FRAMEBUFFER, contourFBO);
-    // glClearColor(1.0, 1.0, 1.0, 1.0);
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(circleVAO);
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glDrawArrays(GL_TRIANGLE_FAN, 0, (steps + 2));
     glBindVertexArray(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

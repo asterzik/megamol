@@ -172,8 +172,6 @@ namespace protein {
          */
         void SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader);
         void Contours(vislib::graphics::gl::GLSLShader& Shader);
-        void extendContours();
-        void smoothTimesteps();
 
         void displayPositions();
         void displayNormalizedPositions();
@@ -413,7 +411,7 @@ namespace protein {
         Color::ColoringMode currentColoringMode1;
 
         enum curvatureMode {
-            EvansCurvature,
+            WallaceCurvature,
             NormalCurvature,
             NormalAveragedCurvature,
             MeanCurvature,
@@ -429,7 +427,7 @@ namespace protein {
         };
         curvatureMode currentCurvatureMode;
         std::map<curvatureMode, vislib::graphics::gl::GLSLShader*> curvatureShaderMap = {
-            {EvansCurvature, &this->curvatureShader}, {NormalCurvature, &this->normalCurvatureShader},
+            {WallaceCurvature, &this->curvatureShader}, {NormalCurvature, &this->normalCurvatureShader},
             {NormalAveragedCurvature, &this->normalAveragedShader}, {MeanCurvature, &this->meanCurvatureShader},
             {PrantlMean, &this->prantlMeanShader}, {Prantl2Mean, &this->prantl2MeanShader},
             {PrantlRadial, &this->prantlRadialShader}, {Prantl2Radial, &this->prantl2RadialShader},
@@ -474,8 +472,6 @@ namespace protein {
         // FBOs and textures for postprocessing
         GLuint curvDiffFBO;
         GLuint contourFBO;
-        GLuint extendContourFBO[2];
-        GLuint timestepsFBO[3];
         GLuint curvatureFBO;
         GLuint positionFBO[2];
         GLuint normalFBO[2];
