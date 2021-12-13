@@ -307,8 +307,8 @@ namespace protein {
         megamol::core::param::ParamSlot cutOffParam;
         GLfloat cutOff;
         megamol::core::param::ParamSlot blurParam;
-        megamol::core::param::ParamSlot numBlurParam;
-        GLint numBlur;
+        megamol::core::param::ParamSlot NumNormBlurParam;
+        GLint numNormBlur;
         megamol::core::param::ParamSlot numPosBlurParam;
         GLint numPosBlur;
         megamol::core::param::ParamSlot numCurvBlurParam;
@@ -334,12 +334,6 @@ namespace protein {
         /** the reduced surface(s) */
         std::vector<ReducedSurface*> reducedSurface;
 
-        // The pull-push pyramids
-        Pyramid normalPyramid;    // Normal smoothing
-        Pyramid positionPyramid;  // Position smoothing
-        Pyramid SCpyramid;        // Suggestive Contours using pull-push algorithm
-        Pyramid curvaturePyramid; // curvature smoothing
-
         // BBX pyramids
         Pyramid depthPyramid;  // Calculation of maximum view-space depth
         Pyramid depth2Pyramid; // Calculation of maximum view-space depth
@@ -363,7 +357,6 @@ namespace protein {
         vislib::graphics::gl::GLSLShader lightShader;
         // shader for contour generation
         vislib::graphics::gl::GLSLShader SC_Shader;
-        vislib::graphics::gl::GLSLShader SC_Curvature_Shader;
         vislib::graphics::gl::GLSLShader C_Curvature_Shader;
         vislib::graphics::gl::GLSLShader C_Shader;
         // shader for curvature calculation
@@ -443,10 +436,9 @@ namespace protein {
             {ShadingGrad, &this->shadingGradShader}, {ShadingGrad4N, &this->shadingGrad4NShader},
             {Sobel, &this->sobelShader}, {NormalDerivative, &this->normalDerivativeShader},
             {NormalPartial, &this->normalPartialShader}};
-        enum contourMode { Suggestive, SuggestiveAndCurvature, Shading, ShadingAndCurvature };
+        enum contourMode { Suggestive, Shading, ShadingAndCurvature };
         std::map<contourMode, vislib::graphics::gl::GLSLShader*> contourShaderMap = {{Suggestive, &this->SC_Shader},
-            {SuggestiveAndCurvature, &this->SC_Curvature_Shader}, {Shading, &this->C_Shader},
-            {ShadingAndCurvature, &this->C_Curvature_Shader}};
+            {Shading, &this->C_Shader}, {ShadingAndCurvature, &this->C_Curvature_Shader}};
         contourMode currentContourMode;
         enum blurMode { Gaussian, PeronaMalik, DepthSensitive, DepthGaussian };
         std::map<blurMode, vislib::graphics::gl::GLSLShader*> blurShaderMap = {{Gaussian, &this->gaussianBlurShader},

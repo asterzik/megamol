@@ -62,7 +62,7 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , colorTableFileParam("color::colorTableFilename", "The filename of the color table.")
         , offscreenRenderingParam("offscreenRendering", "Toggle offscreen rendering.")
         , probeRadiusSlot("probeRadius", "The probe radius for the surface computation")
-        , numBlurParam("# normal blurring iterations", " How many iterations of blurring for normals?")
+        , NumNormBlurParam("# normal blurring iterations", " How many iterations of blurring for normals?")
         , numPosBlurParam("# position blurring iterations", " How many iterations of blurring for positions?")
         , numCurvBlurParam("# curvature blurring iterations", " How many iterations of blurring for curvature?")
         , SCRadiusParam("SCRadius", "Radius to consider around one pixel for SC")
@@ -244,9 +244,9 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->depthDiffParam.SetParameter(new param::FloatParam(this->depthDiff));
     this->MakeSlotAvailable(&this->depthDiffParam);
 
-    this->numBlur = 1;
-    this->numBlurParam.SetParameter(new param::FloatParam(this->numBlur, 0.0));
-    this->MakeSlotAvailable(&this->numBlurParam);
+    this->numNormBlur = 1;
+    this->NumNormBlurParam.SetParameter(new param::FloatParam(this->numNormBlur, 0.0));
+    this->MakeSlotAvailable(&this->NumNormBlurParam);
 
     this->numPosBlur = 1;
     this->numPosBlurParam.SetParameter(new param::FloatParam(this->numPosBlur, 0.0));
@@ -433,14 +433,10 @@ bool MoleculeSESRenderer::create(void) {
     // shaders for contour drawing
     if (!this->loadShader(this->SC_Shader, "contours::vertex", "contours::contours::SC"))
         return false;
-    if (!this->loadShader(this->SC_Curvature_Shader, "contours::vertex", "contours::contours::SC_Curvature"))
-        return false;
     if (!this->loadShader(this->C_Shader, "contours::vertex", "contours::contours::C"))
         return false;
     if (!this->loadShader(this->C_Curvature_Shader, "contours::vertex", "contours::contours::C_Curvature"))
         return false;
-    // if (!this->loadShader(this->SCfromCurvatureShader, "contours::vertex", "contours::curvature::fragment"))
-    //     return false;
     if (!this->loadShader(this->curvatureShader, "contours::vertex", "contours::curvature::evans"))
         return false;
     if (!this->loadShader(this->normalCurvatureShader, "contours::vertex", "contours::curvature::normal"))
@@ -747,7 +743,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         if (this->numPosBlur > 0) {
             this->SmoothPositions(*blurShaderMap[currentBlurMode]);
         }
-        if (this->numBlur > 0) {
+        if (this->numNormBlur > 0) {
             this->SmoothNormals(*blurShaderMap[currentBlurMode]);
         }
 
@@ -760,7 +756,7 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
         } else if (this->currentDisplayedProperty == Curvature) {
             renderCurvature(*curvatureShaderMap[currentCurvatureMode]);
         } else {
-            if (this->currentContourMode == Suggestive || this->currentContourMode == SuggestiveAndCurvature)
+            if (this->currentContourMode == Suggestive)
                 this->SuggestiveContours(*contourShaderMap[currentContourMode]);
             else
                 this->Contours(*contourShaderMap[currentContourMode]);
@@ -894,9 +890,9 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->cutOff = this->cutOffParam.Param<param::FloatParam>()->Value();
         this->cutOffParam.ResetDirty();
     }
-    if (this->numBlurParam.IsDirty()) {
-        this->numBlur = this->numBlurParam.Param<param::FloatParam>()->Value();
-        this->numBlurParam.ResetDirty();
+    if (this->NumNormBlurParam.IsDirty()) {
+        this->numNormBlur = this->NumNormBlurParam.Param<param::FloatParam>()->Value();
+        this->NumNormBlurParam.ResetDirty();
     }
     if (this->numPosBlurParam.IsDirty()) {
         this->numPosBlur = this->numPosBlurParam.Param<param::FloatParam>()->Value();
@@ -970,7 +966,7 @@ void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader
 
     normal_horizontal = true;
     bool first_iteration = true;
-    for (unsigned int i = 0; i < this->numBlur; i++) {
+    for (unsigned int i = 0; i < this->numNormBlur; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, normalFBO[normal_horizontal]);
         glUniform1i(Shader.ParameterLocation("horizontal"), normal_horizontal);
         glBindTexture(GL_TEXTURE_2D, first_iteration ? normalTexture : smoothNormalTexture[!normal_horizontal]);
@@ -1066,7 +1062,7 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1i(Shader.ParameterLocation("overlay"), this->overlay);
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     glActiveTexture(GL_TEXTURE1);
-    if (this->numBlur > 0) {
+    if (this->numNormBlur > 0) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!pos_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
@@ -1105,15 +1101,13 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
         SmoothCurvature(*blurShaderMap[this->currentBlurMode]);
     }
     glDisable(GL_DEPTH_TEST);
-    // auto shader = *contourShaderMap[this->currentContourMode];
     Shader.Enable();
     glActiveTexture(GL_TEXTURE1);
-    if (this->numBlur > 0) {
+    if (this->numNormBlur > 0) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!normal_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
-    // glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(Shader.ParameterLocation("normalTexture"), 1);
     glActiveTexture(GL_TEXTURE2);
     if (this->numPosBlur > 0) {
@@ -1121,7 +1115,6 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
-    // glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(Shader.ParameterLocation("positionTexture"), 2);
     glActiveTexture(GL_TEXTURE3);
     if (this->numCurvBlur > 0) {
@@ -1230,7 +1223,7 @@ void MoleculeSESRenderer::displayNormals() {
 
     passThroughShader.Enable();
     glActiveTexture(GL_TEXTURE0);
-    if (this->numBlur > 0) {
+    if (this->numNormBlur > 0) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!normal_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
@@ -1277,7 +1270,7 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     }
     glUniform1i(Shader.ParameterLocation("tex_fragPosition"), 0);
     glActiveTexture(GL_TEXTURE1);
-    if (this->numBlur > 0) {
+    if (this->numNormBlur > 0) {
         glBindTexture(GL_TEXTURE_2D, smoothNormalTexture[!normal_horizontal]);
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
