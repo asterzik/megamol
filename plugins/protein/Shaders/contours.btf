@@ -704,7 +704,6 @@
             uniform sampler2D shadingTexture;
             uniform float cutOff;
             uniform int level_max;
-            uniform int viewType;
             uniform bool whiteBackground;
             uniform bool overlay;
 
@@ -717,12 +716,7 @@
                 vec3 position = texelFetch(positionTexture, ivec2(gl_FragCoord.xy), 0).rgb;
                 vec3 lightdir;
                 float col;
-                if(viewType == 0){
-                    lightdir = vec3(0.0,0.0,1.0);
-                }
-                else{
-                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
-                }
+                lightdir = normalize(vec3(0.0, 0.0, 0.0) - position); 
                 col = dot(normal, lightdir);
                 if(col > cutOff){
                     if(overlay) FragColor = texelFetch(shadingTexture, ivec2(gl_FragCoord.xy), 0);
@@ -755,7 +749,6 @@
             uniform sampler2D colourTexture;
             uniform int level_max;
             uniform float cutOff;
-            uniform int viewType;
             uniform int height;
             uniform int width;
             
@@ -774,15 +767,7 @@
                 vec3 lightdir;
                 float col, curvature;
                 curvature = texelFetch(curvatureTexture, ivec2(gl_FragCoord.xy), 0).r;
-                //orthogonal projection
-                if(viewType == 0){
-                    lightdir = vec3(0.0,0.0,1.0);
-                }
-                //perspective projection
-                else{
-                    lightdir = normalize(vec3(0.0, 0.0, 0.0) - position.xyz); 
-                    // curvature *= (position.z / near_plane);
-                }
+                lightdir = normalize(vec3(0.0, 0.0, 0.0) - position.xyz); 
                 col =dot(normal, lightdir);
                 vec3 right = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) + ivec2(0,1), 0).rgb;
                 vec3 left = texelFetch(positionTexture, ivec2(gl_FragCoord.xy) - ivec2(0,1), 0).rgb;

@@ -73,10 +73,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
         , SCMedianFilterParam("SCMedianFilter", "Use median filter for suggestive contours?")
         , SCCircularNeighborhoodParam(
               "SCCircularNeighborhood", "Use circular neighborhood for suggestive contours? Alternative is quadratic.")
-        , ViewTypeParam("ViewType", "zDir: viewDir = (0,0,1), minusPos: viewdir = normalize(viewPos - fragPos) "
-                                    "(viewPos = vec3(0)), interpolate: interpolate between both.")
-        , OrthoProjParam("orthographic projection",
-              "Was orthographic projection used for the data generation? Other possibility perspective.")
         , TestCaseParam("testcase", "Use the test case? Otherwise real data.")
         , CylinderParam("cylinder", "Use the cylinder test case.")
         , cutOffParam("cut off point for contours",
@@ -166,16 +162,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->blurParam << cbp;
     this->MakeSlotAvailable(&this->blurParam);
 
-    // blur modes
-    this->currentViewType = minusPos;
-    param::EnumParam* cvt = new param::EnumParam(int(this->currentViewType));
-    constexpr auto& view_entries = magic_enum::enum_entries<viewType>();
-    for (int i = 0; i < magic_enum::enum_count<viewType>(); ++i) {
-        cvt->SetTypePair((int) view_entries[i].first, std::string(view_entries[i].second).c_str());
-    }
-    this->ViewTypeParam << cvt;
-    this->MakeSlotAvailable(&this->ViewTypeParam);
-
     // Color weighting parameter
     this->cmWeightParam.SetParameter(new param::FloatParam(0.5f, 0.0f, 1.0f));
     this->MakeSlotAvailable(&this->cmWeightParam);
@@ -241,10 +227,6 @@ MoleculeSESRenderer::MoleculeSESRenderer(void)
     this->SCCircularNeighborhood = true;
     this->SCCircularNeighborhoodParam.SetParameter(new param::BoolParam(this->SCCircularNeighborhood));
     this->MakeSlotAvailable(&this->SCCircularNeighborhoodParam);
-
-    this->orthoproj = false;
-    this->OrthoProjParam.SetParameter(new param::BoolParam(this->orthoproj));
-    this->MakeSlotAvailable(&this->OrthoProjParam);
 
     this->testcase = false;
     this->TestCaseParam.SetParameter(new param::BoolParam(this->testcase));
@@ -757,8 +739,6 @@ bool MoleculeSESRenderer::Render(view::CallRender3DGL& call) {
 
     if (testcase && cylinderBool)
         this->Cylinder();
-    else if (testcase && orthoproj)
-        this->RenderTestCase();
     else
         this->RenderSESGpuRaycasting(mol);
 
@@ -902,14 +882,6 @@ void MoleculeSESRenderer::UpdateParameters(const MolecularDataCall* mol, const B
         this->SCCircularNeighborhood = this->SCCircularNeighborhoodParam.Param<param::BoolParam>()->Value();
         this->SCCircularNeighborhoodParam.ResetDirty();
     }
-    if (this->ViewTypeParam.IsDirty()) {
-        this->currentViewType = static_cast<viewType>(this->ViewTypeParam.Param<param::EnumParam>()->Value());
-        this->ViewTypeParam.ResetDirty();
-    }
-    if (this->OrthoProjParam.IsDirty()) {
-        this->orthoproj = this->OrthoProjParam.Param<param::BoolParam>()->Value();
-        this->OrthoProjParam.ResetDirty();
-    }
     if (this->TestCaseParam.IsDirty()) {
         this->testcase = this->TestCaseParam.Param<param::BoolParam>()->Value();
         this->TestCaseParam.ResetDirty();
@@ -1014,29 +986,6 @@ void MoleculeSESRenderer::SmoothNormals(vislib::graphics::gl::GLSLShader& Shader
     glBindVertexArray(0);
     Shader.Disable();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // /*
-    //  * Execute Pull-Push algorithm for smoothing
-    //  */
-    // glDisable(GL_DEPTH_TEST);
-    // this->calculateTextureBBX();
-    // normalPyramid.pullShaderProgram.Enable();
-    // glActiveTexture(GL_TEXTURE1);
-    // glBindTexture(GL_TEXTURE_2D, this->normalTexture);
-    // glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("inputTex_fragNormal"), 1);
-    // glActiveTexture(GL_TEXTURE2);
-    // glBindTexture(GL_TEXTURE_2D, this->positionTexture);
-    // glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
-    // glActiveTexture(GL_TEXTURE3);
-    // glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
-    // glUniform1i(normalPyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
-    // glUniform1f(normalPyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
-    // normalPyramid.pushShaderProgram.Enable();
-    // glUniform1f(normalPyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
-
-    // normalPyramid.clear();
-    // normalPyramid.pull_until(this->pyramidLayers);
-    // normalPyramid.push_from(this->pyramidLayers);
-    // glEnable(GL_DEPTH_TEST);
 }
 void MoleculeSESRenderer::SmoothCurvature(vislib::graphics::gl::GLSLShader& Shader) {
     glDisable(GL_DEPTH_TEST);
@@ -1097,22 +1046,6 @@ void MoleculeSESRenderer::SmoothPositions(vislib::graphics::gl::GLSLShader& Shad
     glBindVertexArray(0);
     Shader.Disable();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // this->calculateTextureBBX();
-    // positionPyramid.pullShaderProgram.Enable();
-    // glActiveTexture(GL_TEXTURE2);
-    // glBindTexture(GL_TEXTURE_2D, positionTexture);
-    // glUniform1i(positionPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 2);
-    // glActiveTexture(GL_TEXTURE3);
-    // glBindTexture(GL_TEXTURE_2D, depthPyramid.get("fragMaxDepth"));
-    // glUniform1i(positionPyramid.pullShaderProgram.ParameterLocation("maxDepth_texture"), 3);
-    // glUniform1f(positionPyramid.pullShaderProgram.ParameterLocation("weightFactor"), this->pyramidWeight);
-    // positionPyramid.pushShaderProgram.Enable();
-    // glUniform1f(positionPyramid.pushShaderProgram.ParameterLocation("gamma"), this->pyramidGamma);
-
-    // positionPyramid.clear();
-    // positionPyramid.pull_until(this->pyramidLayers);
-    // positionPyramid.push_from(this->pyramidLayers);
-    // glEnable(GL_DEPTH_TEST);
 }
 
 void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& Shader) {
@@ -1126,7 +1059,6 @@ void MoleculeSESRenderer::SuggestiveContours(vislib::graphics::gl::GLSLShader& S
     glUniform1f(Shader.ParameterLocation("intensityDiffThreshold"), this->SCDiffThreshold);
     glUniform1i(Shader.ParameterLocation("medianFilter"), this->SCMedianFilter);
     glUniform1i(Shader.ParameterLocation("circularNeighborhood"), this->SCCircularNeighborhood);
-    glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
     glUniform1f(Shader.ParameterLocation("cutOff"), this->cutOff);
     glUniform1i(Shader.ParameterLocation("whiteBackground"), this->whiteBackground);
     glUniform1i(Shader.ParameterLocation("width"), this->width);
@@ -1205,8 +1137,6 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     glBindTexture(GL_TEXTURE_2D, colourTexture);
     glUniform1i(Shader.ParameterLocation("colourTexture"), 5);
     glUniform1f(Shader.ParameterLocation("cutOff"), cutOff);
-    glUniform1i(Shader.ParameterLocation("viewType"), this->currentViewType);
-    glUniform1i(Shader.ParameterLocation("orthoproj"), this->orthoproj);
     float near_plane = this->cameraInfo.near_clipping_plane();
     glUniform1f(Shader.ParameterLocation("near_plane"), near_plane);
     glUniform1i(Shader.ParameterLocation("level_max"), this->bbx_levelMax);
@@ -1222,25 +1152,7 @@ void MoleculeSESRenderer::Contours(vislib::graphics::gl::GLSLShader& Shader) {
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
-
-
-    // GLuint64 startTime, stopTime;
-    // unsigned int queryID[2];
-    // glGenQueries(2, queryID);
-    // glQueryCounter(queryID[0], GL_TIMESTAMP);
-
     glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    // glQueryCounter(queryID[1], GL_TIMESTAMP);
-    // GLint stopTimerAvailable = 0;
-    // while (!stopTimerAvailable) {
-    //     glGetQueryObjectiv(queryID[1], GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
-    // }
-
-    // glGetQueryObjectui64v(queryID[0], GL_QUERY_RESULT, &startTime);
-    // glGetQueryObjectui64v(queryID[1], GL_QUERY_RESULT, &stopTime);
-
-    // printf("Time spent on the GPU for drawing the contours: %f ms\n", (stopTime - startTime) / 1000000.0);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     Shader.Disable();
@@ -1256,7 +1168,6 @@ void MoleculeSESRenderer::displayPositions() {
     } else {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
     }
-    // glBindTexture(GL_TEXTURE_2D, *this->cur_positionTexture);
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glGetError();
 
@@ -1324,7 +1235,6 @@ void MoleculeSESRenderer::displayNormals() {
     } else {
         glBindTexture(GL_TEXTURE_2D, normalTexture);
     }
-    // glBindTexture(GL_TEXTURE_2D, *this->cur_normalTexture);
     glUniform1i(passThroughShader.ParameterLocation("screenTexture"), 0);
     glGetError();
 
@@ -1358,12 +1268,6 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
         glUniform1i(Shader.ParameterLocation("level_max"), depth2Pyramid.getMipmapNumber());
     }
 
-
-    // GLuint64 elapsed_time;
-    // GLuint query;
-    // glGenQueries(1, &query);
-    // glFinish();
-    // glBeginQuery(GL_TIME_ELAPSED, query);
     Shader.Enable();
     glActiveTexture(GL_TEXTURE0);
     if (this->numPosBlur > 0) {
@@ -1391,17 +1295,6 @@ void MoleculeSESRenderer::calculateCurvature(vislib::graphics::gl::GLSLShader& S
     glEnable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(0);
-    // glFinish();
-    // glEndQuery(GL_TIME_ELAPSED);
-
-    // GLint stopTimerAvailable = 0;
-    // while (!stopTimerAvailable) {
-    //     glGetQueryObjectiv(query, GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
-    // }
-
-    // glGetQueryObjectui64v(query, GL_QUERY_RESULT, &elapsed_time);
-
-    // printf("Time spent on the GPU for computing the curvature: %f ms\n", elapsed_time / 1000000.0);
 }
 
 void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shader) {
@@ -1435,20 +1328,9 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
         glBindTexture(GL_TEXTURE_2D, curvDiffTexture);
     else
         glBindTexture(GL_TEXTURE_2D, curvatureTexture);
-    // widthPyramid.pullShaderProgram.Enable();
-    // glUniform1i(widthPyramid.pullShaderProgram.ParameterLocation("inputTex_fragPosition"), 1);
-
-    // widthPyramid.clear();
-    // widthPyramid.pull();
-
-    // this->bbx_levelMax = widthPyramid.getMipmapNumber();
 
     this->colormapShader.Enable();
     glUniform1i(colormapShader.ParameterLocation("curvDiffTexture"), 1);
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, widthPyramid.get("fragMaxX"));
-    // glUniform1i(colormapShader.ParameterLocation("widthTexture"), 0);
-    // glUniform1i(colormapShader.ParameterLocation("level_max"), this->bbx_levelMax);
     if (curvatureDiff)
         glBindFramebuffer(GL_FRAMEBUFFER, curvatureFBO);
     else
@@ -1479,22 +1361,7 @@ void MoleculeSESRenderer::renderCurvature(vislib::graphics::gl::GLSLShader& Shad
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(quadVAO);
-    // GLuint64 startTime, stopTime;
-    // unsigned int queryID[2];
-    // glGenQueries(2, queryID);
-    // glQueryCounter(queryID[0], GL_TIMESTAMP);
-
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    // glQueryCounter(queryID[1], GL_TIMESTAMP);
-    // GLint stopTimerAvailable = 0;
-    // while (!stopTimerAvailable) {
-    //     glGetQueryObjectiv(queryID[1], GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
-    // }
-
-    // glGetQueryObjectui64v(queryID[0], GL_QUERY_RESULT, &startTime);
-    // glGetQueryObjectui64v(queryID[1], GL_QUERY_RESULT, &stopTime);
-
-    // printf("Time spent on the GPU for pass through: %f ms\n", (stopTime - startTime) / 1000000.0);
     glEnable(GL_DEPTH_TEST);
     glBindVertexArray(0);
 }
@@ -3010,115 +2877,4 @@ void MoleculeSESRenderer::Cylinder() {
     glDrawArrays(GL_TRIANGLE_FAN, 0, (steps + 2));
     glBindVertexArray(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-/*
- * Render two spheres, one big one small for testing purposes
- */
-void MoleculeSESRenderer::RenderTestCase() {
-    unsigned int VBO, VAO;
-    glGenBuffers(1, &VBO);
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, 3 * 4 * sizeof(float), NULL, GL_STATIC_DRAW);
-    // fill buffer
-    float pos[9] = {-0.2, 0, 1, 0.7, 0, 1, 0.2, 0, -2};
-    float col[3] = {0.2, 0.7, 0.2};
-    float* positions = &pos[0];
-    float* colors = &col[0];
-    int posSize = 9 * sizeof(float);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, posSize, positions);
-    glBufferSubData(GL_ARRAY_BUFFER, posSize, 3 * sizeof(float), colors);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*) (intptr_t)(posSize));
-    glBindVertexArray(0);
-    // scale coordinates such that they lie in cube with edges [-1,1].
-    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, -3.0f);
-    glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, viewPos.z));
-    // float radiusSphere = 0.2; // radius for the spheres representing the atoms
-    testCaseShader.Enable();
-    // ------
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glm::mat4 proj;
-    proj = glm::ortho(-1.0f, 3.0f, -1.0f, 1.0f, 1.0f, 10.0f);
-
-    glUniformMatrix4fv(testCaseShader.ParameterLocation("view"), 1, false, &view[0][0]);
-    glUniformMatrix4fv(testCaseShader.ParameterLocation("proj"), 1, false, &proj[0][0]);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_POINTS, 0, 3);
-}
-/*
- * Render two spheres, one big one small for testing purposes
- */
-void MoleculeSESRenderer::RenderPerspectiveTestCase() {
-    unsigned int VBO, VAO;
-    glGenBuffers(1, &VBO);
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // fill buffer
-    float positions[] = {
-        1.0f, 1.0f, 0.0f,   // top right
-        1.0f, -1.0f, 0.0f,  // bottom right
-        -1.0f, 1.0f, 0.0f,  // top left
-                            // second triangle
-        1.0f, -1.0f, 0.0f,  // bottom right
-        -1.0f, -1.0f, 0.0f, // bottom left
-        -1.0f, 1.0f, 0.0f   // top left
-    };
-    glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-
-    // scale coordinates such that they lie in cube with edges [-1,1].
-    glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, -3.0f);
-    glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(viewPos.x, viewPos.y, viewPos.z));
-    // float radiusSphere = 0.2; // radius for the spheres representing the atoms
-    perspectiveTestCaseShader.Enable();
-    // ------
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float) this->width / (float) this->height, 0.1f, 10.0f);
-    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("view"), 1, false, &view[0][0]);
-    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("proj"), 1, false, &proj[0][0]);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBindVertexArray(VAO);
-
-    // first sphere
-    float radius = 0.2;
-    glm::mat4 model = glm::mat4(1.0);
-    model = glm::translate(model, glm::vec3(-0.2, 0.0, 1.0));
-    model = glm::scale(model, glm::vec3(radius));
-    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("model"), 1, false, &model[0][0]);
-    glUniform1f(perspectiveTestCaseShader.ParameterLocation("radius"), radius);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    // second sphere
-    radius = 0.7;
-    model = glm::mat4(1.0);
-    model = glm::translate(model, glm::vec3(0.7, 0.0, 1.0));
-    model = glm::scale(model, glm::vec3(radius));
-    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("model"), 1, false, &model[0][0]);
-    glUniform1f(perspectiveTestCaseShader.ParameterLocation("radius"), radius);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    // third sphere
-    radius = 0.2;
-    model = glm::mat4(1.0);
-    model = glm::translate(model, glm::vec3(0.2, 0.0, -2.0));
-    model = glm::scale(model, glm::vec3(radius));
-    glUniformMatrix4fv(perspectiveTestCaseShader.ParameterLocation("model"), 1, false, &model[0][0]);
-    glUniform1f(perspectiveTestCaseShader.ParameterLocation("radius"), radius);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
