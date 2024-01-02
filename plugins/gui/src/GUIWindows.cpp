@@ -2597,7 +2597,9 @@ bool megamol::gui::GUIWindows::create_not_existing_png_filepath(std::string& ino
                 auto last_id_str = filename.substr(separator_index + 1);
                 try {
                     this->state.screenshot_filepath_id = std::stoi(last_id_str);
-                } catch (...) { new_separator = true; }
+                } catch (...) {
+                    new_separator = true;
+                }
                 this->state.screenshot_filepath_id++;
                 if (new_separator) {
                     this->state.screenshot_filepath =
